@@ -35,7 +35,6 @@ transformers==5.17.0
 httpx==0.28.1
 pillow-avif-plugin==1.6.0
 diffusers==0.40.0
-gradio_imageslider==0.0.20
 loadimg==0.5.0
 tqdm==4.70.1
 peft==0.20.0

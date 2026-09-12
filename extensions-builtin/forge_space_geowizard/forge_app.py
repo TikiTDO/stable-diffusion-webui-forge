@@ -11,8 +11,6 @@ import numpy as np
 import torch as torch
 from PIL import Image
 
-from gradio_imageslider import ImageSlider
-
 import spaces
 
 
