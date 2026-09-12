@@ -128,16 +128,20 @@ async def async_move_files_to_cache(data, block, postprocess=False, check_in_upl
                     if keep_in_cache:
                         block.keep_in_cache.add(payload.path)
 
-        url_prefix = "/stream/" if payload.is_stream else "/file="
+        # Gradio 5+ serves files under its API prefix (`/gradio_api/file=`); the bare `/file=`
+        # this copy was made with is a 404 there, which blanked every gallery image.
+        from gradio.route_utils import API_PREFIX
+
+        url_prefix = f"{API_PREFIX}/stream/" if payload.is_stream else f"{API_PREFIX}/file="
         if block.proxy_url:
             proxy_url = block.proxy_url.rstrip("/")
-            url = f"/proxy={proxy_url}{url_prefix}{payload.path}"
+            url = f"{API_PREFIX}/proxy={proxy_url}{url_prefix}{client_utils.encode_file_path(payload.path)}"
         elif client_utils.is_http_url_like(payload.path) or payload.path.startswith(
             f"{url_prefix}"
         ):
             url = payload.path
         else:
-            url = f"{url_prefix}{payload.path}"
+            url = f"{url_prefix}{client_utils.encode_file_path(payload.path)}"
         payload.url = url
 
         return payload.model_dump()
