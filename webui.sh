@@ -153,7 +153,7 @@ case "$gpu_info" in
     *"Navi 2"*) export HSA_OVERRIDE_GFX_VERSION=10.3.0
     ;;
     *"Navi 3"*) [[ -z "${TORCH_COMMAND}" ]] && \
-         export TORCH_COMMAND="pip install torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm5.7"
+         export TORCH_COMMAND="pip install --upgrade torch==2.13.0 torchvision==0.28.0 torchaudio==2.13.0 --index-url https://download.pytorch.org/whl/rocm7.1"
     ;;
     *"Renoir"*) export HSA_OVERRIDE_GFX_VERSION=9.0.0
         printf "\n%s\n" "${delimiter}"
@@ -167,10 +167,10 @@ if ! echo "$gpu_info" | grep -q "NVIDIA";
 then
     if echo "$gpu_info" | grep -q "AMD" && [[ -z "${TORCH_COMMAND}" ]]
     then
-	      export TORCH_COMMAND="pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.7"
+        export TORCH_COMMAND="pip install --upgrade torch==2.13.0 torchvision==0.28.0 torchaudio==2.13.0 --index-url https://download.pytorch.org/whl/rocm7.1"
     elif npu-smi info 2>/dev/null
     then
-        export TORCH_COMMAND="pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu; pip install torch_npu==2.1.0"
+        export TORCH_COMMAND="pip install --upgrade torch==2.12.0 torchvision==0.27.0 torchaudio==2.12.0 --index-url https://download.pytorch.org/whl/cpu; pip install --upgrade torch_npu==2.12.0"
     fi
 fi
 
@@ -214,7 +214,7 @@ then
     if [[ ! -d "${venv_dir}" ]]
     then
         "${python_cmd}" -m venv "${venv_dir}"
-        "${venv_dir}"/bin/python -m pip install --upgrade pip
+        "${venv_dir}"/bin/python -m pip install --upgrade pip setuptools wheel
         first_launch=1
     fi
     # shellcheck source=/dev/null

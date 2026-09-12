@@ -1,25 +1,27 @@
 import launch
-import pkg_resources
 import sys
 import os
 import shutil
 import platform
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional
+
+from packaging.version import Version
 
 
 repo_root = Path(__file__).parent
 main_req_file = repo_root / "requirements.txt"
 
 
-def comparable_version(version: str) -> Tuple:
-    return tuple(map(int, version.split(".")))
+def comparable_version(package_version: str) -> Version:
+    return Version(package_version)
 
 
 def get_installed_version(package: str) -> Optional[str]:
     try:
-        return pkg_resources.get_distribution(package).version
-    except Exception:
+        return version(package)
+    except PackageNotFoundError:
         return None
 
 
