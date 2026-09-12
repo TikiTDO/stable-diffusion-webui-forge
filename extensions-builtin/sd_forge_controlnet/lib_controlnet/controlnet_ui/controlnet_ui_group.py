@@ -20,7 +20,6 @@ from modules.ui_components import FormRow
 from modules_forge.utils import HWC3
 from lib_controlnet.external_code import UiControlNetUnit
 from modules.ui_components import ToolButton
-from gradio_rangeslider import RangeSlider
 from modules_forge.forge_canvas.canvas import ForgeCanvas
 
 
@@ -205,7 +204,6 @@ class ControlNetUiGroup(object):
         self.model = None
         self.refresh_models = None
         self.weight = None
-        self.timestep_range = None
         self.guidance_start = None
         self.guidance_end = None
         self.advanced = None
@@ -468,22 +466,24 @@ class ControlNetUiGroup(object):
                 elem_id=f"{elem_id_tabname}_{tabname}_controlnet_control_weight_slider",
                 elem_classes="controlnet_control_weight_slider",
             )
-            self.timestep_range = RangeSlider(
-                label='Timestep Range',
+            self.guidance_start = gr.Slider(
+                label="Guidance Start",
                 minimum=0,
                 maximum=1.0,
-                value=(self.default_unit.guidance_start, self.default_unit.guidance_end),
-                elem_id=f"{elem_id_tabname}_{tabname}_controlnet_control_step_slider",
-                elem_classes="controlnet_control_step_slider",
+                step=0.01,
+                value=self.default_unit.guidance_start,
+                elem_id=f"{elem_id_tabname}_{tabname}_controlnet_guidance_start_slider",
+                elem_classes="controlnet_guidance_start_slider",
             )
-            self.guidance_start = gr.State(self.default_unit.guidance_start)
-            self.guidance_end = gr.State(self.default_unit.guidance_end)
-
-        self.timestep_range.change(
-            lambda x: (x[0], x[1]),
-            inputs=[self.timestep_range],
-            outputs=[self.guidance_start, self.guidance_end]
-        )
+            self.guidance_end = gr.Slider(
+                label="Guidance End",
+                minimum=0,
+                maximum=1.0,
+                step=0.01,
+                value=self.default_unit.guidance_end,
+                elem_id=f"{elem_id_tabname}_{tabname}_controlnet_guidance_end_slider",
+                elem_classes="controlnet_guidance_end_slider",
+            )
 
         # advanced options
         with gr.Column(visible=False) as self.advanced:

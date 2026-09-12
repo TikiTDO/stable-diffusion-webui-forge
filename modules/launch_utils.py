@@ -394,7 +394,6 @@ def prepare_environment():
 
     xformers_package = os.environ.get('XFORMERS_PACKAGE', 'xformers==0.0.35')
     xformers_index_url = os.environ.get('XFORMERS_INDEX_URL', torch_index_url)
-    rangeslider_package = os.environ.get('RANGESLIDER_PACKAGE', 'gradio_rangeslider==0.0.8')
     clip_package = os.environ.get('CLIP_PACKAGE', "https://github.com/openai/CLIP/archive/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6.zip")
     openclip_package = os.environ.get('OPENCLIP_PACKAGE', "open-clip-torch==3.3.0")
 
@@ -481,14 +480,6 @@ def prepare_environment():
     if not requirements_met(requirements_file):
         run_pip(f"install -r \"{requirements_file}\"", "requirements")
         startup_timer.record("install requirements")
-
-    # The current RangeSlider release caps its metadata at Gradio 5 even though
-    # Forge is deliberately testing the Gradio 6 runtime. Keep this isolated so
-    # the rest of the dependency graph can be resolved normally; the component
-    # itself is exercised during the UI boot below.
-    if not is_installed("gradio_rangeslider"):
-        run_pip(f"install --no-deps {rangeslider_package}", "RangeSlider component")
-        startup_timer.record("install RangeSlider component")
 
     if not os.path.isfile(requirements_file_for_npu):
         requirements_file_for_npu = os.path.join(script_path, requirements_file_for_npu)
