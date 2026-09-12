@@ -21,6 +21,32 @@ This design deliberately follows restoration of the inherited generation
 surface. It must not become a reason to leave txt2img, img2img, VAE, LoRA, or
 ControlNet partially working.
 
+## Supported product boundary
+
+The Diffusatory supports two model families:
+
+- **SDXL**
+- **Flux**
+
+SD 1.x and SD 2.x are not compatibility targets. Their preset, controls,
+model-specific branches, tests, documentation, and dependencies may be
+removed when they are not also required by SDXL or Flux. This needs traced
+deletion rather than a search for symbols named `sd`: Forge uses that name
+generically in many paths that still own SDXL behavior.
+
+The primary authoring loop is similarly narrow:
+
+- txt2img, img2img, and inpaint;
+- checkpoints, VAEs/text encoders, embeddings, and LoRAs;
+- IP-Adapter, depth, lineart, OpenPose, and related ControlNet inputs;
+- native regional composition;
+- deterministic prompt expansion for brainstorming and story progressions.
+
+Other inherited Forge/A1111 surfaces have no product-preservation claim merely
+because they exist. Shared backend machinery survives when one of these paths
+uses it; unrelated surface area should not dictate the new information
+architecture.
+
 ## Reference implementations
 
 The source studies are pinned so later implementation can distinguish what we
@@ -39,6 +65,16 @@ interfaces around Forge's own processing and backend seams.
 ## The user experience
 
 Prompt composition should have three views of the same object.
+
+At the application level those views sit inside one creative loop:
+
+1. **Create** — choose model assets and author the initial render.
+2. **Compose** — assign prompts, masks, regions, references, and adapters.
+3. **Guide** — inspect pose, depth, lineart, and other conditioning signals.
+4. **Iterate** — move results directly into img2img or inpaint without losing
+   the recipe or source relation.
+5. **Explore** — resolve prompt sets and compare a progression.
+6. **Reproduce** — save the editable recipe and the exact realization together.
 
 ### 1. Source
 
