@@ -6,7 +6,6 @@ import socket
 import gradio as gr
 import importlib.util
 
-from gradio.context import Context
 from threading import Thread
 from huggingface_hub import snapshot_download
 from backend import memory_management
@@ -90,11 +89,19 @@ class ForgeSpace:
         self.allow_patterns = allow_patterns
         self.ignore_patterns = ignore_patterns
 
-        self.label = gr.HTML(build_html(title=title, url=None), elem_classes=['forge_space_label'])
-        self.btn_launch = gr.Button('Launch', elem_classes=['forge_space_btn'])
-        self.btn_terminate = gr.Button('Terminate', elem_classes=['forge_space_btn'])
-        self.btn_install = gr.Button('Install', elem_classes=['forge_space_btn'])
-        self.btn_uninstall = gr.Button('Uninstall', elem_classes=['forge_space_btn'])
+        installed = os.path.exists(self.hf_path)
+        requirements_filename = os.path.abspath(os.path.realpath(os.path.join(self.root_path, 'requirements.txt')))
+        has_requirement = os.path.exists(requirements_filename)
+
+        self.label = gr.HTML(build_html(title=title, installed=installed, url=None), elem_classes=['forge_space_label'])
+        self.btn_launch = gr.Button('Launch', interactive=installed, elem_classes=['forge_space_btn'])
+        self.btn_terminate = gr.Button('Terminate', interactive=False, elem_classes=['forge_space_btn'])
+        self.btn_install = gr.Button(
+            'Reinstall' if installed and has_requirement else 'Install',
+            interactive=not (installed and not has_requirement),
+            elem_classes=['forge_space_btn'],
+        )
+        self.btn_uninstall = gr.Button('Uninstall', interactive=installed, elem_classes=['forge_space_btn'])
 
         comps = [
             self.label,
@@ -108,8 +115,6 @@ class ForgeSpace:
         self.btn_terminate.click(self.terminate, outputs=comps)
         self.btn_install.click(self.install, outputs=comps)
         self.btn_uninstall.click(self.uninstall, outputs=comps)
-        Context.root_block.load(self.refresh_gradio, outputs=comps, queue=False, show_progress=False)
-
         return
 
     def refresh_gradio(self):

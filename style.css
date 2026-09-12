@@ -1,6 +1,6 @@
 /* temporary fix to load default gradio font in frontend instead of backend */
 
-@import url('webui-assets/css/sourcesanspro.css');
+@import url('../webui-assets/css/sourcesanspro.css');
 
 /* general gradio fixes */
 
@@ -11,7 +11,7 @@
 }
 
 .block.padded:not(.gradio-accordion) {
-    padding: 0 !important;
+    padding: 0.5rem 0.625rem !important;
 }
 
 div.gradio-container{
@@ -53,7 +53,7 @@ div.gradio-group, div.styler{
 }
 .gap.compact{
     padding: 0;
-    gap: 0.2em 0;
+    gap: 0.5rem;
 }
 
 div.compact{
@@ -468,34 +468,72 @@ div.toprow-compact-tools{
     display: block;
 }
 
-#settings > div{
+#settings > .tabitem{
     border: none;
-    margin-left: 10em;
+    margin-left: 14em;
+    width: calc(100% - 14em);
+    box-sizing: border-box;
     padding: 0 var(--spacing-xl);
 }
 
-#settings > div.tab-nav{
+#settings > .tab-wrapper{
     float: left;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
     margin-left: 0;
-    width: 10em;
+    width: 14em;
 }
 
-#settings > div.tab-nav button{
+#settings > .tab-wrapper > .tab-container[aria-hidden="true"]{
+    display: none;
+}
+
+#settings > .tab-wrapper > [role="tablist"]{
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    height: auto !important;
+    overflow: visible;
+}
+
+#settings > .tab-wrapper > .overflow-menu{
+    display: none;
+}
+
+#settings > .tab-wrapper > [role="tablist"] button{
     display: block;
+    width: 100%;
     border: none;
     text-align: left;
     white-space: initial;
     padding: 4px;
 }
 
-#settings > div.tab-nav .settings-category{
+#settings > .tab-wrapper .settings-category{
     display: block;
     margin: 1em 0 0.25em 0;
     font-weight: bold;
     text-decoration: underline;
     cursor: default;
     user-select: none;
+}
+
+#settings > .tab-wrapper .settings-tools{
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+#settings > .tab-wrapper .settings-search{
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0 var(--spacing-md);
+    border: var(--button-border-width, 1px) solid var(--border-color-primary);
+    border-radius: var(--radius-md);
+    color: var(--body-text-color);
+    background: var(--input-background-fill);
 }
 
 #settings_result{
@@ -931,7 +969,7 @@ footer {
     margin-bottom: 1em;
 }
 
-.extra-networks > div.tab-nav{
+.extra-networks [role="tablist"]{
     min-height: 2.7rem;
 }
 
@@ -944,20 +982,20 @@ footer {
     margin: 0.3em;
 }
 
-.extra-networks .tab-nav .search,
-.extra-networks .tab-nav .sort
+.extra-networks [role="tablist"] .search,
+.extra-networks [role="tablist"] .sort
 {
     margin: 0.3em;
     align-self: center;
     width: auto;
 }
 
-.extra-networks .tab-nav .search {
+.extra-networks [role="tablist"] .search {
     width: 16em;
     max-width: 16em;
 }
 
-.extra-networks .tab-nav .sort {
+.extra-networks [role="tablist"] .sort {
     width: 12em;
     max-width: 12em;
 }

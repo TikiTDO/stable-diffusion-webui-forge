@@ -1,71 +1,67 @@
-let settingsExcludeTabsFromShowAll = {
-    settings_tab_defaults: 1,
-    settings_tab_sysinfo: 1,
-    settings_tab_actions: 1,
-    settings_tab_licenses: 1,
-};
+function setupSettingsUI() {
+    var settings = gradioApp().getElementById('settings');
+    var wrapper = settings?.querySelector(':scope > .tab-wrapper');
+    var pageButtons = wrapper?.querySelector('[role="tablist"]');
 
-function settingsShowAllTabs() {
-    gradioApp().querySelectorAll('#settings > div').forEach(function(elem) {
-        if (settingsExcludeTabsFromShowAll[elem.id]) return;
+    if (!settings || !wrapper || !pageButtons || wrapper.dataset.settingsUiReady) return;
 
-        elem.style.display = "block";
-    });
-}
+    var tools = document.createElement('div');
+    tools.className = 'settings-tools';
 
-function settingsShowOneTab() {
-    gradioApp().querySelector('#settings_show_one_page').click();
-}
+    var search = document.createElement('input');
+    search.type = 'search';
+    search.placeholder = 'Filter current page';
+    search.className = 'settings-search';
+    search.setAttribute('aria-label', 'Filter current settings page');
 
-onUiLoaded(function() {
-    var edit = gradioApp().querySelector('#settings_search');
-    var editTextarea = gradioApp().querySelector('#settings_search > label > input');
-    var buttonShowAllPages = gradioApp().getElementById('settings_show_all_pages');
-    var settings_tabs = gradioApp().querySelector('#settings div');
+    tools.append(search);
+    wrapper.insertBefore(tools, wrapper.firstChild);
+    wrapper.dataset.settingsUiReady = 'true';
 
-    onEdit('settingsSearch', editTextarea, 250, function() {
-        var searchText = (editTextarea.value || "").trim().toLowerCase();
+    onEdit('settingsSearch', search, 250, function() {
+        var searchText = (search.value || '').trim().toLowerCase();
 
-        gradioApp().querySelectorAll('#settings > div[id^=settings_] div[id^=column_settings_] > *').forEach(function(elem) {
-            var visible = elem.textContent.trim().toLowerCase().indexOf(searchText) != -1;
-            elem.style.display = visible ? "" : "none";
+        gradioApp().querySelectorAll('#settings > .tabitem:not([style*="display: none"]) div[id^=column_settings_] > *').forEach(function(elem) {
+            var visible = elem.textContent.trim().toLowerCase().includes(searchText);
+            elem.style.display = visible ? '' : 'none';
         });
-
-        if (searchText != "") {
-            settingsShowAllTabs();
-        } else {
-            settingsShowOneTab();
-        }
     });
 
-    settings_tabs.insertBefore(edit, settings_tabs.firstChild);
-    settings_tabs.appendChild(buttonShowAllPages);
+    pageButtons.addEventListener('click', function() {
+        search.value = '';
+        search.dispatchEvent(new Event('input', {bubbles: true}));
+    });
+}
+
+onUiLoaded(setupSettingsUI);
+onAfterUiUpdate(setupSettingsUI);
 
 
-    buttonShowAllPages.addEventListener("click", settingsShowAllTabs);
-});
+function addSettingsCategories() {
+    if (!Array.isArray(opts._categories)) return;
 
-
-onOptionsChanged(function() {
-    if (gradioApp().querySelector('#settings .settings-category')) return;
+    var pageButtons = gradioApp().querySelector('#settings > .tab-wrapper > [role="tablist"]');
+    if (!pageButtons) return;
 
     var sectionMap = {};
-    gradioApp().querySelectorAll('#settings > div > button').forEach(function(x) {
-        sectionMap[x.textContent.trim()] = x;
+    pageButtons.querySelectorAll(':scope > button').forEach(function(button) {
+        sectionMap[button.textContent.trim()] ??= button;
     });
 
     opts._categories.forEach(function(x) {
         var section = localization[x[0]] ?? x[0];
         var category = localization[x[1]] ?? x[1];
-
-        var span = document.createElement('SPAN');
-        span.textContent = category;
-        span.className = 'settings-category';
-
         var sectionElem = sectionMap[section];
-        if (!sectionElem) return;
+        if (!sectionElem || sectionElem.dataset.settingsCategoryReady) return;
 
-        sectionElem.parentElement.insertBefore(span, sectionElem);
+        var heading = document.createElement('span');
+        heading.textContent = category;
+        heading.className = 'settings-category';
+
+        pageButtons.insertBefore(heading, sectionElem);
+        sectionElem.dataset.settingsCategoryReady = 'true';
     });
-});
+}
 
+onOptionsChanged(addSettingsCategories);
+onAfterUiUpdate(addSettingsCategories);

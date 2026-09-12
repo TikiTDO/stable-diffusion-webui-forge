@@ -69,9 +69,6 @@ class UiSettings:
     quicksettings_list = None
     quicksettings_names = None
     text_settings = None
-    show_all_pages = None
-    show_one_page = None
-    search_input = None
 
     def run_settings(self, *args):
         changed = []
@@ -202,13 +199,10 @@ class UiSettings:
                 with gr.TabItem("Licenses", id="licenses", elem_id="settings_tab_licenses"):
                     gr.HTML(shared.html("licenses.html"), elem_id="licenses")
 
-                self.show_all_pages = gr.Button(value="Show all pages", elem_id="settings_show_all_pages")
-                self.show_one_page = gr.Button(value="Show only one page", elem_id="settings_show_one_page", visible=False)
-                self.show_one_page.click(lambda: None)
-
-                self.search_input = gr.Textbox(value="", elem_id="settings_search", max_lines=1, placeholder="Search...", show_label=False)
-
-                self.text_settings = gr.Textbox(elem_id="settings_json", value=lambda: opts.dumpjson(), visible=False)
+            # This is a JavaScript state bridge, not part of the Settings
+            # screen. Render it once at the app root so options are available
+            # before Gradio lazily mounts the Settings tab.
+            self.text_settings = gr.Textbox(elem_id="settings_json", value=opts.dumpjson(), visible="hidden", render=False)
 
             def call_func_and_return_text(func, text):
                 def handler():
@@ -342,17 +336,6 @@ class UiSettings:
             outputs=[main_entry.ui_checkpoint, main_entry.ui_vae, self.text_settings],
         )
 
-        component_keys = [k for k in opts.data_labels.keys() if k in self.component_dict]
-
-        def get_settings_values():
-            return [get_value_for_setting(key) for key in component_keys]
-
-        demo.load(
-            fn=get_settings_values,
-            inputs=[],
-            outputs=[self.component_dict[k] for k in component_keys],
-            queue=False,
-        )
 
     def search(self, text):
         print(text)

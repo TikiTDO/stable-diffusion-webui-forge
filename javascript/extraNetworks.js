@@ -16,9 +16,7 @@ function toggleCss(key, css, enable) {
 }
 
 function setupExtraNetworksForTab(tabname) {
-    function registerPrompt(tabname, id) {
-        var textarea = gradioApp().querySelector("#" + id + " > label > textarea");
-
+    function registerPrompt(tabname, textarea) {
         if (!activePromptTextarea[tabname]) {
             activePromptTextarea[tabname] = textarea;
         }
@@ -28,7 +26,10 @@ function setupExtraNetworksForTab(tabname) {
         });
     }
 
-    var tabnav = gradioApp().querySelector('#' + tabname + '_extra_tabs > div.tab-nav');
+    var tabnav = gradioApp().querySelector('#' + tabname + '_extra_tabs [role="tablist"]');
+    var prompt = gradioApp().querySelector('#' + tabname + '_prompt textarea');
+    var negativePrompt = gradioApp().querySelector('#' + tabname + '_neg_prompt textarea');
+    if (!tabnav || !prompt || !negativePrompt || tabnav.querySelector('.extra-networks-controls-div')) return;
     var controlsDiv = document.createElement('DIV');
     controlsDiv.classList.add('extra-networks-controls-div');
     tabnav.appendChild(controlsDiv);
@@ -156,8 +157,8 @@ function setupExtraNetworksForTab(tabname) {
         }
     });
 
-    registerPrompt(tabname, tabname + "_prompt");
-    registerPrompt(tabname, tabname + "_neg_prompt");
+    registerPrompt(tabname, prompt);
+    registerPrompt(tabname, negativePrompt);
 }
 
 function extraNetworksMovePromptToTab(tabname, id, showPrompt, showNegativePrompt) {
@@ -749,7 +750,7 @@ function scheduleAfterScriptsCallbacks() {
 onUiLoaded(function() {
     var mutationObserver = new MutationObserver(function(m) {
         let existingSearchfields = gradioApp().querySelectorAll("[id$='_extra_search']").length;
-        let neededSearchfields = gradioApp().querySelectorAll("[id$='_extra_tabs'] > .tab-nav > button").length - 2;
+        let neededSearchfields = gradioApp().querySelectorAll("[id$='_extra_tabs'] [role='tablist'] > button").length - 2;
 
         if (!executedAfterScripts && existingSearchfields >= neededSearchfields) {
             mutationObserver.disconnect();

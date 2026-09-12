@@ -125,12 +125,14 @@ class Toprow:
                 self.button_interrogate = ToolButton('📎', tooltip='Interrogate CLIP - use CLIP neural network to create a text describing the image, and put it into the prompt field', elem_id="interrogate")
                 self.button_deepbooru = ToolButton('📦', tooltip='Interrogate DeepBooru - use DeepBooru neural network to create a text describing the image, and put it into the prompt field', elem_id="deepbooru")
 
-            self.restore_progress_button = ToolButton(value=restore_progress_symbol, elem_id=f"{self.id_part}_restore_progress", visible=False, tooltip="Restore progress")
+            self.restore_progress_button = ToolButton(value=restore_progress_symbol, elem_id=f"{self.id_part}_restore_progress", visible="hidden", tooltip="Restore progress")
 
-            self.token_counter = gr.HTML(value="<span>0/75</span>", elem_id=f"{self.id_part}_token_counter", elem_classes=["token-counter"], visible=False)
-            self.token_button = gr.Button(visible=False, elem_id=f"{self.id_part}_token_button")
-            self.negative_token_counter = gr.HTML(value="<span>0/75</span>", elem_id=f"{self.id_part}_negative_token_counter", elem_classes=["token-counter"], visible=False)
-            self.negative_token_button = gr.Button(visible=False, elem_id=f"{self.id_part}_negative_token_button")
+            # Gradio 6 no longer mounts ``visible=False`` components. These are
+            # intentionally hidden DOM bridges used by the prompt JS.
+            self.token_counter = gr.HTML(value="<span>0/75</span>", elem_id=f"{self.id_part}_token_counter", elem_classes=["token-counter"], visible="hidden")
+            self.token_button = gr.Button(visible="hidden", elem_id=f"{self.id_part}_token_button")
+            self.negative_token_counter = gr.HTML(value="<span>0/75</span>", elem_id=f"{self.id_part}_negative_token_counter", elem_classes=["token-counter"], visible="hidden")
+            self.negative_token_button = gr.Button(visible="hidden", elem_id=f"{self.id_part}_negative_token_button")
 
             self.clear_prompt_button.click(
                 fn=lambda *x: x,

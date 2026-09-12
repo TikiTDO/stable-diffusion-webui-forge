@@ -250,6 +250,10 @@ function restoreProgressImg2img() {
 function setupResolutionPasting(tabname) {
     var width = gradioApp().querySelector(`#${tabname}_width input[type=number]`);
     var height = gradioApp().querySelector(`#${tabname}_height input[type=number]`);
+
+    if (!width || !height || width.dataset.resolutionPasteReady) return;
+    width.dataset.resolutionPasteReady = "true";
+
     for (const el of [width, height]) {
         el.addEventListener('paste', function(event) {
             var pasteData = event.clipboardData.getData('text/plain');
@@ -268,6 +272,11 @@ function setupResolutionPasting(tabname) {
 onUiLoaded(function() {
     showRestoreProgressButton('txt2img', localGet("txt2img_task_id"));
     showRestoreProgressButton('img2img', localGet("img2img_task_id"));
+    setupResolutionPasting('txt2img');
+    setupResolutionPasting('img2img');
+});
+
+onAfterUiUpdate(function() {
     setupResolutionPasting('txt2img');
     setupResolutionPasting('img2img');
 });
@@ -299,15 +308,14 @@ function confirm_clear_prompt(prompt, negative_prompt) {
 
 
 var opts = {};
-onAfterUiUpdate(function() {
+function loadOptionsFromBridge() {
     if (Object.keys(opts).length != 0) return;
 
     var json_elem = gradioApp().getElementById('settings_json');
-    if (json_elem == null) return;
+    var textarea = json_elem?.querySelector('textarea');
+    if (!textarea?.value) return;
 
-    var textarea = json_elem.querySelector('textarea');
-    var jsdata = textarea.value;
-    opts = JSON.parse(jsdata);
+    opts = JSON.parse(textarea.value);
 
     executeCallbacks(optionsAvailableCallbacks); /*global optionsAvailableCallbacks*/
     executeCallbacks(optionsChangedCallbacks); /*global optionsChangedCallbacks*/
@@ -331,7 +339,65 @@ onAfterUiUpdate(function() {
     });
 
     json_elem.parentElement.style.display = "none";
-});
+}
+
+var galleryImageLoadingObserver = null;
+var galleryImageLoadingRoot = null;
+
+function loadGalleryImage(img) {
+    var source = img.getAttribute('src');
+    if (!source || img.dataset.eagerSource == source) return;
+
+    img.dataset.eagerSource = source;
+    img.loading = 'eager';
+
+    // Gradio can add a lazy image while its tab is hidden. Chromium then leaves
+    // it pending even after the gallery becomes visible. Reassigning the source
+    // after opting out of lazy loading starts the request without changing the
+    // generated-image URL.
+    if (!img.complete) {
+        img.removeAttribute('src');
+        img.setAttribute('src', source);
+    }
+}
+
+function setupGalleryImageLoading() {
+    var root = gradioApp();
+    var selector = '#txt2img_gallery img[src], #img2img_gallery img[src]';
+
+    if (galleryImageLoadingRoot != root) {
+        galleryImageLoadingObserver?.disconnect();
+        galleryImageLoadingRoot = root;
+        galleryImageLoadingObserver = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type == 'attributes') {
+                    if (mutation.target.matches(selector)) loadGalleryImage(mutation.target);
+                    return;
+                }
+
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType != Node.ELEMENT_NODE) return;
+                    if (node.matches(selector)) loadGalleryImage(node);
+                    node.querySelectorAll(selector).forEach(loadGalleryImage);
+                });
+            });
+        });
+        galleryImageLoadingObserver.observe(root, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['src'],
+        });
+    }
+
+    root.querySelectorAll(selector).forEach(loadGalleryImage);
+}
+
+onUiLoaded(loadOptionsFromBridge);
+onAfterUiUpdate(loadOptionsFromBridge);
+setTimeout(loadOptionsFromBridge, 0);
+onUiLoaded(setupGalleryImageLoading);
+onAfterUiUpdate(setupGalleryImageLoading);
 
 onOptionsChanged(function() {
     var elem = gradioApp().getElementById('sd_checkpoint_hash');

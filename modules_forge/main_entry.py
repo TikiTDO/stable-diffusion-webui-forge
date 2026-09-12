@@ -2,7 +2,6 @@ import os
 import torch
 import gradio as gr
 
-from gradio.context import Context
 from modules import shared_items, shared, ui_common, sd_models, processing, infotext_utils, paths, ui_loadsave
 from backend import memory_management, stream
 from backend.args import dynamic_args
@@ -62,19 +61,19 @@ def make_checkpoint_manager_ui():
         if len(sd_models.checkpoints_list) > 0:
             shared.opts.set('sd_model_checkpoint', next(iter(sd_models.checkpoints_list.values())).name)
 
-    ui_forge_preset = gr.Radio(label="UI", value=lambda: shared.opts.forge_preset, choices=['sd', 'xl', 'flux', 'all'], elem_id="forge_ui_preset")
+    ui_forge_preset = gr.Radio(label="UI", value=shared.opts.forge_preset, choices=['sd', 'xl', 'flux', 'all'], elem_id="forge_ui_preset")
 
     ckpt_list, vae_list = refresh_models()
 
     ui_checkpoint = gr.Dropdown(
-        value=lambda: shared.opts.sd_model_checkpoint,
+        value=shared.opts.sd_model_checkpoint,
         label="Checkpoint",
         elem_classes=['model_selection'],
         choices=ckpt_list
     )
 
     ui_vae = gr.Dropdown(
-        value=lambda: [os.path.basename(x) for x in shared.opts.forge_additional_modules],
+        value=[os.path.basename(x) for x in shared.opts.forge_additional_modules],
         multiselect=True,
         label="VAE / Text Encoder",
         render=False,
@@ -93,22 +92,14 @@ def make_checkpoint_manager_ui():
         show_progress=False,
         queue=False
     )
-    Context.root_block.load(
-        fn=gr_refresh_models,
-        inputs=[],
-        outputs=[ui_checkpoint, ui_vae],
-        show_progress=False,
-        queue=False
-    )
-
     ui_vae.render()
 
-    ui_forge_unet_storage_dtype_options = gr.Dropdown(label="Diffusion in Low Bits", value=lambda: shared.opts.forge_unet_storage_dtype, choices=list(forge_unet_storage_dtype_options.keys()))
+    ui_forge_unet_storage_dtype_options = gr.Dropdown(label="Diffusion in Low Bits", value=shared.opts.forge_unet_storage_dtype, choices=list(forge_unet_storage_dtype_options.keys()))
     bind_to_opts(ui_forge_unet_storage_dtype_options, 'forge_unet_storage_dtype', save=True, callback=refresh_model_loading_parameters)
 
-    ui_forge_async_loading = gr.Radio(label="Swap Method", value=lambda: shared.opts.forge_async_loading, choices=['Queue', 'Async'])
-    ui_forge_pin_shared_memory = gr.Radio(label="Swap Location", value=lambda: shared.opts.forge_pin_shared_memory, choices=['CPU', 'Shared'])
-    ui_forge_inference_memory = gr.Slider(label="GPU Weights (MB)", value=lambda: total_vram - shared.opts.forge_inference_memory, minimum=0, maximum=int(memory_management.total_vram), step=1)
+    ui_forge_async_loading = gr.Radio(label="Swap Method", value=shared.opts.forge_async_loading, choices=['Queue', 'Async'])
+    ui_forge_pin_shared_memory = gr.Radio(label="Swap Location", value=shared.opts.forge_pin_shared_memory, choices=['CPU', 'Shared'])
+    ui_forge_inference_memory = gr.Slider(label="GPU Weights (MB)", value=total_vram - shared.opts.forge_inference_memory, minimum=0, maximum=int(memory_management.total_vram), step=1)
 
     mem_comps = [ui_forge_inference_memory, ui_forge_async_loading, ui_forge_pin_shared_memory]
 
@@ -116,9 +107,12 @@ def make_checkpoint_manager_ui():
     ui_forge_async_loading.change(ui_refresh_memory_management_settings, inputs=mem_comps, queue=False, show_progress=False)
     ui_forge_pin_shared_memory.change(ui_refresh_memory_management_settings, inputs=mem_comps, queue=False, show_progress=False)
 
-    Context.root_block.load(ui_refresh_memory_management_settings, inputs=mem_comps, queue=False, show_progress=False)
+    # These values already exist in ``shared.opts`` while the interface is
+    # constructed. Applying them here avoids a redundant browser-load event
+    # that leaves every control unstable while Gradio replays initial state.
+    refresh_memory_management_settings()
 
-    ui_clip_skip = gr.Slider(label="Clip skip", value=lambda: shared.opts.CLIP_stop_at_last_layers, **{"minimum": 1, "maximum": 12, "step": 1})
+    ui_clip_skip = gr.Slider(label="Clip skip", value=shared.opts.CLIP_stop_at_last_layers, **{"minimum": 1, "maximum": 12, "step": 1})
     bind_to_opts(ui_clip_skip, 'CLIP_stop_at_last_layers', save=True)
 
     ui_checkpoint.change(checkpoint_change, inputs=[ui_checkpoint], show_progress=False)
@@ -326,7 +320,12 @@ def forge_main_entry():
 
     ui_forge_preset.change(on_preset_change, inputs=[ui_forge_preset], outputs=output_targets, queue=False, show_progress=False)
     ui_forge_preset.change(js="clickLoraRefresh", fn=None, queue=False, show_progress=False)
-    Context.root_block.load(on_preset_change, inputs=None, outputs=output_targets, queue=False, show_progress=False)
+    # The preset is also known at construction time. Seed the component config
+    # directly instead of repainting twenty controls after the page mounts.
+    for component, update in zip(output_targets, on_preset_change()):
+        for key in ('value', 'visible', 'interactive'):
+            if key in update:
+                setattr(component, key, update[key])
 
     refresh_model_loading_parameters()
     return

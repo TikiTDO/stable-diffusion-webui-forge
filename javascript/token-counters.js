@@ -46,11 +46,14 @@ function recalculate_prompts_img2img() {
 function setupTokenCounting(id, id_counter, id_button) {
     var prompt = gradioApp().getElementById(id);
     var counter = gradioApp().getElementById(id_counter);
-    var textarea = gradioApp().querySelector(`#${id} > label > textarea`);
+    var textarea = prompt?.querySelector('textarea, input');
 
-    if (counter.parentElement == prompt.parentElement) {
+    if (!prompt || !counter || !textarea || counter.dataset.tokenCounterReady) {
         return;
     }
+
+    counter.dataset.tokenCounterReady = "true";
+    counter.classList.remove("hidden");
 
     prompt.parentElement.insertBefore(counter, prompt);
     prompt.parentElement.style.position = "relative";
@@ -66,6 +69,7 @@ function setupTokenCounting(id, id_counter, id_button) {
 
 function toggleTokenCountingVisibility(id, id_counter, id_button) {
     var counter = gradioApp().getElementById(id_counter);
+    if (!counter) return;
 
     counter.style.display = opts.disable_token_counters ? "none" : "block";
     counter.classList.toggle("token-counter-visible", !opts.disable_token_counters);
@@ -79,6 +83,12 @@ function runCodeForTokenCounters(fun) {
 }
 
 onUiLoaded(function() {
+    runCodeForTokenCounters(setupTokenCounting);
+});
+
+// Gradio 6 mounts tab contents lazily. Initialise counters when their prompt
+// appears instead of assuming every tab existed at first paint.
+onAfterUiUpdate(function() {
     runCodeForTokenCounters(setupTokenCounting);
 });
 
