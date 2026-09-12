@@ -1,5 +1,3 @@
-import os
-import sys
 from collections import namedtuple
 from pathlib import Path
 import re
@@ -10,7 +8,7 @@ import torch.hub
 from torchvision import transforms
 from torchvision.transforms.functional import InterpolationMode
 
-from modules import devices, paths, shared, modelloader, errors
+from modules import devices, shared, errors
 from backend import memory_management
 from backend.patcher.base import ModelPatcher
 
@@ -94,10 +92,8 @@ class InterrogateModels:
         return self.loaded_categories
 
     def load_blip_model(self):
-        # transformers' own BLIP replaces the vendored Salesforce repository (a transformers 4
-        # BERT clone that no longer imports on 5). `Salesforce/blip-image-captioning-base` is the
-        # same ViT-B CapFilt-L captioning checkpoint the old `model_base_caption_capfilt_large.pth`
-        # was; the pixel pipeline in `generate_caption` is unchanged, so captions are too.
+        # Transformers' maintained BLIP implementation replaces the vendored Salesforce
+        # repository, whose old BERT clone no longer imports on Transformers 5.
         from transformers import BlipForConditionalGeneration, BlipProcessor
 
         name = 'Salesforce/blip-image-captioning-base'
