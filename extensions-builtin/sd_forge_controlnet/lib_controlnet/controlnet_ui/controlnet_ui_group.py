@@ -487,10 +487,14 @@ class ControlNetUiGroup(object):
 
         # advanced options
         with gr.Column(visible=False) as self.advanced:
+            # -1 is ControlNet's unresolved/default sentinel.  Gradio 6 validates
+            # every submitted Slider value, including hidden components, so the
+            # initial bounds must admit it.  Selecting a preprocessor replaces
+            # these bounds and values with that preprocessor's real parameters.
             self.processor_res = gr.Slider(
                 label="Preprocessor resolution",
                 value=self.default_unit.processor_res,
-                minimum=64,
+                minimum=-1,
                 maximum=2048,
                 visible=False,
                 interactive=True,
@@ -499,7 +503,7 @@ class ControlNetUiGroup(object):
             self.threshold_a = gr.Slider(
                 label="Threshold A",
                 value=self.default_unit.threshold_a,
-                minimum=64,
+                minimum=-1,
                 maximum=1024,
                 visible=False,
                 interactive=True,
@@ -508,7 +512,7 @@ class ControlNetUiGroup(object):
             self.threshold_b = gr.Slider(
                 label="Threshold B",
                 value=self.default_unit.threshold_b,
-                minimum=64,
+                minimum=-1,
                 maximum=1024,
                 visible=False,
                 interactive=True,

@@ -1,6 +1,5 @@
 # this scripts installs necessary requirements and launches main program in webui.py
 import logging
-import re
 import subprocess
 import os
 import shutil
@@ -42,10 +41,7 @@ def check_python_version():
     minor = sys.version_info.minor
     micro = sys.version_info.micro
 
-    if is_windows:
-        supported_minors = [10]
-    else:
-        supported_minors = [7, 8, 9, 10, 11]
+    supported_minors = [10, 11, 12, 13, 14]
 
     if not (major == 3 and minor in supported_minors):
         import modules.errors
@@ -53,13 +49,13 @@ def check_python_version():
         modules.errors.print_error_explanation(f"""
 INCOMPATIBLE PYTHON VERSION
 
-This program is tested with 3.10.6 Python, but you have {major}.{minor}.{micro}.
+This dependency set supports Python 3.10 through 3.14, but you have {major}.{minor}.{micro}.
 If you encounter an error with "RuntimeError: Couldn't install torch." message,
 or any other error regarding unsuccessful package (library) installation,
-please downgrade (or upgrade) to the latest version of 3.10 Python
+please use a supported Python version
 and delete current Python and "venv" folder in WebUI's directory.
 
-You can download 3.10 Python from here: https://www.python.org/downloads/release/python-3106/
+You can download Python from here: https://www.python.org/downloads/
 
 {"Alternatively, use a binary release of WebUI: https://github.com/AUTOMATIC1111/stable-diffusion-webui/releases/tag/v1.0.0-pre" if is_windows else ""}
 
@@ -139,6 +135,16 @@ def is_installed(package):
         return spec is not None
 
     return dist is not None
+
+
+def package_version_satisfies(package, specifier):
+    try:
+        version = importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+    from packaging.specifiers import SpecifierSet
+    return SpecifierSet(specifier).contains(version, prereleases=True)
 
 
 def repo_dir(name):
@@ -322,47 +328,47 @@ def run_extensions_installers(settings_file):
     return
 
 
-re_requirement = re.compile(r"\s*([-_a-zA-Z0-9]+)\s*(?:==\s*([-+_.a-zA-Z0-9]+))?\s*")
-
-
 def requirements_met(requirements_file):
     """
-    Does a simple parse of a requirements.txt file to determine if all rerqirements in it
-    are already installed. Returns True if so, False if not installed or parsing fails.
+    Determine whether every applicable requirement is already installed.
+
+    PEP 440 matching matters for accelerator builds: for example, ``torch==2.14.0``
+    must accept the installed ``2.14.0+cu130`` wheel instead of reinstalling the
+    complete environment on every launch.
     """
 
     import importlib.metadata
-    import packaging.version
+    from packaging.requirements import InvalidRequirement, Requirement
 
     with open(requirements_file, "r", encoding="utf8") as file:
         for line in file:
-            if line.strip() == "":
-                continue
-
-            m = re.match(re_requirement, line)
-            if m is None:
-                return False
-
-            package = m.group(1).strip()
-            version_required = (m.group(2) or "").strip()
-
-            if version_required == "":
+            line = line.strip()
+            if not line or line.startswith("#"):
                 continue
 
             try:
-                version_installed = importlib.metadata.version(package)
-            except Exception:
+                requirement = Requirement(line)
+            except InvalidRequirement:
                 return False
 
-            if packaging.version.parse(version_required) != packaging.version.parse(version_installed):
+            if requirement.marker and not requirement.marker.evaluate():
+                continue
+
+            try:
+                version_installed = importlib.metadata.version(requirement.name)
+            except importlib.metadata.PackageNotFoundError:
+                return False
+
+            if requirement.specifier and not requirement.specifier.contains(version_installed, prereleases=True):
                 return False
 
     return True
 
 
 def prepare_environment():
-    torch_index_url = os.environ.get('TORCH_INDEX_URL', "https://download.pytorch.org/whl/cu121")
-    torch_command = os.environ.get('TORCH_COMMAND', f"pip install torch==2.3.1 torchvision==0.18.1 --extra-index-url {torch_index_url}")
+    default_torch_command = 'TORCH_COMMAND' not in os.environ
+    torch_index_url = os.environ.get('TORCH_INDEX_URL', "https://download.pytorch.org/whl/cu130")
+    torch_command = os.environ.get('TORCH_COMMAND', f"pip install --upgrade torch==2.14.0 torchvision==0.29.0 --index-url {torch_index_url}")
     if args.use_ipex:
         if platform.system() == "Windows":
             # The "Nuullll/intel-extension-for-pytorch" wheels were built from IPEX source for Intel Arc GPU: https://github.com/intel/intel-extension-for-pytorch/tree/xpu-main
@@ -386,9 +392,11 @@ def prepare_environment():
     requirements_file = os.environ.get('REQS_FILE', "requirements_versions.txt")
     requirements_file_for_npu = os.environ.get('REQS_FILE_FOR_NPU', "requirements_npu.txt")
 
-    xformers_package = os.environ.get('XFORMERS_PACKAGE', 'xformers==0.0.27')
-    clip_package = os.environ.get('CLIP_PACKAGE', "https://github.com/openai/CLIP/archive/d50d76daa670286dd6cacf3bcd80b5e4823fc8e1.zip")
-    openclip_package = os.environ.get('OPENCLIP_PACKAGE', "https://github.com/mlfoundations/open_clip/archive/bb6e834e9c70d9c27d0dc3ecedeebeaeb1ffad6b.zip")
+    xformers_package = os.environ.get('XFORMERS_PACKAGE', 'xformers==0.0.35')
+    xformers_index_url = os.environ.get('XFORMERS_INDEX_URL', torch_index_url)
+    rangeslider_package = os.environ.get('RANGESLIDER_PACKAGE', 'gradio_rangeslider==0.0.8')
+    clip_package = os.environ.get('CLIP_PACKAGE', "https://github.com/openai/CLIP/archive/d05afc436d78f1c48dc0dbf8e5980a9d471f35f6.zip")
+    openclip_package = os.environ.get('OPENCLIP_PACKAGE', "open-clip-torch==3.3.0")
 
     assets_repo = os.environ.get('ASSETS_REPO', "https://github.com/AUTOMATIC1111/stable-diffusion-webui-assets.git")
     # stable_diffusion_repo = os.environ.get('STABLE_DIFFUSION_REPO', "https://github.com/Stability-AI/stablediffusion.git")
@@ -424,7 +432,11 @@ def prepare_environment():
     print(f"Version: {tag}")
     print(f"Commit hash: {commit}")
 
-    if args.reinstall_torch or not is_installed("torch") or not is_installed("torchvision"):
+    torch_outdated = default_torch_command and (
+        not package_version_satisfies("torch", "==2.14.0")
+        or not package_version_satisfies("torchvision", "==0.29.0")
+    )
+    if args.reinstall_torch or torch_outdated or not is_installed("torch") or not is_installed("torchvision"):
         run(f'"{python}" -m {torch_command}', "Installing torch and torchvision", "Couldn't install torch", live=True)
         startup_timer.record("install torch")
 
@@ -448,7 +460,7 @@ def prepare_environment():
         startup_timer.record("install open_clip")
 
     if (not is_installed("xformers") or args.reinstall_xformers) and args.xformers:
-        run_pip(f"install -U -I --no-deps {xformers_package}", "xformers")
+        run_pip(f"install -U -I --no-deps {xformers_package} --index-url {xformers_index_url}", "xformers")
         startup_timer.record("install xformers")
 
     if not is_installed("ngrok") and args.ngrok:
@@ -472,6 +484,14 @@ def prepare_environment():
     if not requirements_met(requirements_file):
         run_pip(f"install -r \"{requirements_file}\"", "requirements")
         startup_timer.record("install requirements")
+
+    # The current RangeSlider release caps its metadata at Gradio 5 even though
+    # Forge is deliberately testing the Gradio 6 runtime. Keep this isolated so
+    # the rest of the dependency graph can be resolved normally; the component
+    # itself is exercised during the UI boot below.
+    if not is_installed("gradio_rangeslider"):
+        run_pip(f"install --no-deps {rangeslider_package}", "RangeSlider component")
+        startup_timer.record("install RangeSlider component")
 
     if not os.path.isfile(requirements_file_for_npu):
         requirements_file_for_npu = os.path.join(script_path, requirements_file_for_npu)

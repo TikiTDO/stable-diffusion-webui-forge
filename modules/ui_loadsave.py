@@ -38,11 +38,16 @@ class UiLoadsave:
 
         assert not self.finalized_ui
 
-        def apply_field(obj, field, condition=None, init_field=None):
+        def config_key(obj, field):
             key = f"{path}/{field}"
 
             if getattr(obj, 'custom_script_source', None) is not None:
                 key = f"customscript/{obj.custom_script_source}/{key}"
+
+            return key
+
+        def apply_field(obj, field, condition=None, init_field=None):
+            key = config_key(obj, field)
 
             if getattr(obj, 'do_not_save_to_config', False):
                 return
@@ -51,6 +56,13 @@ class UiLoadsave:
 
             if isinstance(obj, gr.Accordion) and isinstance(x, InputAccordion) and field == 'value':
                 field = 'open'
+
+            if isinstance(obj, gr.Dropdown) and field == 'value' and obj.multiselect and saved_value == '':
+                # Gradio 3 serialized an empty multiselect as an empty string.
+                # Gradio 6 requires a list and rejects the entire event before
+                # its callback when that legacy value is submitted.
+                saved_value = []
+                self.ui_settings[key] = saved_value
 
             if saved_value is None:
                 value_in_gradio = getattr(obj, field)
@@ -84,6 +96,18 @@ class UiLoadsave:
             apply_field(x, 'maximum')
             apply_field(x, 'step')
 
+            # Gradio 6 rejects an event before its callback when any submitted
+            # slider value is outside the component bounds.  Older ui-config
+            # files could persist that state (ControlNet uses -1 as a default
+            # sentinel), so make the restored component internally valid and
+            # persist the migration instead of leaving Generate silently dead.
+            if x.value is not None and x.value < x.minimum:
+                x.minimum = x.value
+                self.ui_settings[config_key(x, 'minimum')] = x.minimum
+            if x.value is not None and x.value > x.maximum:
+                x.maximum = x.value
+                self.ui_settings[config_key(x, 'maximum')] = x.maximum
+
         if type(x) == gr.Radio:
             apply_field(x, 'value', lambda val: val in radio_choices(x))
 
@@ -100,7 +124,7 @@ class UiLoadsave:
             def check_dropdown(val):
                 choices = radio_choices(x)
                 if getattr(x, 'multiselect', False):
-                    return all(value in choices for value in val)
+                    return isinstance(val, (list, tuple)) and all(value in choices for value in val)
                 else:
                     return val in choices
 

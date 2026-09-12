@@ -1,14 +1,14 @@
-import pkg_resources
+from importlib.metadata import PackageNotFoundError, version
 
 from modules.launch_utils import run_pip
 
-target_bitsandbytes_version = '0.45.3'
+target_bitsandbytes_version = '0.50.2'
 
 
 def try_install_bnb():
     try:
-        bitsandbytes_version = pkg_resources.get_distribution('bitsandbytes').version
-    except Exception:
+        bitsandbytes_version = version('bitsandbytes')
+    except PackageNotFoundError:
         bitsandbytes_version = None
 
     try:

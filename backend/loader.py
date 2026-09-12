@@ -7,7 +7,7 @@ import backend.args
 import huggingface_guess
 
 from diffusers import DiffusionPipeline
-from transformers import modeling_utils
+from modules_forge.transformers_compat import no_init_weights
 
 from backend import memory_management
 from backend.utils import read_arbitrary_config, load_torch_file, beautiful_print_gguf_state_dict_statics
@@ -67,7 +67,7 @@ def load_huggingface_component(guess, component_name, lib_name, cls_name, repo_p
 
             to_args = dict(device=memory_management.cpu, dtype=memory_management.text_encoder_dtype())
 
-            with modeling_utils.no_init_weights():
+            with no_init_weights():
                 with using_forge_operations(**to_args, manual_cast_enabled=True):
                     model = IntegratedCLIP(CLIPTextModel, config, add_text_projection=True).to(**to_args)
 
@@ -98,11 +98,11 @@ def load_huggingface_component(guess, component_name, lib_name, cls_name, repo_p
                 print(f'Using Default T5 Data Type: {storage_dtype}')
 
             if storage_dtype in ['nf4', 'fp4', 'gguf']:
-                with modeling_utils.no_init_weights():
+                with no_init_weights():
                     with using_forge_operations(device=memory_management.cpu, dtype=memory_management.text_encoder_dtype(), manual_cast_enabled=False, bnb_dtype=storage_dtype):
                         model = IntegratedT5(config)
             else:
-                with modeling_utils.no_init_weights():
+                with no_init_weights():
                     with using_forge_operations(device=memory_management.cpu, dtype=storage_dtype, manual_cast_enabled=True):
                         model = IntegratedT5(config)
 

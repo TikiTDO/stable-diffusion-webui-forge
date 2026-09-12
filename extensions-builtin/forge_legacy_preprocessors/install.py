@@ -1,25 +1,25 @@
 import launch
-import pkg_resources
-import sys
 import os
 import shutil
-import platform
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional
+
+from packaging.version import Version
 
 
 repo_root = Path(__file__).parent
 main_req_file = repo_root / "requirements.txt"
 
 
-def comparable_version(version: str) -> Tuple:
-    return tuple(map(int, version.split(".")))
+def comparable_version(package_version: str) -> Version:
+    return Version(package_version)
 
 
 def get_installed_version(package: str) -> Optional[str]:
     try:
-        return pkg_resources.get_distribution(package).version
-    except Exception:
+        return version(package)
+    except PackageNotFoundError:
         return None
 
 
@@ -83,39 +83,10 @@ def try_install_from_wheel(pkg_name: str, wheel_url: str, version: Optional[str]
 
 
 def try_install_insight_face():
-    """Attempt to install insightface library. The library is necessary to use ip-adapter faceid.
-    Note: Building insightface library from source requires compiling C++ code, which should be avoided
-    in principle. Here the solution is to download a precompiled wheel."""
-    if get_installed_version("insightface") is not None:
-        return
-
-    default_win_wheel = "https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp310-cp310-win_amd64.whl"
-    wheel_url = os.environ.get("INSIGHTFACE_WHEEL", default_win_wheel)
-
-    system = platform.system().lower()
-    architecture = platform.machine().lower()
-    python_version = sys.version_info
-    if wheel_url != default_win_wheel or (
-        system == "windows"
-        and "amd64" in architecture
-        and python_version.major == 3
-        and python_version.minor == 10
-    ):
-        try:
-            launch.run_pip(
-                f"install {wheel_url}",
-                "forge_legacy_preprocessor requirement: insightface",
-            )
-        except Exception as e:
-            print(e)
-            print(
-                "Legacy Preprocessor init warning: Unable to install insightface automatically. "
-            )
-    else:
-        print(
-            "Legacy Preprocessor init warning: Unable to install insightface automatically. "
-            "Please try run `pip install insightface` manually."
-        )
+    """Install the portable InsightFace release used by FaceID preprocessors."""
+    package = os.environ.get("INSIGHTFACE_WHEEL", "insightface==2.0")
+    required_version = None if "INSIGHTFACE_WHEEL" in os.environ else "2.0"
+    try_install_from_wheel("insightface", package, version=required_version)
 
 
 def try_remove_legacy_submodule():
