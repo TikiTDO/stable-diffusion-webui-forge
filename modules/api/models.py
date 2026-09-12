@@ -221,9 +221,13 @@ _options = vars(parser)['_option_string_actions']
 for key in _options:
     if(_options[key].dest != 'help'):
         flag = _options[key]
+        # A flag with no default was typed `str | None` regardless of its parser `type`, so a set
+        # `--port 7870` (an int) failed response validation and the endpoint 500'd.
         _type = str | None
-        if _options[key].default is not None:
-            _type = type(_options[key].default)
+        if flag.default is not None:
+            _type = type(flag.default)
+        elif isinstance(flag.type, type):
+            _type = flag.type | None
         flags.update({flag.dest: (_type, Field(default=flag.default, description=flag.help))})
 
 FlagsModel = create_model("Flags", **flags)

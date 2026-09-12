@@ -80,10 +80,13 @@ def patch_all_basics():
 
     from huggingface_hub.file_download import _download_to_tmp_and_move as original_download_to_tmp_and_move
 
-    def patched_download_to_tmp_and_move(incomplete_path, destination_path, url_to_download, proxies, headers, expected_size, filename, force_download):
+    # The patch only lengthens the two paths; the rest of the signature has changed under it more
+    # than once (`proxies` left, `etag` / `xet_file_data` / `tqdm_class` arrived), so pass every
+    # other argument through untouched.
+    def patched_download_to_tmp_and_move(incomplete_path, destination_path, *args, **kwargs):
         incomplete_path = long_path_prefix(incomplete_path)
         destination_path = long_path_prefix(destination_path)
-        return original_download_to_tmp_and_move(incomplete_path, destination_path, url_to_download, proxies, headers, expected_size, filename, force_download)
+        return original_download_to_tmp_and_move(incomplete_path, destination_path, *args, **kwargs)
 
     file_download._download_to_tmp_and_move = patched_download_to_tmp_and_move
 

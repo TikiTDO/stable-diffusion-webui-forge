@@ -2,7 +2,7 @@ import torch
 from backend import operations, memory_management
 from backend.patcher.base import ModelPatcher
 
-from modules_forge.transformers_compat import no_init_weights
+from backend.transformers_compat import no_init_weights
 
 
 class DiffusersModelPatcher:

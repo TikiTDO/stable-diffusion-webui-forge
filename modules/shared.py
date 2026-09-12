@@ -45,7 +45,9 @@ options_templates: dict = None
 opts: options.Options = None
 restricted_opts: set[str] = None
 
-sd_model = None
+# `sd_model` is a property of the module's class (`shared_items.Shared`), not a global. A same-named
+# global beside it makes CPython 3.14's specialized module-attribute load return the global on every
+# read after the first (measured 3.14.7; 3.13 is unaffected), so there must be none here.
 
 settings_components: dict = None
 """assigned from ui.py, a mapping on setting names to gradio components responsible for those settings"""

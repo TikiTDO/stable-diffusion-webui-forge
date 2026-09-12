@@ -7,7 +7,7 @@ import backend.args
 import huggingface_guess
 
 from diffusers import DiffusionPipeline
-from modules_forge.transformers_compat import no_init_weights
+from backend.transformers_compat import no_init_weights
 
 from backend import memory_management
 from backend.utils import read_arbitrary_config, load_torch_file, beautiful_print_gguf_state_dict_statics
