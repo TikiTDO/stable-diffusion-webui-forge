@@ -160,7 +160,9 @@ def main() -> int:
         code, body, elapsed = call(args.base, "sdapi/v1/interrogate", {"image": source, "model": "clip"})
         ok, note = verdict(code, body, dict)
         if ok:
-            note = f"caption {json.dumps(body.get('caption'))[:80]}"
+            caption = body.get("caption")
+            ok = isinstance(caption, str) and bool(caption.strip()) and "<error>" not in caption.lower()
+            note = f"caption {json.dumps(caption)[:80]}"
         record("interrogate", ok, note, elapsed)
 
     all_404 = all((not r["ok"] and r["note"].startswith("HTTP 404")) for r in rows if "/" not in r["endpoint"])
