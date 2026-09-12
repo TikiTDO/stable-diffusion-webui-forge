@@ -2,10 +2,9 @@ import os
 import torch
 import gradio as gr
 
-from modules import shared_items, shared, ui_common, sd_models, processing, infotext_utils, paths, ui_loadsave
+from modules import shared_items, shared, ui_common, sd_models, processing, infotext_utils, paths
 from backend import memory_management, stream
 from backend.args import dynamic_args
-from modules.shared import cmd_opts
 
 
 total_vram = int(memory_management.total_vram)
@@ -37,6 +36,7 @@ forge_unet_storage_dtype_options = {
 }
 
 module_list = {}
+supported_presets = ('xl', 'flux')
 
 
 def bind_to_opts(comp, k, save=False, callback=None):
@@ -61,7 +61,16 @@ def make_checkpoint_manager_ui():
         if len(sd_models.checkpoints_list) > 0:
             shared.opts.set('sd_model_checkpoint', next(iter(sd_models.checkpoints_list.values())).name)
 
-    ui_forge_preset = gr.Radio(label="UI", value=shared.opts.forge_preset, choices=['sd', 'xl', 'flux', 'all'], elem_id="forge_ui_preset")
+    if shared.opts.forge_preset not in supported_presets:
+        shared.opts.set('forge_preset', 'xl')
+        shared.opts.save(shared.config_filename)
+
+    ui_forge_preset = gr.Radio(
+        label="Model family",
+        value=shared.opts.forge_preset,
+        choices=[('SDXL', 'xl'), ('Flux', 'flux')],
+        elem_id="forge_ui_preset",
+    )
 
     ckpt_list, vae_list = refresh_models()
 
@@ -333,32 +342,10 @@ def forge_main_entry():
 
 def on_preset_change(preset=None):
     if preset is not None:
+        if preset not in supported_presets:
+            raise ValueError(f"unsupported model family preset: {preset}")
         shared.opts.set('forge_preset', preset)
         shared.opts.save(shared.config_filename)
-
-    if shared.opts.forge_preset == 'sd':
-        return [
-            gr.update(visible=True),                                                    # ui_vae
-            gr.update(visible=True, value=1),                                           # ui_clip_skip
-            gr.update(visible=False, value='Automatic'),                                # ui_forge_unet_storage_dtype_options
-            gr.update(visible=False, value='Queue'),                                    # ui_forge_async_loading
-            gr.update(visible=False, value='CPU'),                                      # ui_forge_pin_shared_memory
-            gr.update(visible=False, value=total_vram - 1024),                          # ui_forge_inference_memory
-            gr.update(value=getattr(shared.opts, "sd_t2i_width", 512)),                 # ui_txt2img_width
-            gr.update(value=getattr(shared.opts, "sd_i2i_width", 512)),                 # ui_img2img_width
-            gr.update(value=getattr(shared.opts, "sd_t2i_height", 640)),                # ui_txt2img_height
-            gr.update(value=getattr(shared.opts, "sd_i2i_height", 512)),                # ui_img2img_height
-            gr.update(value=getattr(shared.opts, "sd_t2i_cfg", 7)),                     # ui_txt2img_cfg
-            gr.update(value=getattr(shared.opts, "sd_i2i_cfg", 7)),                     # ui_img2img_cfg
-            gr.update(visible=False, value=3.5),                                        # ui_txt2img_distilled_cfg
-            gr.update(visible=False, value=3.5),                                        # ui_img2img_distilled_cfg
-            gr.update(value=getattr(shared.opts, "sd_t2i_sampler", 'Euler a')),         # ui_txt2img_sampler
-            gr.update(value=getattr(shared.opts, "sd_i2i_sampler", 'Euler a')),         # ui_img2img_sampler
-            gr.update(value=getattr(shared.opts, "sd_t2i_scheduler", 'Automatic')),     # ui_txt2img_scheduler
-            gr.update(value=getattr(shared.opts, "sd_i2i_scheduler", 'Automatic')),     # ui_img2img_scheduler
-            gr.update(visible=True, value=getattr(shared.opts, "sd_t2i_hr_cfg", 7.0)),  # ui_txt2img_hr_cfg
-            gr.update(visible=False, value=3.5),                                        # ui_txt2img_hr_distilled_cfg
-        ]
 
     if shared.opts.forge_preset == 'xl':
         model_mem = getattr(shared.opts, "xl_GPU_MB", total_vram - 1024)
@@ -414,41 +401,9 @@ def on_preset_change(preset=None):
             gr.update(visible=True, value=getattr(shared.opts, "flux_t2i_hr_d_cfg", 3.5)),  # ui_txt2img_hr_distilled_cfg
         ]
 
-    loadsave = ui_loadsave.UiLoadsave(cmd_opts.ui_config_file)
-    ui_settings_from_file = loadsave.ui_settings.copy()
+    raise ValueError(f"unsupported model family preset: {shared.opts.forge_preset}")
 
-    return [
-        gr.update(visible=True),  # ui_vae
-        gr.update(visible=True, value=1),  # ui_clip_skip
-        gr.update(visible=True, value='Automatic'),  # ui_forge_unet_storage_dtype_options
-        gr.update(visible=True, value='Queue'),  # ui_forge_async_loading
-        gr.update(visible=True, value='CPU'),  # ui_forge_pin_shared_memory
-        gr.update(visible=True, value=total_vram - 1024),  # ui_forge_inference_memory
-        gr.update(value=ui_settings_from_file['txt2img/Width/value']),  # ui_txt2img_width
-        gr.update(value=ui_settings_from_file['img2img/Width/value']),  # ui_img2img_width
-        gr.update(value=ui_settings_from_file['txt2img/Height/value']),  # ui_txt2img_height
-        gr.update(value=ui_settings_from_file['img2img/Height/value']),  # ui_img2img_height
-        gr.update(value=ui_settings_from_file['txt2img/CFG Scale/value']),  # ui_txt2img_cfg
-        gr.update(value=ui_settings_from_file['img2img/CFG Scale/value']),  # ui_img2img_cfg
-        gr.update(visible=True, value=ui_settings_from_file['txt2img/Distilled CFG Scale/value']),  # ui_txt2img_distilled_cfg
-        gr.update(visible=True, value=ui_settings_from_file['img2img/Distilled CFG Scale/value']),  # ui_img2img_distilled_cfg
-        gr.update(value=ui_settings_from_file['customscript/sampler.py/txt2img/Sampling method/value']),  # ui_txt2img_sampler
-        gr.update(value=ui_settings_from_file['customscript/sampler.py/img2img/Sampling method/value']),  # ui_img2img_sampler
-        gr.update(value=ui_settings_from_file['customscript/sampler.py/txt2img/Schedule type/value']),  # ui_txt2img_scheduler
-        gr.update(value=ui_settings_from_file['customscript/sampler.py/img2img/Schedule type/value']),  # ui_img2img_scheduler
-        gr.update(visible=True, value=ui_settings_from_file['txt2img/Hires CFG Scale/value']), # ui_txt2img_hr_cfg
-        gr.update(visible=True, value=ui_settings_from_file['txt2img/Hires Distilled CFG Scale/value']), # ui_txt2img_hr_distilled_cfg
-    ]
 
-shared.options_templates.update(shared.options_section(('ui_sd', "UI defaults 'sd'", "ui"), {
-    "sd_t2i_width":  shared.OptionInfo(512,  "txt2img width",      gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
-    "sd_t2i_height": shared.OptionInfo(640,  "txt2img height",     gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
-    "sd_t2i_cfg":    shared.OptionInfo(7,    "txt2img CFG",        gr.Slider, {"minimum": 1,  "maximum": 30,   "step": 0.1}),
-    "sd_t2i_hr_cfg": shared.OptionInfo(7,    "txt2img HiRes CFG",  gr.Slider, {"minimum": 1,  "maximum": 30,   "step": 0.1}),
-    "sd_i2i_width":  shared.OptionInfo(512,  "img2img width",      gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
-    "sd_i2i_height": shared.OptionInfo(512,  "img2img height",     gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
-    "sd_i2i_cfg":    shared.OptionInfo(7,    "img2img CFG",        gr.Slider, {"minimum": 1,  "maximum": 30,   "step": 0.1}),
-}))
 shared.options_templates.update(shared.options_section(('ui_xl', "UI defaults 'xl'", "ui"), {
     "xl_t2i_width":  shared.OptionInfo(896,  "txt2img width",      gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
     "xl_t2i_height": shared.OptionInfo(1152, "txt2img height",     gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),

@@ -37,12 +37,6 @@ class ScriptSampler(scripts.ScriptBuiltinUI):
             PasteField(self.scheduler, sd_samplers.get_scheduler_from_infotext, api="scheduler"),
         ]
 
-        shared.options_templates.update(shared.options_section(('ui_sd', "UI defaults 'sd'", "ui"), {
-            "sd_t2i_sampler":     shared.OptionInfo('Euler a',      "txt2img sampler",      gr.Dropdown, {"choices": sampler_names}),
-            "sd_t2i_scheduler":   shared.OptionInfo('Automatic',    "txt2img scheduler",    gr.Dropdown, {"choices": scheduler_names}),
-            "sd_i2i_sampler":     shared.OptionInfo('Euler a',      "img2img sampler",      gr.Dropdown, {"choices": sampler_names}),
-            "sd_i2i_scheduler":   shared.OptionInfo('Automatic',    "img2img scheduler",    gr.Dropdown, {"choices": scheduler_names}),
-        }))
         shared.options_templates.update(shared.options_section(('ui_xl', "UI defaults 'xl'", "ui"), {
             "xl_t2i_sampler":     shared.OptionInfo('Euler a',      "txt2img sampler",      gr.Dropdown, {"choices": sampler_names}),
             "xl_t2i_scheduler":   shared.OptionInfo('Karras',       "txt2img scheduler",    gr.Dropdown, {"choices": scheduler_names}),
