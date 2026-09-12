@@ -3,8 +3,10 @@ function closeModal() {
     gradioApp().getElementById("lightboxModal").style.display = "none";
 }
 
-function showModal(event) {
-    const source = event.target || event.srcElement;
+function showModal(event, sourceOverride) {
+    const source = sourceOverride || event.target || event.srcElement;
+    if (!source?.src) return;
+
     const modalImage = gradioApp().getElementById("modalImage");
     const modalToggleLivePreviewBtn = gradioApp().getElementById("modal_toggle_live_preview");
     modalToggleLivePreviewBtn.innerHTML = opts.js_live_preview_in_modal_lightbox ? "&#x1F5C7;" : "&#x1F5C6;";
@@ -144,6 +146,28 @@ function setupImageForLightbox(e) {
 
 }
 
+function setupGalleryFullscreenForLightbox(button) {
+    if (button.dataset.forgeLightboxReady) return;
+
+    button.dataset.forgeLightboxReady = true;
+    button.addEventListener('click', function(evt) {
+        if (!opts.js_modal_lightbox || evt.button != 0) return;
+
+        const gallery = button.closest('.gradio-gallery');
+        const source = gallery?.querySelector('button.media-button img[data-testid="detailed-image"]')
+            || gallery?.querySelector('button.thumbnail-item.selected img');
+        if (!source) return;
+
+        // Gradio 6's native fullscreen mode expands the whole gallery and its
+        // surrounding layout. Route the toolbar action through Forge's image
+        // lightbox instead, matching a direct click on the detailed image.
+        evt.preventDefault();
+        evt.stopImmediatePropagation();
+        modalZoomSet(gradioApp().getElementById('modalImage'), opts.js_modal_lightbox_initially_zoomed);
+        showModal(evt, source);
+    }, true);
+}
+
 function modalZoomSet(modalImage, enable) {
     if (modalImage) modalImage.classList.toggle('modalImageFullscreen', !!enable);
 }
@@ -177,10 +201,18 @@ function modalTileImageToggle(event) {
 }
 
 onAfterUiUpdate(function() {
-    var fullImg_preview = gradioApp().querySelectorAll('.gradio-gallery > button > button > img, .gradio-gallery > .livePreview');
-    if (fullImg_preview != null) {
-        fullImg_preview.forEach(setupImageForLightbox);
-    }
+    const fullImgPreview = gradioApp().querySelectorAll(
+        '.gradio-gallery button.media-button > img, '
+        + '.gradio-gallery button.thumbnail-item > img, '
+        + '.gradio-gallery .livePreview > img'
+    );
+    fullImgPreview.forEach(setupImageForLightbox);
+
+    const fullscreenButtons = gradioApp().querySelectorAll(
+        '.gradio-gallery button[aria-label="Fullscreen"]'
+    );
+    fullscreenButtons.forEach(setupGalleryFullscreenForLightbox);
+
     updateOnBackgroundChange();
 });
 
