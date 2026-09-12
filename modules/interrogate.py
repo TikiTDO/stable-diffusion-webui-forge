@@ -47,6 +47,7 @@ def download_default_clip_interrogate_categories(content_dir):
 
 class InterrogateModels:
     blip_model = None
+    blip_processor = None
     clip_model = None
     clip_preprocess = None
     dtype = None
@@ -92,25 +93,16 @@ class InterrogateModels:
 
         return self.loaded_categories
 
-    def create_fake_fairscale(self):
-        class FakeFairscale:
-            def checkpoint_wrapper(self):
-                pass
-
-        sys.modules["fairscale.nn.checkpoint.checkpoint_activations"] = FakeFairscale
-
     def load_blip_model(self):
-        self.create_fake_fairscale()
-        import models.blip
+        # transformers' own BLIP replaces the vendored Salesforce repository (a transformers 4
+        # BERT clone that no longer imports on 5). `Salesforce/blip-image-captioning-base` is the
+        # same ViT-B CapFilt-L captioning checkpoint the old `model_base_caption_capfilt_large.pth`
+        # was; the pixel pipeline in `generate_caption` is unchanged, so captions are too.
+        from transformers import BlipForConditionalGeneration, BlipProcessor
 
-        files = modelloader.load_models(
-            model_path=os.path.join(paths.models_path, "BLIP"),
-            model_url='https://storage.googleapis.com/sfr-vision-language-research/BLIP/models/model_base_caption_capfilt_large.pth',
-            ext_filter=[".pth"],
-            download_name='model_base_caption_capfilt_large.pth',
-        )
-
-        blip_model = models.blip.blip_decoder(pretrained=files[0], image_size=blip_image_eval_size, vit='base', med_config=os.path.join(paths.paths["BLIP"], "configs", "med_config.json"))
+        name = 'Salesforce/blip-image-captioning-base'
+        self.blip_processor = BlipProcessor.from_pretrained(name)
+        blip_model = BlipForConditionalGeneration.from_pretrained(name)
         blip_model.eval()
 
         return blip_model
@@ -178,9 +170,9 @@ class InterrogateModels:
         ])(pil_image).unsqueeze(0).type(self.dtype).to(self.load_device)
 
         with torch.no_grad():
-            caption = self.blip_model.generate(gpu_image, sample=False, num_beams=int(shared.opts.interrogate_clip_num_beams), min_length=int(shared.opts.interrogate_clip_min_length), max_length=shared.opts.interrogate_clip_max_length)
+            ids = self.blip_model.generate(pixel_values=gpu_image, num_beams=int(shared.opts.interrogate_clip_num_beams), min_length=int(shared.opts.interrogate_clip_min_length), max_length=shared.opts.interrogate_clip_max_length)
 
-        return caption[0]
+        return self.blip_processor.decode(ids[0], skip_special_tokens=True)
 
     def interrogate(self, pil_image):
         res = ""

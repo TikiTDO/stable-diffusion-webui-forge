@@ -117,7 +117,7 @@ then
     exit 1
 fi
 
-if [[ -d "$SCRIPT_DIR/.git" ]]
+if [[ -e "$SCRIPT_DIR/.git" ]]  # a git worktree has a .git file, not a directory
 then
     printf "\n%s\n" "${delimiter}"
     printf "Repo already cloned, using it as install directory"
