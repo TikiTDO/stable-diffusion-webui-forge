@@ -1,3 +1,4 @@
+import base64
 import datetime
 import mimetypes
 import os
@@ -31,6 +32,24 @@ import modules.processing_scripts.comments as comments
 
 
 create_setting_component = ui_settings.create_setting_component
+
+APP_TITLE = "The Diffusatory"
+APP_ICON_SVG = """\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="15" fill="#171526"/>
+  <path d="M13 45h38v6H13z" fill="#e9e2ff"/>
+  <path d="M18 44a14 14 0 0 1 28 0z" fill="#7868df"/>
+  <path d="M32 30 46 16" stroke="#76e5ec" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="47" cy="15" r="5" fill="#ffd166"/>
+  <circle cx="55" cy="8" r="2" fill="#f38ba8"/>
+  <circle cx="56" cy="23" r="2" fill="#76e5ec"/>
+</svg>
+"""
+APP_HEAD = (
+    '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,'
+    + base64.b64encode(APP_ICON_SVG.encode("utf-8")).decode("ascii")
+    + '">'
+)
 
 warnings.filterwarnings("default" if opts.show_warnings else "ignore", category=UserWarning)
 warnings.filterwarnings("default" if opts.show_gradio_deprecation_warnings else "ignore", category=gradio_extensions.GradioDeprecationWarning)
@@ -973,7 +992,7 @@ def create_ui():
     for _interface, label, _ifid in interfaces:
         shared.tab_names.append(label)
 
-    with gr.Blocks(theme=shared.gradio_theme, analytics_enabled=False, title="Stable Diffusion", head=canvas_head) as demo:
+    with gr.Blocks(theme=shared.gradio_theme, analytics_enabled=False, title=APP_TITLE, head=canvas_head + APP_HEAD) as demo:
         quicksettings_row = settings.add_quicksettings()
 
         parameters_copypaste.connect_paste_params_buttons()
