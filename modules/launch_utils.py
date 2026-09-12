@@ -74,7 +74,12 @@ def commit_hash():
 @lru_cache()
 def git_tag_a1111():
     try:
-        return subprocess.check_output([git, "-C", script_path, "describe", "--tags"], shell=False, encoding='utf8').strip()
+        return subprocess.check_output(
+            [git, "-C", script_path, "describe", "--tags"],
+            shell=False,
+            encoding='utf8',
+            stderr=subprocess.DEVNULL,
+        ).strip()
     except Exception:
         try:
 
