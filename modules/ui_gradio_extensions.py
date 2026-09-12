@@ -6,7 +6,11 @@ from modules.paths import script_path, data_path
 
 
 def webpath(fn):
-    return f'gradio_api/file={util.truncate_path(fn)}?{os.path.getmtime(fn)}'
+    # Gradio 5+ serves files under its API prefix; a bare `file=` is a 404 there, which silently
+    # dropped every one of Forge's own scripts and stylesheets from the page.
+    from gradio.route_utils import API_PREFIX
+
+    return f'{API_PREFIX.lstrip("/")}/file={util.truncate_path(fn)}?{os.path.getmtime(fn)}'
 
 
 def javascript_html():

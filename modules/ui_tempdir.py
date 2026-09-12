@@ -5,7 +5,6 @@ from pathlib import Path
 
 import gradio.components
 import gradio as gr
-from gradio.route_utils import API_PREFIX
 
 from PIL import PngImagePlugin
 
@@ -70,7 +69,7 @@ def save_pil_to_file(pil_image, cache_dir=None, format="png"):
 
 
 async def async_move_files_to_cache(data, block, postprocess=False, check_in_upload_folder=False, keep_in_cache=False):
-    """Move files to cache and add the current Gradio API URL prefix.
+    """Move any files in `data` to cache and (optionally), adds URL prefixes (/file=...) needed to access the cached file.
     Also handles the case where the file is on an external Gradio app (/proxy=...).
 
     Runs after .postprocess() and before .preprocess().
@@ -129,13 +128,14 @@ async def async_move_files_to_cache(data, block, postprocess=False, check_in_upl
                     if keep_in_cache:
                         block.keep_in_cache.add(payload.path)
 
-        url_prefix = (
-            f"{API_PREFIX}/stream/" if payload.is_stream else f"{API_PREFIX}/file="
-        )
+        # Gradio 5+ serves files under its API prefix (`/gradio_api/file=`); the bare `/file=`
+        # this copy was made with is a 404 there, which blanked every gallery image.
+        from gradio.route_utils import API_PREFIX
+
+        url_prefix = f"{API_PREFIX}/stream/" if payload.is_stream else f"{API_PREFIX}/file="
         if block.proxy_url:
             proxy_url = block.proxy_url.rstrip("/")
-            encoded_path = client_utils.encode_file_path(payload.path)
-            url = f"{API_PREFIX}/proxy={proxy_url}{url_prefix}{encoded_path}"
+            url = f"{API_PREFIX}/proxy={proxy_url}{url_prefix}{client_utils.encode_file_path(payload.path)}"
         elif client_utils.is_http_url_like(payload.path) or payload.path.startswith(
             f"{url_prefix}"
         ):
