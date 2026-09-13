@@ -1,40 +1,62 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ForgeClient } from "./api/forge/client";
 import type { InstanceDescriptor } from "./api/forge/types";
+import { Composer } from "./components/Composer";
 import { Stage } from "./components/Stage";
+import {
+  draftFromCatalog,
+  requestFromDraft,
+  starterDraft,
+} from "./domain/draft";
+import { useForgeCatalog } from "./domain/useForgeCatalog";
 import { useForgeGeneration } from "./domain/useForgeGeneration";
-
-const STARTER_PROMPT = "an observatory at blue hour, warm lamps, patient instruments";
 
 export default function App() {
   const client = useMemo(() => new ForgeClient(), []);
   const [instance, setInstance] = useState<InstanceDescriptor | null>(null);
   const [instanceError, setInstanceError] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState(STARTER_PROMPT);
-  const { state, generate, interrupt, generating } =
+  const [draft, setDraft] = useState(starterDraft);
+  const catalogApplied = useRef(false);
+  const { catalog, error: catalogError, loading: catalogLoading, reload } =
+    useForgeCatalog(client);
+  const { state, generate, interrupt, skip, generating } =
     useForgeGeneration(client);
 
-  useEffect(() => {
-    const abort = new AbortController();
-    client
-      .instance(abort.signal)
-      .then(setInstance)
-      .catch((error: unknown) => {
+  const loadInstance = useCallback(
+    async (signal?: AbortSignal) => {
+      setInstanceError(null);
+      try {
+        setInstance(await client.instance(signal));
+      } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;
         setInstanceError(
           error instanceof Error ? error.message : "Instance unavailable",
         );
-      });
+      }
+    },
+    [client],
+  );
+
+  useEffect(() => {
+    const abort = new AbortController();
+    void loadInstance(abort.signal);
     return () => abort.abort();
-  }, [client]);
+  }, [loadInstance]);
+
+  useEffect(() => {
+    if (!catalog || catalogApplied.current) return;
+    catalogApplied.current = true;
+    setDraft((current) => draftFromCatalog(current, catalog));
+  }, [catalog]);
 
   const canGenerate =
-    Boolean(prompt.trim()) &&
+    Boolean(draft.prompt.trim()) &&
     !generating &&
-    Boolean(instance?.capabilities.includes("txt2img"));
+    Boolean(instance?.capabilities.includes("txt2img")) &&
+    Boolean(catalog);
   const submit = () => {
-    if (canGenerate) void generate({ prompt: prompt.trim() });
+    if (canGenerate) void generate(requestFromDraft(draft));
   };
 
   return (
@@ -66,73 +88,24 @@ export default function App() {
       </header>
 
       <main className="workspace">
-        <section className="composer" aria-label="Composer">
-          <div className="composer__heading">
-            <div>
-              <p className="eyebrow">Composer</p>
-              <h2>What should exist?</h2>
-            </div>
-            <span className="draft-label">SDXL draft</span>
-          </div>
-
-          <label className="prompt-field">
-            <span>Prompt</span>
-            <textarea
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              onKeyDown={(event) => {
-                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                  event.preventDefault();
-                  submit();
-                }
-              }}
-              rows={10}
-              spellCheck="true"
-              autoFocus
-            />
-          </label>
-
-          <p className="composer__note">
-            This first seam deliberately uses Forge’s existing defaults: Euler a,
-            Karras, 20 steps, CFG 5, 1024 square. Controls arrive after the path
-            itself is proven.
-          </p>
-
-          {instanceError && (
-            <p className="connection-error" role="alert">
-              The Diffusatory instance descriptor is not available yet: {instanceError}
-            </p>
-          )}
-
-          <div className="composer__actions">
-            <button
-              className="generate"
-              type="button"
-              disabled={!canGenerate}
-              onClick={submit}
-            >
-              <span>{generating ? "Forge is working" : "Generate image"}</span>
-              <kbd>⌘/Ctrl ↵</kbd>
-            </button>
-            <button
-              className="interrupt"
-              type="button"
-              disabled={!generating}
-              onClick={interrupt}
-            >
-              Interrupt active render
-            </button>
-          </div>
-
-          <div className="capabilities">
-            <span>Current instrument</span>
-            <div>
-              {(instance?.capabilities ?? []).slice(0, 6).map((capability) => (
-                <span key={capability}>{capability}</span>
-              ))}
-            </div>
-          </div>
-        </section>
+        <Composer
+          draft={draft}
+          catalog={catalog}
+          catalogError={catalogError ?? instanceError}
+          catalogLoading={catalogLoading}
+          generating={generating}
+          canGenerate={canGenerate}
+          onChange={(patch) =>
+            setDraft((current) => ({ ...current, ...patch }))
+          }
+          onGenerate={submit}
+          onInterrupt={() => void interrupt()}
+          onSkip={() => void skip()}
+          onReloadCatalog={() => {
+            reload();
+            void loadInstance();
+          }}
+        />
 
         <Stage generation={state} />
       </main>

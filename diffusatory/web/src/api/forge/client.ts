@@ -1,6 +1,15 @@
 import type {
+  Checkpoint,
+  EmbeddingInventory,
+  ForgeCatalog,
+  ForgeOptions,
   InstanceDescriptor,
+  Lora,
+  ModelModule,
   ProgressResponse,
+  PromptStyle,
+  Sampler,
+  Scheduler,
   Txt2ImgInput,
   Txt2ImgResponse,
 } from "./types";
@@ -77,11 +86,62 @@ export class ForgeClient {
     return readJson<InstanceDescriptor>(response);
   }
 
+  private async get<T>(path: string, signal?: AbortSignal): Promise<T> {
+    const response = await this.fetcher(`${this.baseUrl}${path}`, { signal });
+    return readJson<T>(response);
+  }
+
+  async catalog(signal?: AbortSignal): Promise<ForgeCatalog> {
+    const [
+      checkpoints,
+      modules,
+      samplers,
+      schedulers,
+      styles,
+      loras,
+      embeddings,
+      options,
+    ] = await Promise.all([
+      this.get<Checkpoint[]>("/sdapi/v1/sd-models", signal),
+      this.get<ModelModule[]>("/sdapi/v1/sd-modules", signal),
+      this.get<Sampler[]>("/sdapi/v1/samplers", signal),
+      this.get<Scheduler[]>("/sdapi/v1/schedulers", signal),
+      this.get<PromptStyle[]>("/sdapi/v1/prompt-styles", signal),
+      this.get<Lora[]>("/sdapi/v1/loras", signal),
+      this.get<EmbeddingInventory>("/sdapi/v1/embeddings", signal),
+      this.get<ForgeOptions>("/sdapi/v1/options", signal),
+    ]);
+
+    return {
+      checkpoints,
+      modules,
+      samplers,
+      schedulers,
+      styles: styles.filter((style) => style.prompt || style.negative_prompt),
+      loras,
+      embeddings: Object.keys(embeddings.loaded).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+      options,
+    };
+  }
+
   async txt2img(
     taskId: string,
     input: Txt2ImgInput,
     signal?: AbortSignal,
   ): Promise<Txt2ImgResponse> {
+    const overrideSettings: Record<string, unknown> = {};
+    if (input.checkpoint) {
+      overrideSettings.sd_model_checkpoint = input.checkpoint;
+    }
+    if (input.modules) {
+      overrideSettings.forge_additional_modules = input.modules;
+    }
+    if (input.previewEvery !== undefined) {
+      overrideSettings.show_progress_every_n_steps = input.previewEvery;
+    }
+
     const response = await this.fetcher(`${this.baseUrl}/sdapi/v1/txt2img`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,6 +149,7 @@ export class ForgeClient {
       body: JSON.stringify({
         prompt: input.prompt,
         negative_prompt: input.negativePrompt ?? "",
+        styles: input.styles ?? [],
         width: input.width ?? 1024,
         height: input.height ?? 1024,
         steps: input.steps ?? 20,
@@ -101,6 +162,8 @@ export class ForgeClient {
         force_task_id: taskId,
         send_images: true,
         save_images: true,
+        override_settings: overrideSettings,
+        override_settings_restore_afterwards: false,
       }),
     });
     return readJson<Txt2ImgResponse>(response);

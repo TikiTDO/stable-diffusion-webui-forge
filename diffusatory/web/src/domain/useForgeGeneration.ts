@@ -119,10 +119,25 @@ export function useForgeGeneration(client: ForgeClient) {
     }
   }, [client, state.phase]);
 
+  const skip = useCallback(async () => {
+    if (!isGenerating(state.phase)) return;
+    try {
+      await client.skip();
+    } catch (error) {
+      if (mounted.current) {
+        dispatch({
+          type: "control-failed",
+          error: `Skip request failed: ${errorMessage(error)}`,
+        });
+      }
+    }
+  }, [client, state.phase]);
+
   return {
     state,
     generate,
     interrupt,
+    skip,
     reset: () => dispatch({ type: "reset" }),
     generating: isGenerating(state.phase),
   };

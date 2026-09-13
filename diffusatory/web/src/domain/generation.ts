@@ -19,6 +19,7 @@ export interface GenerationState {
   preview: string | null;
   previewId: number;
   images: string[];
+  parameters: Record<string, unknown> | null;
   info: string | null;
   text: string;
   error: string | null;
@@ -32,6 +33,7 @@ export const initialGenerationState: GenerationState = {
   preview: null,
   previewId: -1,
   images: [],
+  parameters: null,
   info: null,
   text: "Ready for a prompt.",
   error: null,
@@ -98,12 +100,14 @@ export function generationReducer(
       };
     }
     case "interrupt-requested":
+      if (state.phase === "completed" || state.phase === "failed") return state;
       return {
         ...state,
         phase: "interrupt-requested",
         text: "Interrupt requested; waiting for Forge to stop safely…",
       };
     case "control-failed":
+      if (state.phase === "completed" || state.phase === "failed") return state;
       return {
         ...state,
         error: action.error,
@@ -115,6 +119,7 @@ export function generationReducer(
         progress: 1,
         eta: null,
         images: (action.value.images ?? []).map(imageSource),
+        parameters: action.value.parameters,
         info: action.value.info,
         text: action.value.images?.length
           ? "Forge returned the completed image."

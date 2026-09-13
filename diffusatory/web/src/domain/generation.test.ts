@@ -49,6 +49,7 @@ describe("generationReducer", () => {
     expect(running.phase).toBe("running");
     expect(completed.phase).toBe("completed");
     expect(completed.images).toEqual(["data:image/png;base64,result"]);
+    expect(completed.parameters).toEqual({});
     expect(completed.info).toBe("metadata");
   });
 
@@ -81,6 +82,23 @@ describe("generationReducer", () => {
     expect(controlFailed.error).toBe(
       "Interrupt request failed: connection lost",
     );
+  });
+
+  it("ignores a late interrupt acknowledgement after completion", () => {
+    const completed = generationReducer(initialGenerationState, {
+      type: "completed",
+      value: { images: ["result"], parameters: {}, info: "metadata" },
+    });
+
+    expect(
+      generationReducer(completed, { type: "interrupt-requested" }),
+    ).toBe(completed);
+    expect(
+      generationReducer(completed, {
+        type: "control-failed",
+        error: "late control failure",
+      }),
+    ).toBe(completed);
   });
 });
 

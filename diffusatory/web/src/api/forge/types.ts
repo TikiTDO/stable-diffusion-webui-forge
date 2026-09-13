@@ -9,6 +9,9 @@ export interface InstanceDescriptor {
 export interface Txt2ImgInput {
   prompt: string;
   negativePrompt?: string;
+  checkpoint?: string;
+  modules?: string[];
+  styles?: string[];
   width?: number;
   height?: number;
   steps?: number;
@@ -17,6 +20,7 @@ export interface Txt2ImgInput {
   cfgScale?: number;
   seed?: number;
   outputs?: number;
+  previewEvery?: number;
 }
 
 export interface Txt2ImgResponse {
@@ -34,4 +38,61 @@ export interface ProgressResponse {
   live_preview: string | null;
   id_live_preview: number | null;
   textinfo: string | null;
+}
+
+export interface Checkpoint {
+  title: string;
+  model_name: string;
+  hash: string | null;
+  sha256: string | null;
+}
+
+export interface ModelModule {
+  model_name: string;
+  filename: string;
+}
+
+export interface Sampler {
+  name: string;
+  aliases: string[];
+  options: Record<string, unknown>;
+}
+
+export interface Scheduler {
+  name: string;
+  label: string;
+  aliases: string[] | null;
+}
+
+export interface PromptStyle {
+  name: string;
+  prompt: string | null;
+  negative_prompt: string | null;
+}
+
+export interface Lora {
+  name: string;
+  alias: string;
+}
+
+export interface EmbeddingInventory {
+  loaded: Record<string, unknown>;
+  skipped: Record<string, unknown>;
+}
+
+export interface ForgeOptions {
+  sd_model_checkpoint?: string;
+  forge_additional_modules?: string[];
+  show_progress_every_n_steps?: number;
+}
+
+export interface ForgeCatalog {
+  checkpoints: Checkpoint[];
+  modules: ModelModule[];
+  samplers: Sampler[];
+  schedulers: Scheduler[];
+  styles: PromptStyle[];
+  loras: Lora[];
+  embeddings: string[];
+  options: ForgeOptions;
 }

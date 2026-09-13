@@ -14,8 +14,15 @@ function formatEta(eta: number | null): string | null {
 
 export const Stage = memo(function Stage({ generation }: StageProps) {
   const [viewerImage, setViewerImage] = useState<string | null>(null);
-  const activeImage = generation.images.at(-1) ?? generation.preview;
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [viewerZoom, setViewerZoom] = useState(1);
+  const selectedImage = generation.images[selectedIndex] ?? generation.images[0];
+  const activeImage = selectedImage ?? generation.preview;
   const eta = formatEta(generation.eta);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [generation.taskId]);
 
   useEffect(() => {
     if (!viewerImage) return;
@@ -25,6 +32,11 @@ export const Stage = memo(function Stage({ generation }: StageProps) {
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [viewerImage]);
+
+  const openViewer = (image: string) => {
+    setViewerZoom(1);
+    setViewerImage(image);
+  };
 
   return (
     <section className="stage" aria-label="Generation stage">
@@ -43,7 +55,7 @@ export const Stage = memo(function Stage({ generation }: StageProps) {
           <button
             className="stage__image-button"
             type="button"
-            onClick={() => setViewerImage(activeImage)}
+            onClick={() => openViewer(activeImage)}
             aria-label="Open image in viewer"
           >
             <img src={activeImage} alt="Current generated composition" />
@@ -72,14 +84,16 @@ export const Stage = memo(function Stage({ generation }: StageProps) {
         )}
       </div>
 
-      {generation.images.length > 1 && (
+      {generation.images.length > 0 && (
         <div className="result-tray" aria-label="Generation results">
           {generation.images.map((image, index) => (
             <button
               type="button"
               key={`${generation.taskId}-${index}`}
-              onClick={() => setViewerImage(image)}
-              aria-label={`Open result ${index + 1}`}
+              className={selectedIndex === index ? "is-selected" : ""}
+              onClick={() => setSelectedIndex(index)}
+              onDoubleClick={() => openViewer(image)}
+              aria-label={`Select result ${index + 1}`}
             >
               <img src={image} alt={`Generated result ${index + 1}`} />
             </button>
@@ -101,6 +115,12 @@ export const Stage = memo(function Stage({ generation }: StageProps) {
                 <dd>{generation.info}</dd>
               </div>
             )}
+            {generation.parameters && (
+              <div>
+                <dt>Request</dt>
+                <dd>{JSON.stringify(generation.parameters)}</dd>
+              </div>
+            )}
           </dl>
         </details>
       )}
@@ -111,20 +131,50 @@ export const Stage = memo(function Stage({ generation }: StageProps) {
           role="dialog"
           aria-modal="true"
           aria-label="Image viewer"
-          onClick={() => setViewerImage(null)}
         >
-          <button
-            type="button"
-            className="viewer__close"
+          <div className="viewer__toolbar">
+            <button
+              type="button"
+              onClick={() => setViewerZoom((zoom) => Math.max(1, zoom - 0.5))}
+              disabled={viewerZoom <= 1}
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <span>{Math.round(viewerZoom * 100)}%</span>
+            <button
+              type="button"
+              onClick={() => setViewerZoom((zoom) => Math.min(4, zoom + 0.5))}
+              disabled={viewerZoom >= 4}
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <button type="button" onClick={() => setViewerZoom(1)}>
+              Fit
+            </button>
+            <button type="button" onClick={() => setViewerImage(null)}>
+              Close
+            </button>
+          </div>
+          <div
+            className="viewer__viewport"
             onClick={() => setViewerImage(null)}
           >
-            Close
-          </button>
-          <img
-            src={viewerImage}
-            alt="Generated composition at full size"
-            onClick={(event) => event.stopPropagation()}
-          />
+            <div
+              className="viewer__canvas"
+              style={{
+                width: `${viewerZoom * 100}%`,
+                height: `${viewerZoom * 100}%`,
+              }}
+            >
+              <img
+                src={viewerImage}
+                alt="Generated composition at full size"
+                onClick={(event) => event.stopPropagation()}
+              />
+            </div>
+          </div>
         </div>
       )}
     </section>

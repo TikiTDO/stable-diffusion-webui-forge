@@ -26,6 +26,11 @@ describe("ForgeClient", () => {
 
     await client.txt2img("task(diffusatory-test)", {
       prompt: "moonlit observatory",
+      negativePrompt: "daylight",
+      checkpoint: "story-xl.safetensors [abc123]",
+      modules: ["/models/vae/story.safetensors"],
+      styles: ["Cinematic"],
+      previewEvery: 5,
     });
 
     expect(calls).toHaveLength(1);
@@ -33,6 +38,8 @@ describe("ForgeClient", () => {
     expect(url).toBe("/sdapi/v1/txt2img");
     expect(JSON.parse(request?.body as string)).toMatchObject({
       prompt: "moonlit observatory",
+      negative_prompt: "daylight",
+      styles: ["Cinematic"],
       width: 1024,
       height: 1024,
       steps: 20,
@@ -42,7 +49,45 @@ describe("ForgeClient", () => {
       batch_size: 1,
       n_iter: 1,
       force_task_id: "task(diffusatory-test)",
+      override_settings: {
+        sd_model_checkpoint: "story-xl.safetensors [abc123]",
+        forge_additional_modules: ["/models/vae/story.safetensors"],
+        show_progress_every_n_steps: 5,
+      },
+      override_settings_restore_afterwards: false,
     });
+  });
+
+  it("loads and normalizes the current Forge catalog", async () => {
+    const responses: Record<string, unknown> = {
+      "/sdapi/v1/sd-models": [
+        { title: "model", model_name: "model", hash: null, sha256: null },
+      ],
+      "/sdapi/v1/sd-modules": [],
+      "/sdapi/v1/samplers": [],
+      "/sdapi/v1/schedulers": [],
+      "/sdapi/v1/prompt-styles": [
+        { name: "divider", prompt: null, negative_prompt: null },
+        { name: "useful", prompt: "cinematic", negative_prompt: null },
+      ],
+      "/sdapi/v1/loras": [],
+      "/sdapi/v1/embeddings": {
+        loaded: { zebra: {}, amber: {} },
+        skipped: {},
+      },
+      "/sdapi/v1/options": { sd_model_checkpoint: "model" },
+    };
+    const fetcher: typeof fetch = async (input) => {
+      const path = String(input);
+      return json(responses[path]);
+    };
+    const client = new ForgeClient("", fetcher);
+
+    const catalog = await client.catalog();
+
+    expect(catalog.checkpoints[0]?.title).toBe("model");
+    expect(catalog.styles.map((style) => style.name)).toEqual(["useful"]);
+    expect(catalog.embeddings).toEqual(["amber", "zebra"]);
   });
 
   it("polls the task-aware progress route with the preview revision", async () => {
