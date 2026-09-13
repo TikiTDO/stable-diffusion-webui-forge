@@ -214,7 +214,10 @@ def create_output_panel(tabname, outdir, toprow=None):
                 res.html_log = gr.HTML(elem_id=f'html_log_{tabname}', elem_classes="html-log")
 
                 res.generation_info = gr.Textbox(visible=False, elem_id=f'generation_info_{tabname}')
-                generation_info_button = gr.Button(visible=False, elem_id=f"{tabname}_generation_info_button")
+                # Gradio 6 does not mount visible=False controls. This button is
+                # a browser-to-server bridge used when gallery selection changes,
+                # so keep it rendered but hidden from the layout.
+                generation_info_button = gr.Button(visible="hidden", elem_id=f"{tabname}_generation_info_button")
                 generation_info_button.click(
                     fn=update_generation_info,
                     _js="function(x, y, z){ return [x, y, selected_gallery_index()] }",
