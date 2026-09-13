@@ -88,5 +88,14 @@ def img2img_function(id_task: str, request: gr.Request, mode: int, prompt: str, 
     return processed.images + processed.extra_images, generation_info_js, plaintext_to_html(processed.info), plaintext_to_html(processed.comments, classname="comments")
 
 
-def img2img(*args):
-    return main_thread.run_and_wait_result(img2img_function, *args)
+def img2img(id_task: str, request: gr.Request, *args):
+    """Keep Gradio's injected request in the public callback signature.
+
+    Gradio discovers request injection from the ``gr.Request`` annotation.  A
+    catch-all ``*args`` wrapper therefore shifts every submitted component one
+    position to the left: the workflow value becomes ``request``, the prompt
+    becomes ``mode``, and the editor never reaches ``editor``.  Keep the two
+    leading arguments explicit before handing execution to Forge's main
+    thread.
+    """
+    return main_thread.run_and_wait_result(img2img_function, id_task, request, *args)

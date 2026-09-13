@@ -159,19 +159,41 @@ def connect_paste_params_buttons():
         if binding.source_image_component and destination_image_component:
             need_send_dementions = destination_width_component and binding.tabname != 'inpaint'
             if isinstance(binding.source_image_component, gr.Gallery):
-                func = send_image_and_dimensions if need_send_dementions else image_from_url_text
-                jsfunc = "extract_image_from_gallery"
+                if (
+                    isinstance(destination_image_component, gr.ImageEditor)
+                    and binding.tabname in {"img2img", "inpaint"}
+                ):
+                    workflow_index = 1 if binding.tabname == "inpaint" else 0
+                    binding.paste_button.click(
+                        fn=None,
+                        _js=(
+                            "() => send_gallery_image_to_editor("
+                            f"{json.dumps(binding.source_image_component.elem_id)}, "
+                            f"{json.dumps(destination_image_component.elem_id)}, "
+                            f"{workflow_index})"
+                        ),
+                        inputs=[],
+                        outputs=[],
+                        queue=False,
+                        show_progress=False,
+                    )
+                    func = None
+                    jsfunc = None
+                else:
+                    func = send_image_and_dimensions if need_send_dementions else image_from_url_text
+                    jsfunc = "extract_image_from_gallery"
             else:
                 func = send_image_and_dimensions if need_send_dementions else lambda x: x
                 jsfunc = None
 
-            binding.paste_button.click(
-                fn=func,
-                _js=jsfunc,
-                inputs=[binding.source_image_component],
-                outputs=[destination_image_component, destination_width_component, destination_height_component] if need_send_dementions else [destination_image_component],
-                show_progress=False,
-            )
+            if func is not None:
+                binding.paste_button.click(
+                    fn=func,
+                    _js=jsfunc,
+                    inputs=[binding.source_image_component],
+                    outputs=[destination_image_component, destination_width_component, destination_height_component] if need_send_dementions else [destination_image_component],
+                    show_progress=False,
+                )
 
         if binding.source_text_component is not None and fields is not None:
             connect_paste(binding.paste_button, fields, binding.source_text_component, override_settings_component, binding.tabname)

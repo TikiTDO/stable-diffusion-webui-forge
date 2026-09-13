@@ -49,6 +49,65 @@ function extract_image_from_gallery(gallery) {
     return [[gallery[index]]];
 }
 
+async function send_gallery_image_to_editor(galleryId, editorId, workflowIndex) {
+    const gallery = gradioApp().getElementById(galleryId);
+    const selected = gallery?.querySelector('.thumbnail-item.selected img') ?? gallery?.querySelector('img');
+    const source = selected?.currentSrc || selected?.src;
+    if (!source) {
+        console.warn(`No image is available in #${galleryId} to send to img2img`);
+        switch_to_img2img_workflow(workflowIndex);
+        return;
+    }
+
+    // The gallery image already belongs to this local Gradio session. Fetch it
+    // once in the browser and feed it through the editor's normal upload path
+    // instead of sending the entire gallery back through Python. The inherited
+    // round-trip repeatedly downloaded and re-uploaded the same image before
+    // the Img2img tab could even open.
+    const image = fetch(source).then(async(response) => {
+        if (!response.ok) throw new Error(`image request failed (${response.status})`);
+        return response.blob();
+    });
+
+    switch_to_img2img_workflow(workflowIndex);
+
+    let editor;
+    for (let attempt = 0; attempt < 40; attempt++) {
+        editor = gradioApp().getElementById(editorId);
+        if (editor?.querySelector('canvas') && editor.querySelector('input[type="file"]')) break;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    let input = editor?.querySelector('input[type="file"]');
+    if (!input) throw new Error(`Img2img editor #${editorId} did not mount`);
+
+    // Reset the Pixi editor before replacing an existing source. Its file
+    // input is otherwise willing to accept a second file while the old layer
+    // textures are still being retired, which can leave a visually blank
+    // canvas. This is also the mount-ready signal for a cold editor.
+    // A cold editor is already empty. Clicking Clear there is interpreted by
+    // Gradio as choosing the Image tool and opens the system file picker.
+    // Only clear when a source is present and therefore must be replaced.
+    if (!editor.querySelector('.empty')) {
+        editor.querySelector('button[aria-label="Clear canvas"]')?.click();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        // Clearing rebuilds the ImageEditor subtree, including its hidden file
+        // input. Do not dispatch the replacement onto the now-detached input.
+        editor = gradioApp().getElementById(editorId);
+        input = editor?.querySelector('input[type="file"]');
+        if (!input) throw new Error(`Img2img editor #${editorId} did not reset`);
+    }
+
+    const blob = await image;
+    const file = new File([blob], 'txt2img.png', {type: blob.type || 'image/png'});
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', {bubbles: true}));
+}
+
 window.args_to_array = Array.from; // Compatibility with e.g. extensions that may expect this to be around
 
 function switch_to_txt2img() {
