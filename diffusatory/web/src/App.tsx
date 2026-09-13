@@ -9,6 +9,10 @@ import type {
 import { Composer } from "./components/Composer";
 import { Stage } from "./components/Stage";
 import {
+  StageSwitcher,
+  type StageSurface,
+} from "./components/StageSwitcher";
+import {
   ImageEditor,
   type ImageEditorHandle,
 } from "./features/editor/ImageEditor";
@@ -54,7 +58,7 @@ export default function App() {
   const [promptMode, setPromptMode] = useState<PromptExpansionMode>("off");
   const [expansionSeed, setExpansionSeed] = useState(newExpansionSeed);
   const [promptActionError, setPromptActionError] = useState<string | null>(null);
-  const [canvasView, setCanvasView] = useState<"variants" | "editor" | "regions">("variants");
+  const [canvasView, setCanvasView] = useState<StageSurface>("variants");
   const [generationSource, setGenerationSource] = useState<"prompt" | "editor">("prompt");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [editorSource, setEditorSource] = useState<string | null>(null);
@@ -455,97 +459,126 @@ export default function App() {
           onReloadControlNet={reloadControlNet}
         />
 
-        <div className="workspace-pane" hidden={canvasView !== "variants"}>
-          <Stage
-            generation={state}
-            candidates={candidates}
-            onRefine={openEditor}
-            onDismissCandidate={(id) =>
-              setCandidates((current) => current.filter((candidate) => candidate.id !== id))
-            }
-            onClearCandidates={() => setCandidates([])}
-          />
-        </div>
-        <div className="workspace-pane" hidden={canvasView !== "regions"}>
-          <RegionStage
-            value={regionalComposition}
-            frameWidth={activeDimensions.width}
-            frameHeight={activeDimensions.height}
-            onChange={setRegionalComposition}
-          />
-        </div>
-        {editorSession > 0 && (
-          <div className="workspace-pane" hidden={canvasView !== "editor"}>
-          <section className="stage stage--editor" aria-label="Editing stage">
-            <header className="stage__header">
-              <div>
-                <p className="eyebrow">Editor</p>
-                <h2>{editorSource ? "Refine this shot" : "Draw the source"}</h2>
-              </div>
-              <button
-                type="button"
-                className="return-to-results"
-                onClick={() => setCanvasView("variants")}
-              >
-                Return to results
-              </button>
-            </header>
-            {editorError && (
-              <p className="stage__error" role="alert">{editorError}</p>
-            )}
-            <ImageEditor
-              key={editorSession}
-              ref={editorRef}
-              source={editorSource}
-              width={editorDimensions.width}
-              height={editorDimensions.height}
-              onReady={handleEditorReady}
-              onContentChange={() =>
-                setConditions((current) =>
-                  current.map((condition) =>
-                    condition.source.kind === "current" && condition.preview
-                      ? {
-                          ...condition,
-                          preview: null,
-                          previewStatus: "idle",
-                          previewError: null,
-                        }
-                      : condition,
-                  ),
-                )
+        <div className="stage-column">
+          <StageSwitcher
+            surface={canvasView}
+            candidateCount={candidates.length}
+            hasEditorDocument={editorSession > 0}
+            regionsEnabled={regionalComposition.enabled}
+            regionCount={regionalComposition.rows.length * regionalComposition.columns.length}
+            sourceKind={generationSource}
+            sourceDimensions={activeDimensions}
+            onShowVariants={() => setCanvasView("variants")}
+            onShowEditor={() => {
+              if (editorSession > 0) {
+                setGenerationSource("editor");
+                setCanvasView("editor");
+              } else {
+                openEditor(null);
               }
+            }}
+            onShowRegions={() => {
+              if (!regionalComposition.enabled) {
+                setRegionalComposition({
+                  ...createRegionalComposition(),
+                  enabled: true,
+                });
+              }
+              setCanvasView("regions");
+            }}
+          />
+          <div className="workspace-pane" hidden={canvasView !== "variants"}>
+            <Stage
+              generation={state}
+              candidates={candidates}
+              onRefine={openEditor}
+              onDismissCandidate={(id) =>
+                setCandidates((current) => current.filter((candidate) => candidate.id !== id))
+              }
+              onClearCandidates={() => setCandidates([])}
             />
-            {state.kind === "img2img" && state.images.length > 0 && (
-              <div className="edit-results" aria-label="Edited candidates">
+          </div>
+          <div className="workspace-pane" hidden={canvasView !== "regions"}>
+            <RegionStage
+              value={regionalComposition}
+              frameWidth={activeDimensions.width}
+              frameHeight={activeDimensions.height}
+              onChange={setRegionalComposition}
+            />
+          </div>
+          {editorSession > 0 && (
+            <div className="workspace-pane" hidden={canvasView !== "editor"}>
+            <section className="stage stage--editor" aria-label="Editing stage">
+              <header className="stage__header">
                 <div>
-                  <strong>Edited candidates</strong>
-                  <small>Choose one to continue painting on it.</small>
-                </div>
-                <div className="edit-results__tray">
-                  {state.images.map((image, index) => (
-                    <button
-                      type="button"
-                      key={`${state.taskId}-edit-${index}`}
-                      onClick={() => openEditor(image)}
-                      aria-label={`Use edited candidate ${index + 1} as source`}
-                    >
-                      <img src={image} alt={`Edited candidate ${index + 1}`} />
-                      <span>Use as source</span>
-                    </button>
-                  ))}
+                  <p className="eyebrow">Editor</p>
+                  <h2>{editorSource ? "Refine this shot" : "Draw the source"}</h2>
                 </div>
                 <button
                   type="button"
                   className="return-to-results"
                   onClick={() => setCanvasView("variants")}
                 >
-                  Compare full size
+                  Return to results
                 </button>
-              </div>
-            )}
-          </section>
-          </div>
-        )}
+              </header>
+              {editorError && (
+                <p className="stage__error" role="alert">{editorError}</p>
+              )}
+              <ImageEditor
+                key={editorSession}
+                ref={editorRef}
+                source={editorSource}
+                width={editorDimensions.width}
+                height={editorDimensions.height}
+                onReady={handleEditorReady}
+                onContentChange={() =>
+                  setConditions((current) =>
+                    current.map((condition) =>
+                      condition.source.kind === "current" && condition.preview
+                        ? {
+                            ...condition,
+                            preview: null,
+                            previewStatus: "idle",
+                            previewError: null,
+                          }
+                        : condition,
+                    ),
+                  )
+                }
+              />
+              {state.kind === "img2img" && state.images.length > 0 && (
+                <div className="edit-results" aria-label="Edited candidates">
+                  <div>
+                    <strong>Edited candidates</strong>
+                    <small>Choose one to continue painting on it.</small>
+                  </div>
+                  <div className="edit-results__tray">
+                    {state.images.map((image, index) => (
+                      <button
+                        type="button"
+                        key={`${state.taskId}-edit-${index}`}
+                        onClick={() => openEditor(image)}
+                        aria-label={`Use edited candidate ${index + 1} as source`}
+                      >
+                        <img src={image} alt={`Edited candidate ${index + 1}`} />
+                        <span>Use as source</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="return-to-results"
+                    onClick={() => setCanvasView("variants")}
+                  >
+                    Compare full size
+                  </button>
+                </div>
+              )}
+            </section>
+            </div>
+          )}
+        </div>
       </main>
 
       <footer className="footer">

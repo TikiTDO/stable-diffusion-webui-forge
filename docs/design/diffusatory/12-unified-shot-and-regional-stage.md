@@ -90,6 +90,14 @@ simultaneously reachable instrument zones:
 4. a right image-tools dock for regional composition, image edit parameters,
    and ControlNet conditions.
 
+The centre is not a set of generation-endpoint tabs. A persistent **Stage**
+strip selects the visible working surface—unaccepted variants, the mounted
+pen/mask document, or spatial blocking—and simultaneously reports candidate
+count, region count, and the source and dimensions of the next request. The
+prompt and image-tool docks do not disappear when that surface changes. Opening
+prompt ingredients by default makes the catalog immediately inspectable rather
+than using empty column height to hide a useful instrument behind disclosure.
+
 At a 1920 by 1200 viewport, the idle workbench occupies one viewport without a
 page scroll. Panels end with their content rather than stretching an empty card
 to match the Stage. The central blank area is not decorative dead space: it is
@@ -189,6 +197,13 @@ Focused frontend checks on the implementation head established:
 - the dense desktop workbench rendered at 1920 by 1200 without page scroll in
   its idle state; the captured result is
   `/agents/vesper/scratch/diffusatory-dense-workbench.png`;
+- the persistent Stage strip rendered in that same viewport with prompt
+  ingredients open, and exposed Variants, Blank canvas, and Regions together
+  with the next request's source and dimensions; the captured result is
+  `/agents/vesper/scratch/diffusatory-dense-stage-switcher.png`;
+- opening Blank canvas changed the Stage to the mounted editor and the next
+  request to `Active image · 1024 × 1024`; opening Regions then changed only
+  the visible Stage surface while retaining that active-image source;
 - a three-candidate mocked run selected the newest image, previous navigation
   moved from 3/3 to 2/3, dismissing the selected candidate chose its adjacent
   survivor at 2/2, and Clear removed the shelf without issuing any network

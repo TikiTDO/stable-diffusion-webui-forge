@@ -43,7 +43,7 @@ export function PromptTools({
   };
 
   return (
-    <details className="prompt-tools">
+    <details className="prompt-tools" open>
       <summary>
         <span>Prompt ingredients</span>
         <small>
