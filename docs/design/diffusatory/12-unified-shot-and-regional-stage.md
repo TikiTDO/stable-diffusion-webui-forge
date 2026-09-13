@@ -27,16 +27,24 @@ The resulting rule is:
 ## Current source semantics
 
 The compatibility UI now presents a compact source statement instead of
-txt2img/img2img tabs:
+txt2img/img2img tabs. **Generation source and the surface currently visible on
+the Stage are separate state.** Looking at candidates does not discard a
+mounted editor document or silently decide whether the next request has a
+source:
 
 - **Generating new variants** has no active source and dispatches txt2img.
 - Choosing a candidate or starting a blank drawing opens the existing layered
   editor and makes its visible composite the img2img source.
 - A non-empty editor selection becomes the inpaint mask; an empty mask remains
   ordinary img2img.
-- **Back to variants** returns to prompt-only generation while leaving the
-  editor component mounted, so navigating the workbench does not itself erase
-  paint or mask state.
+- **New variants** explicitly selects prompt-only generation while leaving the
+  editor component mounted.
+- **Return to results** changes only the visible surface. The active image can
+  remain the next generation source while the person compares prior results;
+  the source indicator remains visible in the top rack.
+- **Active image / Show source** returns to the mounted editor and makes the
+  source relation explicit rather than deriving it from which surface happens
+  to be visible.
 - The Generate control remains one action. The source and mask—not the label on
   a tab—select its request shape.
 
@@ -51,7 +59,8 @@ source kind, image, resolved prompt, negative prompt, seed, and infotext.
 Contact sheets and auxiliary outputs are excluded rather than presented as
 ordinary shots.
 
-The shelf has two intentionally non-destructive operations:
+The shelf has two intentionally non-destructive operations and direct
+previous/next navigation over the large image:
 
 - dismiss one candidate from the visible shelf;
 - clear the entire visible shelf before working on another story beat.
@@ -64,6 +73,34 @@ and unaccepted remain relations, not byte-destruction states.
 
 The browser reducer is deliberately transient. It proves interaction semantics
 without pretending that a project database already exists.
+
+## Dense workbench layout
+
+The first implementation put every control in a long Composer column and used
+the other column almost entirely for an image. That was cleaner than Gradio but
+still inherited a form/application split. The current screen instead has four
+simultaneously reachable instrument zones:
+
+1. a top rack for generation source, checkpoint/module, frame, candidates,
+   seed, sampler, scheduler, steps, CFG, preview cadence, and render controls;
+2. a left prompt dock for positive/negative language, prompt realizations, the
+   syntax legend, styles, LoRAs, and embeddings;
+3. the large central Stage for the current candidate, pen editor, or spatial
+   map;
+4. a right image-tools dock for regional composition, image edit parameters,
+   and ControlNet conditions.
+
+At a 1920 by 1200 viewport, the idle workbench occupies one viewport without a
+page scroll. Panels end with their content rather than stretching an empty card
+to match the Stage. The central blank area is not decorative dead space: it is
+the actual image viewport and becomes occupied by the generated frame. When
+candidates exist, their shelf sits immediately below that image—before run
+provenance—so review is not hidden behind engine detail.
+
+The arrangement is responsive, but the desktop design does not optimize for
+minimal chrome. It optimizes for the operator being able to change posture—from
+prompting, to scene assembly, to drawing, to conditioning—without navigating a
+feature hierarchy first.
 
 ## Transformable regional stage
 
@@ -112,6 +149,13 @@ Focused frontend checks on the implementation head established:
   prompt inputs;
 - a mocked two-run journey appended four candidates to one shelf, after which
   dismiss and clear changed browser state without a deletion request.
+- the dense desktop workbench rendered at 1920 by 1200 without page scroll in
+  its idle state; the captured result is
+  `/agents/vesper/scratch/diffusatory-dense-workbench.png`;
+- a three-candidate mocked run selected the newest image, previous navigation
+  moved from 3/3 to 2/3, dismissing the selected candidate chose its adjacent
+  survivor at 2/2, and Clear removed the shelf without issuing any network
+  mutation.
 
 The browser's ordinary screenshot command continued to hang on its stability
 wait. A direct Playwright full-page capture succeeded for the regional surface
@@ -131,6 +175,8 @@ evidence of layout, not tablet or inference behavior.
 - Exercise pressure, tilt/angle, eraser reporting, barrel buttons, ExpressKeys,
   palm rejection, and hover alignment on the operator's physical Wacom or Huion
   device. Synthetic Pointer Events are not that acceptance test.
-- Remove the remaining results/editor view switch only after the same mounted
-  editor document and candidate shelf can share one stable Stage without losing
-  canvas state.
+- Let the same mounted editor document, candidate shelf, and future project
+  sequence share one stable Stage without relying on visibility as generation
+  source state. Source and visible-surface state are already decoupled; the
+  remaining work is interaction and persistence rather than another endpoint
+  tab removal.

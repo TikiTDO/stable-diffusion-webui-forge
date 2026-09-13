@@ -23,6 +23,7 @@ interface ComposerProps {
   generating: boolean;
   canGenerate: boolean;
   sourceActive: boolean;
+  editorVisible: boolean;
   hasEditorDocument: boolean;
   editSettings: {
     denoisingStrength: number;
@@ -67,9 +68,9 @@ interface ComposerProps {
 }
 
 const ASPECTS = [
-  { label: "Square", width: 1024, height: 1024 },
-  { label: "Portrait", width: 832, height: 1216 },
-  { label: "Landscape", width: 1216, height: 832 },
+  { label: "Square", compactLabel: "1:1", width: 1024, height: 1024 },
+  { label: "Portrait", compactLabel: "2:3", width: 832, height: 1216 },
+  { label: "Landscape", compactLabel: "3:2", width: 1216, height: 832 },
 ];
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -93,6 +94,7 @@ export function Composer({
   generating,
   canGenerate,
   sourceActive,
+  editorVisible,
   hasEditorDocument,
   editSettings,
   editDimensions,
@@ -137,28 +139,27 @@ export function Composer({
   };
 
   return (
-    <section className="composer" aria-label="Composer">
-      <div className="composer__heading">
-        <div>
-          <p className="eyebrow">Composer</p>
-          <h2>What should exist?</h2>
+    <>
+      <section className="workbench-rack" aria-label="Generation controls">
+        <div className="source-context" aria-label="Generation source">
+          <div>
+            <span className={`source-context__light ${editing ? "is-active" : ""}`} aria-hidden="true" />
+            <div>
+              <strong>{editing ? "Active image" : "Prompt only"}</strong>
+              <small>{editing ? "Paint, mask, then generate a variation." : "Generate new variants without changing the active image."}</small>
+            </div>
+          </div>
+          {editing && <button type="button" onClick={onUsePromptOnly}>New variants</button>}
+          {editing && !editorVisible && (
+            <button type="button" onClick={onResumeEditor}>Show source</button>
+          )}
+          {!editing && hasEditorDocument && (
+            <button type="button" onClick={onResumeEditor}>Active image</button>
+          )}
+          <button type="button" onClick={onNewDrawing}>Blank canvas</button>
         </div>
-        <span className="draft-label">SDXL · fast draft</span>
-      </div>
 
-      <div className="source-context" aria-label="Generation source">
-        <div>
-          <strong>{editing ? "Refining the active image" : "Generating new variants"}</strong>
-          <small>{editing ? "Paint and masks travel with the source." : "No source image; begin from the prompt."}</small>
-        </div>
-        {editing && <button type="button" onClick={onUsePromptOnly}>Back to variants</button>}
-        {!editing && hasEditorDocument && (
-          <button type="button" onClick={onResumeEditor}>Return to active image</button>
-        )}
-        <button type="button" onClick={onNewDrawing}>Blank canvas</button>
-      </div>
-
-      <div className="model-rack">
+        <div className="model-rack">
         <label>
           <span>Checkpoint</span>
           <select
@@ -191,79 +192,9 @@ export function Composer({
             ))}
           </select>
         </label>
-      </div>
+        </div>
 
-      <label className="prompt-field">
-        <span>Prompt</span>
-        <textarea
-          value={draft.prompt}
-          onChange={(event) => onChange({ prompt: event.target.value })}
-          onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-              event.preventDefault();
-              onGenerate();
-            }
-          }}
-          rows={7}
-          spellCheck="true"
-          autoFocus
-        />
-      </label>
-
-      <label className="negative-field">
-        <span>Negative prompt</span>
-        <textarea
-          value={draft.negativePrompt}
-          onChange={(event) => onChange({ negativePrompt: event.target.value })}
-          rows={2}
-          placeholder="What should stay out of the frame?"
-        />
-      </label>
-
-      <PromptComposition
-        mode={promptMode}
-        expansionSeed={expansionSeed}
-        response={promptExpansion}
-        loading={promptExpansionLoading}
-        error={promptExpansionError}
-        actionError={promptActionError}
-        onModeChange={onPromptModeChange}
-        onExpansionSeedChange={onExpansionSeedChange}
-        onShuffle={onShufflePromptSet}
-      />
-
-      <RegionComposer
-        value={regionalComposition}
-        frameWidth={frameWidth}
-        frameHeight={frameHeight}
-        commonPrompt={draft.prompt}
-        onChange={onRegionalCompositionChange}
-      />
-
-      {catalog && (
-        <PromptTools
-          catalog={catalog}
-          selectedStyles={draft.styles}
-          onStylesChange={(styles) => onChange({ styles })}
-          onInsert={insertPrompt}
-        />
-      )}
-
-      <ConditionStack
-        catalog={controlNetCatalog}
-        error={controlNetError}
-        loading={controlNetLoading}
-        conditions={conditions}
-        currentImageAvailable={currentImageAvailable}
-        onAdd={onAddCondition}
-        onChange={onChangeCondition}
-        onReplace={onReplaceCondition}
-        onRemove={onRemoveCondition}
-        onPreview={onPreviewCondition}
-        onReload={onReloadControlNet}
-      />
-
-      <div className="draft-controls">
+        <div className="draft-controls">
         <fieldset className="dimensions">
           <legend>Frame</legend>
           {editing && (
@@ -282,11 +213,13 @@ export function Composer({
                     : ""
                 }
                 disabled={editing}
+                aria-label={`${aspect.label} ${aspect.width} by ${aspect.height}`}
+                title={`${aspect.label} · ${aspect.width} × ${aspect.height}`}
                 onClick={() =>
                   onChange({ width: aspect.width, height: aspect.height })
                 }
               >
-                {aspect.label}
+                {aspect.compactLabel}
               </button>
             ))}
           </div>
@@ -377,89 +310,13 @@ export function Composer({
             }
           />
         </label>
-      </div>
+        </div>
 
-      {editing && (
-        <fieldset className="edit-generation-controls">
-          <legend>Image edit</legend>
-          <label>
-            <span>Denoise {editSettings.denoisingStrength.toFixed(2)}</span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={editSettings.denoisingStrength}
-              onChange={(event) =>
-                onEditSettingsChange({
-                  denoisingStrength: event.target.valueAsNumber,
-                })
-              }
-            />
-          </label>
-          <label>
-            <span>Mask blur</span>
-            <input
-              type="number"
-              min="0"
-              max="64"
-              value={editSettings.maskBlur}
-              onChange={(event) =>
-                onEditSettingsChange({
-                  maskBlur: changedNumber(
-                    event.target.valueAsNumber,
-                    editSettings.maskBlur,
-                    0,
-                    64,
-                  ),
-                })
-              }
-            />
-          </label>
-          <label>
-            <span>Inpaint area</span>
-            <select
-              value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
-              onChange={(event) =>
-                onEditSettingsChange({
-                  inpaintOnlyMasked: event.target.value === "masked",
-                })
-              }
-            >
-              <option value="masked">Only masked</option>
-              <option value="whole">Whole image</option>
-            </select>
-          </label>
-          <label>
-            <span>Mask padding</span>
-            <input
-              type="number"
-              min="0"
-              max="256"
-              step="4"
-              value={editSettings.inpaintPadding}
-              onChange={(event) =>
-                onEditSettingsChange({
-                  inpaintPadding: changedNumber(
-                    event.target.valueAsNumber,
-                    editSettings.inpaintPadding,
-                    0,
-                    256,
-                  ),
-                })
-              }
-            />
-          </label>
-        </fieldset>
-      )}
-
-      <details className="render-character">
-        <summary>
-          <span>Render character</span>
-          <small>
-            {draft.sampler} · {draft.steps} steps · CFG {draft.cfgScale}
-          </small>
-        </summary>
+        <section className="render-character" aria-label="Render character">
+          <header>
+            <strong>Render</strong>
+            <small>{draft.sampler} · {draft.steps} steps</small>
+          </header>
         <div className="render-character__grid">
           <label>
             <span>Sampler</span>
@@ -540,8 +397,8 @@ export function Composer({
               }
             />
           </label>
-        </div>
-      </details>
+          </div>
+        </section>
 
       {catalogError && (
         <div className="connection-error" role="alert">
@@ -552,7 +409,7 @@ export function Composer({
         </div>
       )}
 
-      <div className="composer__actions">
+        <div className="composer__actions">
         <button
           className="generate"
           type="button"
@@ -580,9 +437,9 @@ export function Composer({
         >
           Cancel render
         </button>
-      </div>
+        </div>
 
-      <div className="catalog-status">
+        <div className="catalog-status">
         <span>{catalogLoading ? "Reading this instrument…" : "Current instrument"}</span>
         {catalog && (
           <small>
@@ -591,7 +448,172 @@ export function Composer({
             {catalog.styles.length} styles
           </small>
         )}
-      </div>
-    </section>
+        </div>
+      </section>
+
+      <section className="composer prompt-dock" aria-label="Prompt composer">
+        <div className="composer__heading">
+          <div>
+            <p className="eyebrow">Prompt</p>
+            <h2>Describe the shot</h2>
+          </div>
+          <span className="draft-label">live</span>
+        </div>
+
+        <label className="prompt-field">
+          <span>Prompt</span>
+          <textarea
+            value={draft.prompt}
+            onChange={(event) => onChange({ prompt: event.target.value })}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                event.preventDefault();
+                onGenerate();
+              }
+            }}
+            rows={9}
+            spellCheck="true"
+            autoFocus
+          />
+        </label>
+
+        <label className="negative-field">
+          <span>Negative prompt</span>
+          <textarea
+            value={draft.negativePrompt}
+            onChange={(event) => onChange({ negativePrompt: event.target.value })}
+            rows={3}
+            placeholder="What should stay out of the frame?"
+          />
+        </label>
+
+        <PromptComposition
+          mode={promptMode}
+          expansionSeed={expansionSeed}
+          response={promptExpansion}
+          loading={promptExpansionLoading}
+          error={promptExpansionError}
+          actionError={promptActionError}
+          onModeChange={onPromptModeChange}
+          onExpansionSeedChange={onExpansionSeedChange}
+          onShuffle={onShufflePromptSet}
+        />
+
+        {catalog && (
+          <PromptTools
+            catalog={catalog}
+            selectedStyles={draft.styles}
+            onStylesChange={(styles) => onChange({ styles })}
+            onInsert={insertPrompt}
+          />
+        )}
+      </section>
+
+      <aside className="tool-dock" aria-label="Image and conditioning tools">
+        <header className="tool-dock__heading">
+          <div>
+            <p className="eyebrow">Image tools</p>
+            <h2>Shape the frame</h2>
+          </div>
+          <span>{conditions.length} condition{conditions.length === 1 ? "" : "s"}</span>
+        </header>
+
+        {editing && (
+          <fieldset className="edit-generation-controls">
+            <legend>Image variation / inpaint</legend>
+            <label>
+              <span>Denoise {editSettings.denoisingStrength.toFixed(2)}</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={editSettings.denoisingStrength}
+                onChange={(event) =>
+                  onEditSettingsChange({
+                    denoisingStrength: event.target.valueAsNumber,
+                  })
+                }
+              />
+            </label>
+            <label>
+              <span>Mask blur</span>
+              <input
+                type="number"
+                min="0"
+                max="64"
+                value={editSettings.maskBlur}
+                onChange={(event) =>
+                  onEditSettingsChange({
+                    maskBlur: changedNumber(
+                      event.target.valueAsNumber,
+                      editSettings.maskBlur,
+                      0,
+                      64,
+                    ),
+                  })
+                }
+              />
+            </label>
+            <label>
+              <span>Inpaint area</span>
+              <select
+                value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
+                onChange={(event) =>
+                  onEditSettingsChange({
+                    inpaintOnlyMasked: event.target.value === "masked",
+                  })
+                }
+              >
+                <option value="masked">Only masked</option>
+                <option value="whole">Whole image</option>
+              </select>
+            </label>
+            <label>
+              <span>Padding</span>
+              <input
+                type="number"
+                min="0"
+                max="256"
+                step="4"
+                value={editSettings.inpaintPadding}
+                onChange={(event) =>
+                  onEditSettingsChange({
+                    inpaintPadding: changedNumber(
+                      event.target.valueAsNumber,
+                      editSettings.inpaintPadding,
+                      0,
+                      256,
+                    ),
+                  })
+                }
+              />
+            </label>
+          </fieldset>
+        )}
+
+        <RegionComposer
+          value={regionalComposition}
+          frameWidth={frameWidth}
+          frameHeight={frameHeight}
+          commonPrompt={draft.prompt}
+          onChange={onRegionalCompositionChange}
+        />
+
+        <ConditionStack
+          catalog={controlNetCatalog}
+          error={controlNetError}
+          loading={controlNetLoading}
+          conditions={conditions}
+          currentImageAvailable={currentImageAvailable}
+          onAdd={onAddCondition}
+          onChange={onChangeCondition}
+          onReplace={onReplaceCondition}
+          onRemove={onRemoveCondition}
+          onPreview={onPreviewCondition}
+          onReload={onReloadControlNet}
+        />
+      </aside>
+    </>
   );
 }

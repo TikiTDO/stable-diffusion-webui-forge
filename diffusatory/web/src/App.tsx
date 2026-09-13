@@ -51,7 +51,8 @@ export default function App() {
   const [promptMode, setPromptMode] = useState<PromptExpansionMode>("off");
   const [expansionSeed, setExpansionSeed] = useState(newExpansionSeed);
   const [promptActionError, setPromptActionError] = useState<string | null>(null);
-  const [stageView, setStageView] = useState<"variants" | "editor">("variants");
+  const [canvasView, setCanvasView] = useState<"variants" | "editor">("variants");
+  const [generationSource, setGenerationSource] = useState<"prompt" | "editor">("prompt");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [editorSource, setEditorSource] = useState<string | null>(null);
   const [editorSession, setEditorSession] = useState(0);
@@ -84,7 +85,7 @@ export default function App() {
   } = useControlNetCatalog(client);
   const { state, generate, interrupt, skip, generating } =
     useForgeGeneration(client);
-  const sourceActive = stageView === "editor";
+  const sourceActive = generationSource === "editor";
   const activeDimensions = sourceActive ? editorDimensions : {
     width: draft.width,
     height: draft.height,
@@ -323,7 +324,8 @@ export default function App() {
       setEditorSource(source);
       setEditorDimensions({ width: draft.width, height: draft.height });
       setEditorSession((current) => current + 1);
-      setStageView("editor");
+      setGenerationSource("editor");
+      setCanvasView("editor");
     },
     [draft.height, draft.width],
   );
@@ -368,6 +370,7 @@ export default function App() {
           generating={generating}
           canGenerate={canGenerate}
           sourceActive={sourceActive}
+          editorVisible={canvasView === "editor"}
           hasEditorDocument={editorSession > 0}
           editSettings={editSettings}
           editDimensions={editorDimensions}
@@ -381,8 +384,14 @@ export default function App() {
             reload();
             void loadInstance();
           }}
-          onUsePromptOnly={() => setStageView("variants")}
-          onResumeEditor={() => setStageView("editor")}
+          onUsePromptOnly={() => {
+            setGenerationSource("prompt");
+            setCanvasView("variants");
+          }}
+          onResumeEditor={() => {
+            setGenerationSource("editor");
+            setCanvasView("editor");
+          }}
           onNewDrawing={() => openEditor(null)}
           onEditSettingsChange={(patch) =>
             setEditSettings((current) => ({ ...current, ...patch }))
@@ -422,7 +431,7 @@ export default function App() {
           onReloadControlNet={reloadControlNet}
         />
 
-        <div className="workspace-pane" hidden={stageView !== "variants" || regionalComposition.enabled}>
+        <div className="workspace-pane" hidden={canvasView !== "variants" || regionalComposition.enabled}>
           <Stage
             generation={state}
             candidates={candidates}
@@ -442,7 +451,7 @@ export default function App() {
           />
         </div>
         {editorSession > 0 && (
-          <div className="workspace-pane" hidden={stageView !== "editor" || regionalComposition.enabled}>
+          <div className="workspace-pane" hidden={canvasView !== "editor" || regionalComposition.enabled}>
           <section className="stage stage--editor" aria-label="Editing stage">
             <header className="stage__header">
               <div>
@@ -452,7 +461,7 @@ export default function App() {
               <button
                 type="button"
                 className="return-to-results"
-                onClick={() => setStageView("variants")}
+                onClick={() => setCanvasView("variants")}
               >
                 Return to results
               </button>
@@ -504,7 +513,7 @@ export default function App() {
                 <button
                   type="button"
                   className="return-to-results"
-                  onClick={() => setStageView("variants")}
+                  onClick={() => setCanvasView("variants")}
                 >
                   Compare full size
                 </button>

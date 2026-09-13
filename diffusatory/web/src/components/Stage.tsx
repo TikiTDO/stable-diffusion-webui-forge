@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { isGenerating, type GenerationState } from "../domain/generation";
 import type { Candidate } from "../domain/candidates";
@@ -28,8 +28,13 @@ export const Stage = memo(function Stage({
     image: string;
     index: number | null;
   } | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
+  const previousCandidateCount = useRef(0);
+  const selectedIndex = Math.max(
+    0,
+    candidates.findIndex((candidate) => candidate.id === selectedCandidateId),
+  );
   const selectedCandidate = candidates[selectedIndex] ?? candidates[0] ?? null;
   const selectedResult = selectedCandidate?.result ?? null;
   const selectedImage = selectedCandidate?.result.image ?? null;
@@ -40,9 +45,22 @@ export const Stage = memo(function Stage({
   const eta = formatEta(generation.eta);
 
   useEffect(() => {
-    setSelectedIndex(Math.max(0, candidates.length - 1));
-    setViewer(null);
-  }, [candidates.length]);
+    const grew = candidates.length > previousCandidateCount.current;
+    previousCandidateCount.current = candidates.length;
+    if (!candidates.length) {
+      setSelectedCandidateId(null);
+      setViewer(null);
+      return;
+    }
+    if (
+      grew ||
+      !selectedCandidateId ||
+      !candidates.some((candidate) => candidate.id === selectedCandidateId)
+    ) {
+      setSelectedCandidateId(candidates[candidates.length - 1].id);
+      setViewer(null);
+    }
+  }, [candidates, selectedCandidateId]);
 
   useEffect(() => {
     if (!viewer) return;
@@ -55,11 +73,11 @@ export const Stage = memo(function Stage({
       if (event.key === "ArrowLeft") {
         const index =
           (viewer.index - 1 + candidates.length) % candidates.length;
-        setSelectedIndex(index);
+        setSelectedCandidateId(candidates[index].id);
         setViewer({ image: candidates[index].result.image, index });
       } else if (event.key === "ArrowRight") {
         const index = (viewer.index + 1) % candidates.length;
-        setSelectedIndex(index);
+        setSelectedCandidateId(candidates[index].id);
         setViewer({ image: candidates[index].result.image, index });
       }
     };
@@ -76,8 +94,24 @@ export const Stage = memo(function Stage({
     if (!viewer || viewer.index === null || !candidates.length) return;
     const index =
       (viewer.index + direction + candidates.length) % candidates.length;
-    setSelectedIndex(index);
+    setSelectedCandidateId(candidates[index].id);
     setViewer({ image: candidates[index].result.image, index });
+  };
+
+  const selectRelativeCandidate = (direction: -1 | 1) => {
+    if (candidates.length < 2) return;
+    const index =
+      (selectedIndex + direction + candidates.length) % candidates.length;
+    setSelectedCandidateId(candidates[index].id);
+  };
+
+  const dismissCandidate = (id: string) => {
+    if (id === selectedCandidateId) {
+      const remaining = candidates.filter((candidate) => candidate.id !== id);
+      const adjacent = remaining[Math.min(selectedIndex, remaining.length - 1)] ?? null;
+      setSelectedCandidateId(adjacent?.id ?? null);
+    }
+    onDismissCandidate(id);
   };
 
   return (
@@ -111,7 +145,80 @@ export const Stage = memo(function Stage({
             <small>Your prompt stays editable while Forge works.</small>
           </div>
         )}
+        {selectedCandidate && candidates.length > 1 && !isGenerating(generation.phase) && (
+          <nav className="stage__candidate-nav" aria-label="Browse unaccepted variants">
+            <button
+              type="button"
+              onClick={() => selectRelativeCandidate(-1)}
+              aria-label="Previous unaccepted variant"
+            >
+              ←
+            </button>
+            <span>{selectedIndex + 1} / {candidates.length}</span>
+            <button
+              type="button"
+              onClick={() => selectRelativeCandidate(1)}
+              aria-label="Next unaccepted variant"
+            >
+              →
+            </button>
+          </nav>
+        )}
       </div>
+
+      {candidates.length > 0 && (
+        <div className="result-actions">
+          <div className="candidate-shelf">
+            <header>
+              <span>{candidates.length} unaccepted</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCandidateId(null);
+                  onClearCandidates();
+                }}
+              >
+                Clear shelf
+              </button>
+            </header>
+            <div className="result-tray" aria-label="Unaccepted generation candidates">
+              {candidates.map((candidate, index) => (
+                <div className="candidate-tile" key={candidate.id}>
+                  <button
+                    type="button"
+                    className={selectedIndex === index ? "is-selected" : ""}
+                    onClick={() => setSelectedCandidateId(candidate.id)}
+                    onDoubleClick={() => openViewer(candidate.result.image, index)}
+                    aria-label={`Select unaccepted candidate ${index + 1}`}
+                  >
+                    <img src={candidate.result.image} alt={`Unaccepted candidate ${index + 1}`} />
+                    <span>{candidate.sourceKind === "img2img" ? "Edit" : `#${index + 1}`}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="candidate-dismiss"
+                    aria-label={`Dismiss unaccepted candidate ${index + 1}`}
+                    title="Remove from this shelf; raw output remains on disk"
+                    onClick={() => dismissCandidate(candidate.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <small>Clear only hides these here; Forge’s raw output remains on disk.</small>
+          </div>
+          {selectedImage && onRefine && selectedResult?.kind !== "contact-sheet" && (
+            <button
+              type="button"
+              className="refine-result"
+              onClick={() => onRefine(selectedImage)}
+            >
+              Draw / mask
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="stage__status" aria-live="polite">
         <div className="progress-track" aria-hidden="true">
@@ -155,52 +262,6 @@ export const Stage = memo(function Stage({
             <small>Without: {selectedResult.negativePrompt}</small>
           )}
         </section>
-      )}
-
-      {candidates.length > 0 && (
-        <div className="result-actions">
-          <div className="candidate-shelf">
-            <header>
-              <span>{candidates.length} unaccepted</span>
-              <button type="button" onClick={onClearCandidates}>Clear shelf</button>
-            </header>
-            <div className="result-tray" aria-label="Unaccepted generation candidates">
-              {candidates.map((candidate, index) => (
-                <div className="candidate-tile" key={candidate.id}>
-                  <button
-                    type="button"
-                    className={selectedIndex === index ? "is-selected" : ""}
-                    onClick={() => setSelectedIndex(index)}
-                    onDoubleClick={() => openViewer(candidate.result.image, index)}
-                    aria-label={`Select unaccepted candidate ${index + 1}`}
-                  >
-                    <img src={candidate.result.image} alt={`Unaccepted candidate ${index + 1}`} />
-                    <span>{candidate.sourceKind === "img2img" ? "Edit" : `#${index + 1}`}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="candidate-dismiss"
-                    aria-label={`Dismiss unaccepted candidate ${index + 1}`}
-                    title="Remove from this shelf; raw output remains on disk"
-                    onClick={() => onDismissCandidate(candidate.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-            <small>Clearing this shelf does not delete Forge’s raw output.</small>
-          </div>
-          {selectedImage && onRefine && selectedResult?.kind !== "contact-sheet" && (
-            <button
-              type="button"
-              className="refine-result"
-              onClick={() => onRefine(selectedImage)}
-            >
-              Paint / inpaint this shot
-            </button>
-          )}
-        </div>
       )}
 
       {generation.taskId && (
