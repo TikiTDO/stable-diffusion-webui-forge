@@ -100,10 +100,6 @@ function create_submit_args(args) {
         //res[res.length - 4] = null;
         // simply drop output args
         res = res.slice(0, res.length - 4);
-    } else if (Array.isArray(res[res.length - 3])) {
-        // for submit_extras()
-        //res[res.length - 3] = null;
-        res = res.slice(0, res.length - 3);
     }
 
     return res;
@@ -166,22 +162,6 @@ function submit_img2img() {
         showSubmitButtons('img2img', true);
         localRemove("img2img_task_id");
         showRestoreProgressButton('img2img', false);
-    });
-
-    var res = create_submit_args(arguments);
-
-    res[0] = id;
-
-    return res;
-}
-
-function submit_extras() {
-    showSubmitButtons('extras', false);
-
-    var id = randomId();
-
-    requestProgress(id, gradioApp().getElementById('extras_gallery_container'), gradioApp().getElementById('extras_gallery'), function() {
-        showSubmitButtons('extras', true);
     });
 
     var res = create_submit_args(arguments);
