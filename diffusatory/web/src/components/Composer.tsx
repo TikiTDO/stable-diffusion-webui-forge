@@ -10,6 +10,8 @@ import type {
   ConditionPatch,
   ControlNetCondition,
 } from "../features/controlnet/types";
+import { RegionComposer } from "../features/regions/RegionComposer";
+import type { RegionalComposition } from "../features/regions/types";
 import { PromptTools } from "./PromptTools";
 import { PromptComposition } from "./PromptComposition";
 
@@ -20,7 +22,8 @@ interface ComposerProps {
   catalogLoading: boolean;
   generating: boolean;
   canGenerate: boolean;
-  workspaceMode: "compose" | "edit";
+  sourceActive: boolean;
+  hasEditorDocument: boolean;
   editSettings: {
     denoisingStrength: number;
     maskBlur: number;
@@ -33,7 +36,8 @@ interface ComposerProps {
   onInterrupt: () => void;
   onSkip: () => void;
   onReloadCatalog: () => void;
-  onWorkspaceModeChange: (mode: "compose" | "edit") => void;
+  onUsePromptOnly: () => void;
+  onResumeEditor: () => void;
   onNewDrawing: () => void;
   onEditSettingsChange: (
     patch: Partial<ComposerProps["editSettings"]>,
@@ -42,6 +46,8 @@ interface ComposerProps {
   controlNetError: string | null;
   controlNetLoading: boolean;
   conditions: ControlNetCondition[];
+  regionalComposition: RegionalComposition;
+  onRegionalCompositionChange: (value: RegionalComposition) => void;
   currentImageAvailable: boolean;
   onAddCondition: () => void;
   onChangeCondition: (id: string, patch: ConditionPatch) => void;
@@ -86,7 +92,8 @@ export function Composer({
   catalogLoading,
   generating,
   canGenerate,
-  workspaceMode,
+  sourceActive,
+  hasEditorDocument,
   editSettings,
   editDimensions,
   onChange,
@@ -94,13 +101,16 @@ export function Composer({
   onInterrupt,
   onSkip,
   onReloadCatalog,
-  onWorkspaceModeChange,
+  onUsePromptOnly,
+  onResumeEditor,
   onNewDrawing,
   onEditSettingsChange,
   controlNetCatalog,
   controlNetError,
   controlNetLoading,
   conditions,
+  regionalComposition,
+  onRegionalCompositionChange,
   currentImageAvailable,
   onAddCondition,
   onChangeCondition,
@@ -118,7 +128,7 @@ export function Composer({
   onExpansionSeedChange,
   onShufflePromptSet,
 }: ComposerProps) {
-  const editing = workspaceMode === "edit";
+  const editing = sourceActive;
   const frameWidth = editing ? editDimensions.width : draft.width;
   const frameHeight = editing ? editDimensions.height : draft.height;
   const insertPrompt = (text: string) => {
@@ -136,22 +146,16 @@ export function Composer({
         <span className="draft-label">SDXL · fast draft</span>
       </div>
 
-      <div className="workspace-mode" aria-label="Workspace mode">
-        <button
-          type="button"
-          className={workspaceMode === "compose" ? "is-selected" : ""}
-          onClick={() => onWorkspaceModeChange("compose")}
-        >
-          Compose
-        </button>
-        <button
-          type="button"
-          className={workspaceMode === "edit" ? "is-selected" : ""}
-          onClick={() => onWorkspaceModeChange("edit")}
-        >
-          Paint / inpaint
-        </button>
-        <button type="button" onClick={onNewDrawing}>New drawing</button>
+      <div className="source-context" aria-label="Generation source">
+        <div>
+          <strong>{editing ? "Refining the active image" : "Generating new variants"}</strong>
+          <small>{editing ? "Paint and masks travel with the source." : "No source image; begin from the prompt."}</small>
+        </div>
+        {editing && <button type="button" onClick={onUsePromptOnly}>Back to variants</button>}
+        {!editing && hasEditorDocument && (
+          <button type="button" onClick={onResumeEditor}>Return to active image</button>
+        )}
+        <button type="button" onClick={onNewDrawing}>Blank canvas</button>
       </div>
 
       <div className="model-rack">
@@ -226,6 +230,14 @@ export function Composer({
         onModeChange={onPromptModeChange}
         onExpansionSeedChange={onExpansionSeedChange}
         onShuffle={onShufflePromptSet}
+      />
+
+      <RegionComposer
+        value={regionalComposition}
+        frameWidth={frameWidth}
+        frameHeight={frameHeight}
+        commonPrompt={draft.prompt}
+        onChange={onRegionalCompositionChange}
       />
 
       {catalog && (
@@ -367,7 +379,7 @@ export function Composer({
         </label>
       </div>
 
-      {workspaceMode === "edit" && (
+      {editing && (
         <fieldset className="edit-generation-controls">
           <legend>Image edit</legend>
           <label>
@@ -548,11 +560,7 @@ export function Composer({
           onClick={onGenerate}
         >
           <span>
-            {generating
-              ? "Forge is working"
-              : workspaceMode === "edit"
-                ? "Generate edit"
-                : "Generate"}
+            {generating ? "Forge is working" : "Generate"}
           </span>
           <kbd>⌘/Ctrl ↵</kbd>
         </button>

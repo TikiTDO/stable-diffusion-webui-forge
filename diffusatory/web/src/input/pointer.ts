@@ -17,6 +17,8 @@ export interface PointerEventLike {
   pressure: number;
   tiltX: number;
   tiltY: number;
+  altitudeAngle?: number;
+  azimuthAngle?: number;
   twist?: number;
   tangentialPressure?: number;
   button: number;
@@ -35,6 +37,8 @@ export interface PointerSample {
   pressure: number;
   tiltX: number;
   tiltY: number;
+  altitudeAngle: number | null;
+  azimuthAngle: number | null;
   twist: number | null;
   tangentialPressure: number | null;
   button: number;
@@ -71,6 +75,14 @@ export function normalizePointerSample(
     pressure: bounded(finiteOr(event.pressure, 0), 0, 1),
     tiltX: bounded(finiteOr(event.tiltX, 0), -90, 90),
     tiltY: bounded(finiteOr(event.tiltY, 0), -90, 90),
+    altitudeAngle:
+      event.altitudeAngle === undefined
+        ? null
+        : bounded(finiteOr(event.altitudeAngle, Math.PI / 2), 0, Math.PI / 2),
+    azimuthAngle:
+      event.azimuthAngle === undefined
+        ? null
+        : bounded(finiteOr(event.azimuthAngle, 0), 0, Math.PI * 2),
     twist:
       event.twist === undefined
         ? null

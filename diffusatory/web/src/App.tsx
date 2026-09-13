@@ -23,6 +23,8 @@ import type {
   ControlNetCondition,
 } from "./features/controlnet/types";
 import { useControlNetCatalog } from "./features/controlnet/useControlNetCatalog";
+import { createRegionalComposition } from "./features/regions/model";
+import { RegionStage } from "./features/regions/RegionStage";
 import {
   draftFromCatalog,
   requestFromDraft,
@@ -31,6 +33,11 @@ import {
 import { useForgeCatalog } from "./domain/useForgeCatalog";
 import { useForgeGeneration } from "./domain/useForgeGeneration";
 import { usePromptExpansion } from "./domain/usePromptExpansion";
+import {
+  appendCandidates,
+  candidatesFromGeneration,
+  type Candidate,
+} from "./domain/candidates";
 
 function newExpansionSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
@@ -44,9 +51,8 @@ export default function App() {
   const [promptMode, setPromptMode] = useState<PromptExpansionMode>("off");
   const [expansionSeed, setExpansionSeed] = useState(newExpansionSeed);
   const [promptActionError, setPromptActionError] = useState<string | null>(null);
-  const [workspaceMode, setWorkspaceMode] = useState<"compose" | "edit">(
-    "compose",
-  );
+  const [stageView, setStageView] = useState<"variants" | "editor">("variants");
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [editorSource, setEditorSource] = useState<string | null>(null);
   const [editorSession, setEditorSession] = useState(0);
   const [editorDimensions, setEditorDimensions] = useState({
@@ -56,6 +62,9 @@ export default function App() {
   const [editorReady, setEditorReady] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [conditions, setConditions] = useState<ControlNetCondition[]>([]);
+  const [regionalComposition, setRegionalComposition] = useState(
+    createRegionalComposition,
+  );
   const [editSettings, setEditSettings] = useState({
     denoisingStrength: 0.6,
     maskBlur: 4,
@@ -75,6 +84,18 @@ export default function App() {
   } = useControlNetCatalog(client);
   const { state, generate, interrupt, skip, generating } =
     useForgeGeneration(client);
+  const sourceActive = stageView === "editor";
+  const activeDimensions = sourceActive ? editorDimensions : {
+    width: draft.width,
+    height: draft.height,
+  };
+
+  useEffect(() => {
+    const incoming = candidatesFromGeneration(state);
+    if (incoming.length) {
+      setCandidates((current) => appendCandidates(current, incoming));
+    }
+  }, [state]);
   const promptExpansionInput = useMemo<PromptExpansionInput>(
     () => ({
       prompt: draft.prompt.trim(),
@@ -132,20 +153,21 @@ export default function App() {
       ),
   );
   const canGenerate =
-    (workspaceMode === "edit" || Boolean(draft.prompt.trim())) &&
+    (sourceActive || Boolean(draft.prompt.trim())) &&
     !generating &&
     Boolean(
       instance?.capabilities.includes(
-        workspaceMode === "compose" ? "txt2img" : "img2img",
+        sourceActive ? "img2img" : "txt2img",
       ),
     ) &&
-    (workspaceMode === "compose" || editorReady) &&
+    (!sourceActive || editorReady) &&
     Boolean(catalog) &&
     conditionsReady &&
     promptExpansionEnabled &&
     !promptExpansion.loading &&
     Boolean(promptExpansion.response?.resolved_count) &&
-    !promptExpansion.response?.issues.some((issue) => issue.blocking);
+    !promptExpansion.response?.issues.some((issue) => issue.blocking) &&
+    !regionalComposition.enabled;
 
   const changeCondition = useCallback((id: string, patch: ConditionPatch) => {
     const invalidatesPreview =
@@ -273,7 +295,7 @@ export default function App() {
       outputs: promptSet.realizations.length,
       controlNet,
     };
-    if (workspaceMode === "compose") {
+    if (!sourceActive) {
       await generate({ kind: "txt2img", input: request });
       return;
     }
@@ -301,7 +323,7 @@ export default function App() {
       setEditorSource(source);
       setEditorDimensions({ width: draft.width, height: draft.height });
       setEditorSession((current) => current + 1);
-      setWorkspaceMode("edit");
+      setStageView("editor");
     },
     [draft.height, draft.width],
   );
@@ -309,14 +331,6 @@ export default function App() {
     setEditorDimensions({ width, height });
     setEditorReady(true);
   }, []);
-  const changeWorkspaceMode = useCallback(
-    (mode: "compose" | "edit") => {
-      if (mode === "edit" && editorSession === 0) openEditor(null);
-      else setWorkspaceMode(mode);
-    },
-    [editorSession, openEditor],
-  );
-
   return (
     <div className="app-shell">
       <header className="masthead">
@@ -353,7 +367,8 @@ export default function App() {
           catalogLoading={catalogLoading}
           generating={generating}
           canGenerate={canGenerate}
-          workspaceMode={workspaceMode}
+          sourceActive={sourceActive}
+          hasEditorDocument={editorSession > 0}
           editSettings={editSettings}
           editDimensions={editorDimensions}
           onChange={(patch) =>
@@ -366,7 +381,8 @@ export default function App() {
             reload();
             void loadInstance();
           }}
-          onWorkspaceModeChange={changeWorkspaceMode}
+          onUsePromptOnly={() => setStageView("variants")}
+          onResumeEditor={() => setStageView("editor")}
           onNewDrawing={() => openEditor(null)}
           onEditSettingsChange={(patch) =>
             setEditSettings((current) => ({ ...current, ...patch }))
@@ -375,6 +391,8 @@ export default function App() {
           controlNetError={controlNetError}
           controlNetLoading={controlNetLoading}
           conditions={conditions}
+          regionalComposition={regionalComposition}
+          onRegionalCompositionChange={setRegionalComposition}
           promptMode={promptMode}
           expansionSeed={expansionSeed}
           promptExpansion={promptExpansion.response}
@@ -404,11 +422,27 @@ export default function App() {
           onReloadControlNet={reloadControlNet}
         />
 
-        <div className="workspace-pane" hidden={workspaceMode !== "compose"}>
-          <Stage generation={state} onRefine={openEditor} />
+        <div className="workspace-pane" hidden={stageView !== "variants" || regionalComposition.enabled}>
+          <Stage
+            generation={state}
+            candidates={candidates}
+            onRefine={openEditor}
+            onDismissCandidate={(id) =>
+              setCandidates((current) => current.filter((candidate) => candidate.id !== id))
+            }
+            onClearCandidates={() => setCandidates([])}
+          />
+        </div>
+        <div className="workspace-pane" hidden={!regionalComposition.enabled}>
+          <RegionStage
+            value={regionalComposition}
+            frameWidth={activeDimensions.width}
+            frameHeight={activeDimensions.height}
+            onChange={setRegionalComposition}
+          />
         </div>
         {editorSession > 0 && (
-          <div className="workspace-pane" hidden={workspaceMode !== "edit"}>
+          <div className="workspace-pane" hidden={stageView !== "editor" || regionalComposition.enabled}>
           <section className="stage stage--editor" aria-label="Editing stage">
             <header className="stage__header">
               <div>
@@ -418,7 +452,7 @@ export default function App() {
               <button
                 type="button"
                 className="return-to-results"
-                onClick={() => setWorkspaceMode("compose")}
+                onClick={() => setStageView("variants")}
               >
                 Return to results
               </button>
@@ -470,7 +504,7 @@ export default function App() {
                 <button
                   type="button"
                   className="return-to-results"
-                  onClick={() => setWorkspaceMode("compose")}
+                  onClick={() => setStageView("variants")}
                 >
                   Compare full size
                 </button>

@@ -142,8 +142,9 @@ about physical pointer capture.
   real non-square source pass remain open.
 - Inpaint whole-image and only-masked fields are mapped to Forge's existing
   contract, but their image semantics still need a real engine comparison.
-- Rotation, tilt-shaped brushes, and twist are retained by the input contract
-  but are not yet visual brush controls.
+- Canvas rotation is not implemented. Tilt/altitude, azimuth, and twist now
+  shape and orient the brush footprint, but the mapping has not been felt or
+  tuned on the physical tablet and tangential pressure remains recorded only.
 - ControlNet conditions have not yet been attached to this editor surface.
 
 The physical-tablet and real-GPU checks in `08-pen-and-tablet-input.md` remain

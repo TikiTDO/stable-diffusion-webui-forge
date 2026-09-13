@@ -95,6 +95,15 @@ simultaneous rewrite of every layer.
    seams that let the interface move first.
 8. [`08-pen-and-tablet-input.md`](08-pen-and-tablet-input.md) — Wacom/Huion pen,
    pressure, buttons, touch, calibration, and hardware acceptance.
+9. [`09-img2img-editor-implementation.md`](09-img2img-editor-implementation.md)
+   — the layered pen editor and current evidence boundary.
+10. [`10-controlnet-condition-stack.md`](10-controlnet-condition-stack.md) —
+    current condition-card implementation and adapter seam.
+11. [`11-dynamic-prompt-realizations.md`](11-dynamic-prompt-realizations.md) —
+    exact prompt-set compilation and per-image provenance.
+12. [`12-unified-shot-and-regional-stage.md`](12-unified-shot-and-regional-stage.md)
+    — unified source semantics, the transient candidate shelf, and the first
+    transformable spatial-plan editor.
 
 ## Related records
 

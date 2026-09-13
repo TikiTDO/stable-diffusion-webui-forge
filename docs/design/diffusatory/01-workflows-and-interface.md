@@ -24,6 +24,24 @@ The ordinary workspace has four persistent regions:
 A small recent-anchors rail connects img2img and composition work back to the
 project without making the person search the whole sequence again.
 
+### One shot, not endpoint tabs
+
+`txt2img`, `img2img`, and inpaint are backend request shapes, not separate
+creative rooms. The workbench keeps one active shot and derives the request:
+
+- no source image means generate new variants from the prompt;
+- an active source image means refine that image;
+- a non-empty visible selection mask makes that refinement an inpaint request;
+- returning to the candidate shelf resumes prompt-only variants without
+  destroying the editor document;
+- opening any candidate as a source returns to the same paint/mask surface.
+
+The interface may change which work surface occupies the Stage—candidate
+review, pen editing, spatial blocking, or project sequencing—but does not need
+txt2img and img2img tabs. Switching surfaces preserves the candidate shelf,
+active project anchor, prompt, and any editor document that has not been
+explicitly discarded.
+
 The image editor is pen-first rather than mouse-first with pen support added
 later. Its active layer—paint or inpaint mask—is always visible. Tablet buttons
 can switch or temporarily hold a layer/tool, while every action remains
@@ -82,6 +100,20 @@ This distinction enables:
 The first implementation may still map all candidates to one Forge batch where
 that is the only proven path. The public model must not freeze that engine
 detail into the product again.
+
+### Unaccepted is a UI relation, not file deletion
+
+Every completed image candidate joins the current **unaccepted shelf** until it
+is added to or used to replace a project frame. New generations append; they do
+not replace the shelf, and txt2img and img2img candidates may sit beside each
+other. The person can move back and forth through it while refining any member.
+
+Dismiss removes one candidate from that working shelf. **Clear unaccepted**
+removes every shelf relation when starting a different part of the story. In
+the compatibility client these are browser-state operations only. They never
+claim to delete Forge's raw output files. Raw-output deletion remains a
+separate, explicit storage operation and is manual until a deliberately scoped
+asset-retention design exists.
 
 ## Add, Replace, and Refine
 

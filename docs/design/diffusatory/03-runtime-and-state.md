@@ -28,6 +28,13 @@ stream, or per-job cancellation that the backend does not yet supply. Results
 become visible as they are actually returned. Progress polling belongs to one
 adapter and one timer, not to components throughout the page.
 
+During this compatibility phase, completed image results append to a transient
+browser-owned unaccepted shelf. Contact sheets and auxiliary detector maps are
+not silently promoted into image candidates. Dismissing or clearing that shelf
+changes no server or filesystem state; the latest run record and Forge's raw
+outputs continue to exist independently. This is deliberately weaker than the
+future project store and must not masquerade as durable candidate persistence.
+
 An asynchronous browser request does not block prompt editing. During a real
 render, the parity gate checks that the server still admits progress and
 interrupt calls and that React does not create render-wide rerenders or network

@@ -23,6 +23,7 @@ PointerSample
   image_x / image_y
   pressure
   tilt_x / tilt_y
+  altitude_angle? / azimuth_angle?
   twist?
   tangential_pressure?
   buttons
@@ -91,9 +92,13 @@ The brush preview shows the actual image-space footprint at current zoom.
 Minimum and maximum sizes are defined in source-image pixels and have useful
 coarse and fine controls; a midpoint must not cover half the canvas.
 
-Tilt, twist, and tangential pressure are retained when available but do not gate
-the first brush. A later brush engine can consume them without changing the
-input contract.
+The current paint and eraser footprint consumes standard altitude/azimuth when
+available, falling back to tilt-x/tilt-y and barrel twist. An upright pen makes
+a round mark; lowering it narrows and rotates the ellipse, and interpolation
+between coalesced samples preserves changing angle along the stroke.
+Tangential pressure is retained but does not yet alter the brush. The physical
+tablet pass still decides whether the mapping feels natural; a mathematically
+responsive ellipse is not proof of useful Wacom or Huion behavior.
 
 ## Paint, mask, and eraser truth
 

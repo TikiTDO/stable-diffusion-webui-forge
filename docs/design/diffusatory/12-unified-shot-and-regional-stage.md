@@ -1,0 +1,136 @@
+# Unified shot and regional-stage implementation
+
+Status: frontend slice implemented; native regional conditioning and durable
+projects remain open
+
+Date: 2026-09-13
+
+## Why this slice changed shape while being built
+
+The first regional prototype placed a large SVG editor inside the Composer
+column while the Stage remained empty. It technically exposed all planned
+controls, but reproduced the inherited application's underlying mistake:
+organizing the screen around feature forms rather than the thing being made.
+
+The operator's correction was broader. This is a dense workbench used in
+several immediate postures—drawing with a tablet, assembling scenes, changing
+an existing image, or producing more alternatives. Empty display area is not a
+visual luxury when useful controls, candidates, and story context could occupy
+it. `txt2img` and `img2img` also do not deserve product-level tabs merely because
+Forge exposes different routes.
+
+The resulting rule is:
+
+> One active shot determines the generation request; the large Stage holds the
+> visual operation being performed on that shot.
+
+## Current source semantics
+
+The compatibility UI now presents a compact source statement instead of
+txt2img/img2img tabs:
+
+- **Generating new variants** has no active source and dispatches txt2img.
+- Choosing a candidate or starting a blank drawing opens the existing layered
+  editor and makes its visible composite the img2img source.
+- A non-empty editor selection becomes the inpaint mask; an empty mask remains
+  ordinary img2img.
+- **Back to variants** returns to prompt-only generation while leaving the
+  editor component mounted, so navigating the workbench does not itself erase
+  paint or mask state.
+- The Generate control remains one action. The source and mask—not the label on
+  a tab—select its request shape.
+
+This is not yet the final active-shot store. Editor state is component-local
+and one browser reload still discards the transient session.
+
+## Transient unaccepted shelf
+
+Completed real images append to one browser-owned candidate shelf across
+successive generation runs. A candidate carries its task ID, result index,
+source kind, image, resolved prompt, negative prompt, seed, and infotext.
+Contact sheets and auxiliary outputs are excluded rather than presented as
+ordinary shots.
+
+The shelf has two intentionally non-destructive operations:
+
+- dismiss one candidate from the visible shelf;
+- clear the entire visible shelf before working on another story beat.
+
+Neither operation calls Forge or removes an output file. The UI says this next
+to the action. Raw output remains managed exactly as it was before and requires
+an explicit manual filesystem cleanup. Once project storage lands, accepted
+means a candidate participates in an Add or Replace frame operation; dismissed
+and unaccepted remain relations, not byte-destruction states.
+
+The browser reducer is deliberately transient. It proves interaction semantics
+without pretending that a project database already exists.
+
+## Transformable regional stage
+
+Enabling spatial composition swaps the Stage's image viewer for a full-size SVG
+blocking surface while leaving the Composer populated with the corresponding
+language:
+
+- the main prompt is visibly identified as common to every cell;
+- each row-major cell has an independently editable prompt;
+- an optional background prompt names the complement outside the foreground
+  grid;
+- Add Row and Add Column split the widest track and preserve the existing
+  cell's prompt;
+- broad boundary hit targets resize neighbouring tracks with a minimum size;
+- the centre handle translates the entire grid;
+- the diamond handle rotates and uniformly scales it;
+- edge softness has a visible pixel-space representation;
+- the inspectable plan reports canvas, cell count, transform, and softness.
+
+Geometry is stored in normalized recipe coordinates and resolved into real
+output pixels using the active frame aspect ratio. Rotation occurs in frame
+pixel space, avoiding the common bug where a nominal circle or angle distorts
+between portrait and landscape formats. The same Pointer Events path handles
+pen, mouse, and touch input, and capture begins on the exact manipulation
+handle rather than on the whole page.
+
+Enabling this editor currently blocks Generate. That is intentional. No
+backend adapter yet consumes the resolved masks, so silently issuing an
+ordinary whole-frame generation would make the visible plan a lie. Disabling
+regions restores the proven generation path.
+
+## Evidence obtained
+
+Focused frontend checks on the implementation head established:
+
+- track splitting, boundary clamping, cell prompt preservation, pixel-space
+  transform round trips, row-major plan order, complement state, and softness
+  conversion through unit tests;
+- the existing frontend test corpus plus these tests passes;
+- TypeScript and the production Vite build pass;
+- a live browser render shows the Composer and spatial Stage together rather
+  than leaving the Stage empty;
+- browser mouse dispatch moved the transform centre by the requested 70 by -35
+  CSS pixels and the visible handle followed exactly;
+- adding one row and one column produced four matching SVG cells and four
+  prompt inputs;
+- a mocked two-run journey appended four candidates to one shelf, after which
+  dismiss and clear changed browser state without a deletion request.
+
+The browser's ordinary screenshot command continued to hang on its stability
+wait. A direct Playwright full-page capture succeeded for the regional surface
+at `/agents/vesper/scratch/diffusatory-unified-regions.png`; the screenshot is
+evidence of layout, not tablet or inference behavior.
+
+## Still open
+
+- Compile the cell polygons and complement into the mask/conditioning objects
+  consumed by a native Forge regional adapter.
+- Resolve dynamic prompt alternatives across common, cell, and background
+  fragments through one server compiler and record each output's spatial plan.
+- Replace transient candidate state with the project/asset/candidate database
+  without changing dismiss-versus-delete semantics.
+- Add project Add and Replace interactions and the ordered story strip around
+  this unified shot model.
+- Exercise pressure, tilt/angle, eraser reporting, barrel buttons, ExpressKeys,
+  palm rejection, and hover alignment on the operator's physical Wacom or Huion
+  device. Synthetic Pointer Events are not that acceptance test.
+- Remove the remaining results/editor view switch only after the same mounted
+  editor document and candidate shelf can share one stable Stage without losing
+  canvas state.

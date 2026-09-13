@@ -37,6 +37,8 @@ describe("pointer normalization", () => {
       pressure: 0.35,
       tiltX: 12,
       tiltY: -8,
+      altitudeAngle: null,
+      azimuthAngle: null,
       twist: 42,
       tangentialPressure: null,
       button: 0,

@@ -1,10 +1,14 @@
 import { memo, useEffect, useState } from "react";
 
-import type { GenerationState } from "../domain/generation";
+import { isGenerating, type GenerationState } from "../domain/generation";
+import type { Candidate } from "../domain/candidates";
 
 interface StageProps {
   generation: GenerationState;
+  candidates: Candidate[];
   onRefine?: (source: string) => void;
+  onDismissCandidate: (id: string) => void;
+  onClearCandidates: () => void;
 }
 
 function formatEta(eta: number | null): string | null {
@@ -13,23 +17,32 @@ function formatEta(eta: number | null): string | null {
   return `${Math.ceil(eta / 60)}m remaining`;
 }
 
-export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
+export const Stage = memo(function Stage({
+  generation,
+  candidates,
+  onRefine,
+  onDismissCandidate,
+  onClearCandidates,
+}: StageProps) {
   const [viewer, setViewer] = useState<{
     image: string;
     index: number | null;
   } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewerZoom, setViewerZoom] = useState(1);
-  const selectedResult =
-    generation.results[selectedIndex] ?? generation.results[0] ?? null;
-  const selectedImage = generation.images[selectedIndex] ?? generation.images[0];
-  const activeImage = selectedImage ?? generation.preview;
+  const selectedCandidate = candidates[selectedIndex] ?? candidates[0] ?? null;
+  const selectedResult = selectedCandidate?.result ?? null;
+  const selectedImage = selectedCandidate?.result.image ?? null;
+  const activeImage =
+    isGenerating(generation.phase) && generation.preview
+      ? generation.preview
+      : selectedImage ?? generation.preview;
   const eta = formatEta(generation.eta);
 
   useEffect(() => {
-    setSelectedIndex(0);
+    setSelectedIndex(Math.max(0, candidates.length - 1));
     setViewer(null);
-  }, [generation.taskId]);
+  }, [candidates.length]);
 
   useEffect(() => {
     if (!viewer) return;
@@ -38,22 +51,21 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
         setViewer(null);
         return;
       }
-      if (viewer.index === null || generation.images.length < 2) return;
+      if (viewer.index === null || candidates.length < 2) return;
       if (event.key === "ArrowLeft") {
         const index =
-          (viewer.index - 1 + generation.images.length) %
-          generation.images.length;
+          (viewer.index - 1 + candidates.length) % candidates.length;
         setSelectedIndex(index);
-        setViewer({ image: generation.images[index], index });
+        setViewer({ image: candidates[index].result.image, index });
       } else if (event.key === "ArrowRight") {
-        const index = (viewer.index + 1) % generation.images.length;
+        const index = (viewer.index + 1) % candidates.length;
         setSelectedIndex(index);
-        setViewer({ image: generation.images[index], index });
+        setViewer({ image: candidates[index].result.image, index });
       }
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [generation.images, viewer]);
+  }, [candidates, viewer]);
 
   const openViewer = (image: string, index: number | null) => {
     setViewerZoom(1);
@@ -61,12 +73,11 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
   };
 
   const moveViewer = (direction: -1 | 1) => {
-    if (!viewer || viewer.index === null || !generation.images.length) return;
+    if (!viewer || viewer.index === null || !candidates.length) return;
     const index =
-      (viewer.index + direction + generation.images.length) %
-      generation.images.length;
+      (viewer.index + direction + candidates.length) % candidates.length;
     setSelectedIndex(index);
-    setViewer({ image: generation.images[index], index });
+    setViewer({ image: candidates[index].result.image, index });
   };
 
   return (
@@ -74,7 +85,7 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
       <header className="stage__header">
         <div>
           <p className="eyebrow">Stage</p>
-          <h2>{generation.images.length ? "Result" : "Live composition"}</h2>
+          <h2>{candidates.length ? "Unaccepted variants" : "Live composition"}</h2>
         </div>
         <div className={`phase phase--${generation.phase}`}>
           {generation.phase.replaceAll("-", " ")}
@@ -117,7 +128,7 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
         )}
       </div>
 
-      {selectedResult && generation.phase === "completed" && (
+      {selectedResult && (
         <section className="resolved-prompt" aria-label="Resolved prompt">
           <header>
             <strong>
@@ -146,27 +157,39 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
         </section>
       )}
 
-      {generation.images.length > 0 && (
+      {candidates.length > 0 && (
         <div className="result-actions">
-          <div className="result-tray" aria-label="Generation results">
-            {generation.images.map((image, index) => (
-              <button
-                type="button"
-                key={`${generation.taskId}-${index}`}
-                className={selectedIndex === index ? "is-selected" : ""}
-                onClick={() => setSelectedIndex(index)}
-                onDoubleClick={() => openViewer(image, index)}
-                aria-label={`Select result ${index + 1}`}
-              >
-                <img src={image} alt={`Generated result ${index + 1}`} />
-                {generation.results[index]?.kind === "contact-sheet" && (
-                  <span>Sheet</span>
-                )}
-                {generation.results[index]?.kind === "auxiliary" && (
-                  <span>Map</span>
-                )}
-              </button>
-            ))}
+          <div className="candidate-shelf">
+            <header>
+              <span>{candidates.length} unaccepted</span>
+              <button type="button" onClick={onClearCandidates}>Clear shelf</button>
+            </header>
+            <div className="result-tray" aria-label="Unaccepted generation candidates">
+              {candidates.map((candidate, index) => (
+                <div className="candidate-tile" key={candidate.id}>
+                  <button
+                    type="button"
+                    className={selectedIndex === index ? "is-selected" : ""}
+                    onClick={() => setSelectedIndex(index)}
+                    onDoubleClick={() => openViewer(candidate.result.image, index)}
+                    aria-label={`Select unaccepted candidate ${index + 1}`}
+                  >
+                    <img src={candidate.result.image} alt={`Unaccepted candidate ${index + 1}`} />
+                    <span>{candidate.sourceKind === "img2img" ? "Edit" : `#${index + 1}`}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="candidate-dismiss"
+                    aria-label={`Dismiss unaccepted candidate ${index + 1}`}
+                    title="Remove from this shelf; raw output remains on disk"
+                    onClick={() => onDismissCandidate(candidate.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <small>Clearing this shelf does not delete Forge’s raw output.</small>
           </div>
           {selectedImage && onRefine && selectedResult?.kind !== "contact-sheet" && (
             <button
@@ -212,7 +235,7 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
           aria-label="Image viewer"
         >
           <div className="viewer__toolbar">
-            {viewer.index !== null && generation.images.length > 1 && (
+            {viewer.index !== null && candidates.length > 1 && (
               <>
                 <button
                   type="button"
@@ -222,7 +245,7 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
                   ←
                 </button>
                 <span>
-                  {viewer.index + 1} / {generation.images.length}
+                  {viewer.index + 1} / {candidates.length}
                 </span>
                 <button
                   type="button"
