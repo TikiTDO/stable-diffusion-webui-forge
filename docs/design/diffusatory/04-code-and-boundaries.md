@@ -16,6 +16,10 @@ diffusatory/
         conditions/
         prompting/
         viewer/
+      input/
+        pointer.ts
+        bindings.ts
+        calibration.ts
       api/
         forge/
           client.ts

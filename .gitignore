@@ -46,6 +46,9 @@ notification.mp3
 /cache.json*
 /config_states/
 /node_modules
+/diffusatory/web/node_modules/
+/diffusatory/web/dist/
+/diffusatory/web/coverage/
 /package-lock.json
 /.coverage*
 /test/test_outputs

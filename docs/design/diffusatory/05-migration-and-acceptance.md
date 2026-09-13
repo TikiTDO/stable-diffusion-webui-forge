@@ -81,12 +81,24 @@ Acceptance:
 - the API request contains the source that the interface visibly shows;
 - an empty canvas is a valid drawable source;
 - brush range is useful across ordinary image sizes and has a colour picker;
+- pen pressure follows a calibrated curve and preserves light strokes rather
+  than behaving as a binary mouse click;
+- tablet bindings can switch or momentarily hold paint, inpaint-mask, pan,
+  eyedropper, and eraser actions without relying on vendor-specific button
+  numbers;
+- pen contact keeps pointer capture for the whole stroke, coalesced samples are
+  consumed when available, and lifting outside the canvas cannot leave a stroke
+  stuck active;
+- touch can pan/zoom while idle but is ignored for drawing while a pen stroke is
+  active, preventing ordinary palm contact from painting;
 - paint and mask clear independently;
 - inpaint whole-image and only-masked behavior both match their visible mode;
 - denoise, resize policy, source dimensions, and relevant ControlNet conditions
   survive the transition;
 - stale or missing browser state cannot silently produce “no image” after a
-  visible transfer.
+  visible transfer;
+- the complete path is exercised on the operator's actual Wacom or Huion
+  tablet; synthetic pointer tests and mouse use do not close this acceptance.
 
 ## Slice 4 — transformable region grid
 

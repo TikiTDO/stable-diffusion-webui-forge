@@ -93,6 +93,8 @@ simultaneous rewrite of every layer.
    and questions that should be answered by a focused implementation probe.
 7. [`07-current-api-bridge.md`](07-current-api-bridge.md) — the existing Forge
    seams that let the interface move first.
+8. [`08-pen-and-tablet-input.md`](08-pen-and-tablet-input.md) — Wacom/Huion pen,
+   pressure, buttons, touch, calibration, and hardware acceptance.
 
 ## Related records
 

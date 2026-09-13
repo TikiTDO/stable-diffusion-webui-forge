@@ -58,6 +58,9 @@ def api_only_worker():
     script_callbacks.before_ui_callback()
     script_callbacks.app_started_callback(None, app)
 
+    from diffusatory.server.mount import mount_diffusatory
+    mount_diffusatory(app)
+
     print(f"Startup time: {startup_timer.summary()}.")
     api.launch(
         server_name=initialize_util.gradio_server_name(),
@@ -140,6 +143,9 @@ def webui_worker():
 
         with startup_timer.subcategory("app_started_callback"):
             script_callbacks.app_started_callback(shared.demo, app)
+
+        from diffusatory.server.mount import mount_diffusatory
+        mount_diffusatory(app)
 
         timer.startup_record = startup_timer.dump()
         print(f"Startup time: {startup_timer.summary()}.")

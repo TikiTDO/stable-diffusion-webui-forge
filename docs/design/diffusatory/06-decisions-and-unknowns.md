@@ -29,6 +29,9 @@
   background complement; common prompt and background prompt remain distinct.
 - The client discovers an instance name, ID, and capabilities rather than
   assuming exactly one Forge exists.
+- The editor uses standard Pointer Events and user-captured bindings rather than
+  a Wacom-only or Huion-only API.
+- Real tablet behavior is required evidence for the img2img/inpaint slice.
 
 ## Questions answered by a small implementation probe
 

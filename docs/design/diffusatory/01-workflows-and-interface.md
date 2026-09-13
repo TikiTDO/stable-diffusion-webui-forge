@@ -24,6 +24,11 @@ The ordinary workspace has four persistent regions:
 A small recent-anchors rail connects img2img and composition work back to the
 project without making the person search the whole sequence again.
 
+The image editor is pen-first rather than mouse-first with pen support added
+later. Its active layer—paint or inpaint mask—is always visible. Tablet buttons
+can switch or temporarily hold a layer/tool, while every action remains
+reachable from the interface and keyboard.
+
 ## What deserves primary attention
 
 Always or almost always visible:
