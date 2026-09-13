@@ -4,6 +4,7 @@ import {
   generationReducer,
   initialGenerationState,
   isGenerating,
+  resultsFromResponse,
 } from "./generation";
 
 const activeProgress = {
@@ -109,5 +110,80 @@ describe("isGenerating", () => {
     expect(isGenerating("finishing")).toBe(true);
     expect(isGenerating("completed")).toBe(false);
     expect(isGenerating("failed")).toBe(false);
+  });
+});
+
+describe("resultsFromResponse", () => {
+  it("associates non-grid images with Forge's actual resolved prompts", () => {
+    const results = resultsFromResponse({
+      images: ["grid", "one", "two"],
+      parameters: {},
+      info: JSON.stringify({
+        all_prompts: ["red dawn", "blue dusk"],
+        all_negative_prompts: ["rain", "fog"],
+        all_seeds: [10, 11],
+        index_of_first_image: 1,
+        infotexts: ["grid info", "one info", "two info"],
+      }),
+    });
+
+    expect(results).toEqual([
+      {
+        image: "data:image/png;base64,grid",
+        kind: "contact-sheet",
+        prompt: null,
+        negativePrompt: null,
+        seed: null,
+        infotext: "grid info",
+      },
+      {
+        image: "data:image/png;base64,one",
+        kind: "image",
+        prompt: "red dawn",
+        negativePrompt: "rain",
+        seed: 10,
+        infotext: "one info",
+      },
+      {
+        image: "data:image/png;base64,two",
+        kind: "image",
+        prompt: "blue dusk",
+        negativePrompt: "fog",
+        seed: 11,
+        infotext: "two info",
+      },
+    ]);
+  });
+
+  it("does not invent provenance when Forge info is unavailable", () => {
+    expect(
+      resultsFromResponse({ images: ["one"], parameters: {}, info: "legacy" }),
+    ).toEqual([
+      {
+        image: "data:image/png;base64,one",
+        kind: "image",
+        prompt: null,
+        negativePrompt: null,
+        seed: null,
+        infotext: null,
+      },
+    ]);
+  });
+
+  it("labels returned extras rather than assigning another image's prompt", () => {
+    const results = resultsFromResponse({
+      images: ["one", "control-map"],
+      parameters: {},
+      info: JSON.stringify({
+        all_prompts: ["one prompt"],
+        all_negative_prompts: [""],
+        all_seeds: [5],
+        index_of_first_image: 0,
+        infotexts: ["one info"],
+      }),
+    });
+
+    expect(results[1]?.kind).toBe("auxiliary");
+    expect(results[1]?.prompt).toBeNull();
   });
 });

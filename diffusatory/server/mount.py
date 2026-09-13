@@ -11,6 +11,12 @@ from pydantic import BaseModel
 
 from modules import launch_utils
 
+from diffusatory.server.prompt_composition import (
+    PromptExpansionRequest,
+    PromptExpansionResponse,
+    compile_prompt_expansion,
+)
+
 
 DIFFUSATORY_PREFIX = "/diffusatory"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -47,7 +53,10 @@ def _capabilities(app: FastAPI) -> list[str]:
         ("controlnet", "/controlnet/model_list"),
         ("controlnet-preprocess", "/controlnet/detect"),
     )
-    return [name for name, path in routes if path in paths]
+    # The native prompt compiler is installed by this mount itself. FastAPI
+    # 0.141 keeps included routers behind a lazy route object, so it is not
+    # visible to the shallow Forge-route inventory above until resolution.
+    return [name for name, path in routes if path in paths] + ["prompt-expansion"]
 
 
 def _instance_id(host: str) -> str:
@@ -84,6 +93,12 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
     @router.get("/instance", response_model=InstanceDescriptor)
     async def get_instance() -> InstanceDescriptor:
         return instance_descriptor(app)
+
+    @router.post("/prompts/expand", response_model=PromptExpansionResponse)
+    async def expand_prompts(
+        request: PromptExpansionRequest,
+    ) -> PromptExpansionResponse:
+        return compile_prompt_expansion(request)
 
     app.include_router(router)
 

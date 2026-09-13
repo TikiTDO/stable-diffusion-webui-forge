@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ForgeClient } from "./api/forge/client";
-import type { InstanceDescriptor } from "./api/forge/types";
+import type {
+  InstanceDescriptor,
+  PromptExpansionInput,
+  PromptExpansionMode,
+} from "./api/forge/types";
 import { Composer } from "./components/Composer";
 import { Stage } from "./components/Stage";
 import {
@@ -26,12 +30,20 @@ import {
 } from "./domain/draft";
 import { useForgeCatalog } from "./domain/useForgeCatalog";
 import { useForgeGeneration } from "./domain/useForgeGeneration";
+import { usePromptExpansion } from "./domain/usePromptExpansion";
+
+function newExpansionSeed(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
+}
 
 export default function App() {
   const client = useMemo(() => new ForgeClient(), []);
   const [instance, setInstance] = useState<InstanceDescriptor | null>(null);
   const [instanceError, setInstanceError] = useState<string | null>(null);
   const [draft, setDraft] = useState(starterDraft);
+  const [promptMode, setPromptMode] = useState<PromptExpansionMode>("off");
+  const [expansionSeed, setExpansionSeed] = useState(newExpansionSeed);
+  const [promptActionError, setPromptActionError] = useState<string | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<"compose" | "edit">(
     "compose",
   );
@@ -63,6 +75,26 @@ export default function App() {
   } = useControlNetCatalog(client);
   const { state, generate, interrupt, skip, generating } =
     useForgeGeneration(client);
+  const promptExpansionInput = useMemo<PromptExpansionInput>(
+    () => ({
+      prompt: draft.prompt.trim(),
+      negativePrompt: draft.negativePrompt.trim(),
+      mode: promptMode,
+      candidateCount: draft.outputs,
+      expansionSeed,
+    }),
+    [draft.negativePrompt, draft.outputs, draft.prompt, expansionSeed, promptMode],
+  );
+  const promptExpansionEnabled = Boolean(
+    instance?.capabilities.includes("prompt-expansion"),
+  );
+  const promptExpansion = usePromptExpansion(
+    client,
+    promptExpansionInput,
+    promptExpansionEnabled,
+  );
+
+  useEffect(() => setPromptActionError(null), [promptExpansionInput]);
 
   const loadInstance = useCallback(
     async (signal?: AbortSignal) => {
@@ -109,7 +141,11 @@ export default function App() {
     ) &&
     (workspaceMode === "compose" || editorReady) &&
     Boolean(catalog) &&
-    conditionsReady;
+    conditionsReady &&
+    promptExpansionEnabled &&
+    !promptExpansion.loading &&
+    Boolean(promptExpansion.response?.resolved_count) &&
+    !promptExpansion.response?.issues.some((issue) => issue.blocking);
 
   const changeCondition = useCallback((id: string, patch: ConditionPatch) => {
     const invalidatesPreview =
@@ -200,6 +236,7 @@ export default function App() {
   const submit = async () => {
     if (!canGenerate) return;
     setEditorError(null);
+    setPromptActionError(null);
     const editor = editorReady
       ? editorRef.current?.exportForGeneration() ?? null
       : null;
@@ -213,7 +250,29 @@ export default function App() {
       );
       return;
     }
-    const request = { ...requestFromDraft(draft), controlNet };
+    let promptSet;
+    try {
+      promptSet = await client.expandPrompts(promptExpansionInput);
+    } catch (error) {
+      setPromptActionError(
+        error instanceof Error ? error.message : "The prompt set could not be resolved.",
+      );
+      return;
+    }
+    const blockingIssue = promptSet.issues.find((issue) => issue.blocking);
+    if (blockingIssue || !promptSet.realizations.length) {
+      setPromptActionError(
+        blockingIssue?.message ?? "The prompt set did not produce an image request.",
+      );
+      return;
+    }
+    const request = {
+      ...requestFromDraft(draft),
+      prompt: promptSet.realizations.map((item) => item.prompt),
+      negativePrompt: promptSet.realizations.map((item) => item.negative_prompt),
+      outputs: promptSet.realizations.length,
+      controlNet,
+    };
     if (workspaceMode === "compose") {
       await generate({ kind: "txt2img", input: request });
       return;
@@ -316,6 +375,15 @@ export default function App() {
           controlNetError={controlNetError}
           controlNetLoading={controlNetLoading}
           conditions={conditions}
+          promptMode={promptMode}
+          expansionSeed={expansionSeed}
+          promptExpansion={promptExpansion.response}
+          promptExpansionLoading={promptExpansion.loading}
+          promptExpansionError={promptExpansion.error}
+          promptActionError={promptActionError}
+          onPromptModeChange={setPromptMode}
+          onExpansionSeedChange={setExpansionSeed}
+          onShufflePromptSet={() => setExpansionSeed(newExpansionSeed())}
           currentImageAvailable={currentImageAvailable}
           onAddCondition={() => {
             if (!controlNetCatalog || conditions.length >= 3) return;

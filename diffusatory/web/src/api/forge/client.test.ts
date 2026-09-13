@@ -58,6 +58,62 @@ describe("ForgeClient", () => {
     });
   });
 
+  it("asks the native compiler for an exact prompt realization set", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      return json({
+        mode: "random",
+        source_prompt: "{dawn|dusk}",
+        source_negative_prompt: "",
+        requested_count: 2,
+        resolved_count: 2,
+        expansion_seed: 41,
+        engine: "dynamicprompts 0.31.0",
+        realizations: [],
+        issues: [],
+        truncated: false,
+      });
+    };
+
+    await new ForgeClient("", fetcher).expandPrompts({
+      prompt: "{dawn|dusk}",
+      negativePrompt: "",
+      mode: "random",
+      candidateCount: 2,
+      expansionSeed: 41,
+    });
+
+    expect(calls[0]?.[0]).toBe("/diffusatory/api/v1/prompts/expand");
+    expect(JSON.parse(calls[0]?.[1]?.body as string)).toEqual({
+      prompt: "{dawn|dusk}",
+      negative_prompt: "",
+      mode: "random",
+      candidate_count: 2,
+      expansion_seed: 41,
+    });
+  });
+
+  it("sends one resolved prompt per requested image", async () => {
+    let body: Record<string, unknown> | null = null;
+    const fetcher: typeof fetch = async (_input, request) => {
+      body = JSON.parse(request?.body as string) as Record<string, unknown>;
+      return json({ images: ["a", "b"], parameters: {}, info: "{}" });
+    };
+
+    await new ForgeClient("", fetcher).txt2img("task(diffusatory-set)", {
+      prompt: ["dawn", "dusk"],
+      negativePrompt: ["rain", "fog"],
+    });
+
+    expect(body).toMatchObject({
+      prompt: ["dawn", "dusk"],
+      negative_prompt: ["rain", "fog"],
+      batch_size: 2,
+      n_iter: 1,
+    });
+  });
+
   it("sends the visible editor source and mask through img2img", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {

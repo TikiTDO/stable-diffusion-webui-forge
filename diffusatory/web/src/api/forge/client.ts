@@ -11,6 +11,8 @@ import type {
   InstanceDescriptor,
   Lora,
   ModelModule,
+  PromptExpansionInput,
+  PromptExpansionResponse,
   ProgressResponse,
   PromptStyle,
   Sampler,
@@ -90,6 +92,28 @@ export class ForgeClient {
       { signal },
     );
     return readJson<InstanceDescriptor>(response);
+  }
+
+  async expandPrompts(
+    input: PromptExpansionInput,
+    signal?: AbortSignal,
+  ): Promise<PromptExpansionResponse> {
+    const response = await this.fetcher(
+      `${this.baseUrl}/diffusatory/api/v1/prompts/expand`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal,
+        body: JSON.stringify({
+          prompt: input.prompt,
+          negative_prompt: input.negativePrompt,
+          mode: input.mode,
+          candidate_count: input.candidateCount,
+          expansion_seed: input.expansionSeed,
+        }),
+      },
+    );
+    return readJson<PromptExpansionResponse>(response);
   }
 
   private async get<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -210,7 +234,8 @@ export class ForgeClient {
         scheduler: input.scheduler ?? "Karras",
         cfg_scale: input.cfgScale ?? 5,
         seed: input.seed ?? -1,
-        batch_size: input.outputs ?? 1,
+        batch_size:
+          input.outputs ?? (Array.isArray(input.prompt) ? input.prompt.length : 1),
         n_iter: 1,
         force_task_id: taskId,
         send_images: true,
@@ -261,7 +286,8 @@ export class ForgeClient {
         scheduler: input.scheduler ?? "Karras",
         cfg_scale: input.cfgScale ?? 5,
         seed: input.seed ?? -1,
-        batch_size: input.outputs ?? 1,
+        batch_size:
+          input.outputs ?? (Array.isArray(input.prompt) ? input.prompt.length : 1),
         n_iter: 1,
         force_task_id: taskId,
         include_init_images: false,

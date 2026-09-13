@@ -7,8 +7,8 @@ export interface InstanceDescriptor {
 }
 
 export interface Txt2ImgInput {
-  prompt: string;
-  negativePrompt?: string;
+  prompt: string | string[];
+  negativePrompt?: string | string[];
   checkpoint?: string;
   modules?: string[];
   styles?: string[];
@@ -43,6 +43,42 @@ export interface Txt2ImgResponse {
   images: string[] | null;
   parameters: Record<string, unknown>;
   info: string;
+}
+
+export type PromptExpansionMode = "off" | "random" | "exhaustive";
+
+export interface PromptExpansionInput {
+  prompt: string;
+  negativePrompt: string;
+  mode: PromptExpansionMode;
+  candidateCount: number;
+  expansionSeed: number;
+}
+
+export interface PromptExpansionIssue {
+  code: string;
+  message: string;
+  field: "prompt" | "negative_prompt";
+  blocking: boolean;
+}
+
+export interface PromptRealization {
+  index: number;
+  prompt: string;
+  negative_prompt: string;
+}
+
+export interface PromptExpansionResponse {
+  mode: PromptExpansionMode;
+  source_prompt: string;
+  source_negative_prompt: string;
+  requested_count: number;
+  resolved_count: number;
+  expansion_seed: number;
+  engine: string;
+  realizations: PromptRealization[];
+  issues: PromptExpansionIssue[];
+  truncated: boolean;
 }
 
 export interface ProgressResponse {

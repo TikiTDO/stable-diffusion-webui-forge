@@ -20,6 +20,8 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
   } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewerZoom, setViewerZoom] = useState(1);
+  const selectedResult =
+    generation.results[selectedIndex] ?? generation.results[0] ?? null;
   const selectedImage = generation.images[selectedIndex] ?? generation.images[0];
   const activeImage = selectedImage ?? generation.preview;
   const eta = formatEta(generation.eta);
@@ -115,6 +117,35 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
         )}
       </div>
 
+      {selectedResult && generation.phase === "completed" && (
+        <section className="resolved-prompt" aria-label="Resolved prompt">
+          <header>
+            <strong>
+              {selectedResult.kind === "contact-sheet"
+                ? "Contact sheet"
+                : selectedResult.kind === "auxiliary"
+                  ? "Auxiliary image"
+                  : "Resolved prompt"}
+            </strong>
+            {selectedResult.seed !== null && (
+              <span>Image seed {selectedResult.seed}</span>
+            )}
+          </header>
+          {selectedResult.prompt !== null ? (
+            <p>{selectedResult.prompt || "(empty positive prompt)"}</p>
+          ) : (
+            <p className="resolved-prompt__note">
+              {selectedResult.kind === "contact-sheet"
+                ? "This overview combines the individual prompt realizations below."
+                : "Forge did not return per-image prompt provenance for this output."}
+            </p>
+          )}
+          {selectedResult.negativePrompt && (
+            <small>Without: {selectedResult.negativePrompt}</small>
+          )}
+        </section>
+      )}
+
       {generation.images.length > 0 && (
         <div className="result-actions">
           <div className="result-tray" aria-label="Generation results">
@@ -128,10 +159,16 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
                 aria-label={`Select result ${index + 1}`}
               >
                 <img src={image} alt={`Generated result ${index + 1}`} />
+                {generation.results[index]?.kind === "contact-sheet" && (
+                  <span>Sheet</span>
+                )}
+                {generation.results[index]?.kind === "auxiliary" && (
+                  <span>Map</span>
+                )}
               </button>
             ))}
           </div>
-          {selectedImage && onRefine && (
+          {selectedImage && onRefine && selectedResult?.kind !== "contact-sheet" && (
             <button
               type="button"
               className="refine-result"

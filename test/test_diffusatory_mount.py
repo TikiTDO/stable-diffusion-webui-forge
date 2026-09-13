@@ -42,9 +42,26 @@ class DiffusatoryMountTests(unittest.TestCase):
             self.assertTrue(body["host"])
             self.assertTrue(body["version"])
             self.assertEqual(
-                ["txt2img", "task-progress", "interrupt"],
+                [
+                    "txt2img",
+                    "task-progress",
+                    "interrupt",
+                    "prompt-expansion",
+                ],
                 body["capabilities"],
             )
+
+            expanded = TestClient(app).post(
+                "/diffusatory/api/v1/prompts/expand",
+                json={
+                    "prompt": "{dawn|dusk}",
+                    "mode": "random",
+                    "candidate_count": 2,
+                    "expansion_seed": 12,
+                },
+            )
+            self.assertEqual(200, expanded.status_code)
+            self.assertEqual(2, expanded.json()["resolved_count"])
 
     def test_built_client_is_mounted_after_api_routes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

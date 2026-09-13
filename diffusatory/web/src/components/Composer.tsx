@@ -1,5 +1,9 @@
 import type { ForgeCatalog } from "../api/forge/types";
 import type { ControlNetCatalog } from "../api/forge/types";
+import type {
+  PromptExpansionMode,
+  PromptExpansionResponse,
+} from "../api/forge/types";
 import type { GenerationDraft } from "../domain/draft";
 import { ConditionStack } from "../features/controlnet/ConditionStack";
 import type {
@@ -7,6 +11,7 @@ import type {
   ControlNetCondition,
 } from "../features/controlnet/types";
 import { PromptTools } from "./PromptTools";
+import { PromptComposition } from "./PromptComposition";
 
 interface ComposerProps {
   draft: GenerationDraft;
@@ -44,6 +49,15 @@ interface ComposerProps {
   onRemoveCondition: (id: string) => void;
   onPreviewCondition: (condition: ControlNetCondition) => void;
   onReloadControlNet: () => void;
+  promptMode: PromptExpansionMode;
+  expansionSeed: number;
+  promptExpansion: PromptExpansionResponse | null;
+  promptExpansionLoading: boolean;
+  promptExpansionError: string | null;
+  promptActionError: string | null;
+  onPromptModeChange: (mode: PromptExpansionMode) => void;
+  onExpansionSeedChange: (seed: number) => void;
+  onShufflePromptSet: () => void;
 }
 
 const ASPECTS = [
@@ -94,6 +108,15 @@ export function Composer({
   onRemoveCondition,
   onPreviewCondition,
   onReloadControlNet,
+  promptMode,
+  expansionSeed,
+  promptExpansion,
+  promptExpansionLoading,
+  promptExpansionError,
+  promptActionError,
+  onPromptModeChange,
+  onExpansionSeedChange,
+  onShufflePromptSet,
 }: ComposerProps) {
   const editing = workspaceMode === "edit";
   const frameWidth = editing ? editDimensions.width : draft.width;
@@ -192,6 +215,18 @@ export function Composer({
           placeholder="What should stay out of the frame?"
         />
       </label>
+
+      <PromptComposition
+        mode={promptMode}
+        expansionSeed={expansionSeed}
+        response={promptExpansion}
+        loading={promptExpansionLoading}
+        error={promptExpansionError}
+        actionError={promptActionError}
+        onModeChange={onPromptModeChange}
+        onExpansionSeedChange={onExpansionSeedChange}
+        onShuffle={onShufflePromptSet}
+      />
 
       {catalog && (
         <PromptTools
@@ -301,7 +336,7 @@ export function Composer({
         </fieldset>
 
         <label className="compact-control candidates-control">
-          <span>Candidates</span>
+          <span>{promptMode === "exhaustive" ? "Candidate cap" : "Candidates"}</span>
           <input
             type="number"
             min="1"

@@ -11,6 +11,15 @@ export type GenerationPhase =
   | "completed"
   | "failed";
 
+export interface GenerationResult {
+  image: string;
+  kind: "image" | "contact-sheet" | "auxiliary";
+  prompt: string | null;
+  negativePrompt: string | null;
+  seed: number | null;
+  infotext: string | null;
+}
+
 export interface GenerationState {
   kind: "txt2img" | "img2img" | null;
   phase: GenerationPhase;
@@ -20,6 +29,7 @@ export interface GenerationState {
   preview: string | null;
   previewId: number;
   images: string[];
+  results: GenerationResult[];
   parameters: Record<string, unknown> | null;
   info: string | null;
   text: string;
@@ -35,6 +45,7 @@ export const initialGenerationState: GenerationState = {
   preview: null,
   previewId: -1,
   images: [],
+  results: [],
   parameters: null,
   info: null,
   text: "Ready for a prompt.",
@@ -58,6 +69,79 @@ export function isGenerating(phase: GenerationPhase): boolean {
     "interrupt-requested",
     "finishing",
   ].includes(phase);
+}
+
+interface ProcessedInfo {
+  all_prompts?: unknown;
+  all_negative_prompts?: unknown;
+  all_seeds?: unknown;
+  index_of_first_image?: unknown;
+  infotexts?: unknown;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function numberArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is number => typeof item === "number" && Number.isFinite(item),
+      )
+    : [];
+}
+
+export function resultsFromResponse(value: Txt2ImgResponse): GenerationResult[] {
+  const images = (value.images ?? []).map(imageSource);
+  let info: ProcessedInfo = {};
+  let hasProcessedInfo = false;
+  try {
+    const parsed = JSON.parse(value.info) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      info = parsed as ProcessedInfo;
+      hasProcessedInfo = true;
+    }
+  } catch {
+    // A result remains usable even when an older Forge build omitted JSON info.
+  }
+
+  const prompts = stringArray(info.all_prompts);
+  const negativePrompts = stringArray(info.all_negative_prompts);
+  const seeds = numberArray(info.all_seeds);
+  const infotexts = stringArray(info.infotexts);
+  const firstImage =
+    typeof info.index_of_first_image === "number" &&
+    Number.isInteger(info.index_of_first_image) &&
+    info.index_of_first_image >= 0 &&
+    info.index_of_first_image <= images.length
+      ? info.index_of_first_image
+      : 0;
+
+  return images.map((image, imageIndex) => {
+    if (imageIndex < firstImage) {
+      return {
+        image,
+        kind: "contact-sheet",
+        prompt: null,
+        negativePrompt: null,
+        seed: null,
+        infotext: infotexts[imageIndex] ?? null,
+      };
+    }
+    const sampleIndex = imageIndex - firstImage;
+    const kind =
+      !hasProcessedInfo || sampleIndex < prompts.length ? "image" : "auxiliary";
+    return {
+      image,
+      kind,
+      prompt: prompts[sampleIndex] ?? null,
+      negativePrompt: negativePrompts[sampleIndex] ?? null,
+      seed: seeds[sampleIndex] ?? null,
+      infotext: infotexts[imageIndex] ?? null,
+    };
+  });
 }
 
 export function generationReducer(
@@ -116,16 +200,20 @@ export function generationReducer(
         error: action.error,
       };
     case "completed":
+      const results = resultsFromResponse(action.value);
       return {
         ...state,
         phase: "completed",
         progress: 1,
         eta: null,
-        images: (action.value.images ?? []).map(imageSource),
+        images: results.map((result) => result.image),
+        results,
         parameters: action.value.parameters,
         info: action.value.info,
         text: action.value.images?.length
-          ? "Forge returned the completed image."
+          ? `Forge returned ${action.value.images.length} completed ${
+              action.value.images.length === 1 ? "image" : "images"
+            }.`
           : "Forge completed without returning an image.",
         error: null,
       };
