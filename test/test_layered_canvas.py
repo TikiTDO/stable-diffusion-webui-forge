@@ -47,8 +47,17 @@ class LayeredCanvasTests(unittest.TestCase):
         self.assertIsNotNone(without_mask["layers"][0].getbbox())
         self.assertIsNone(without_mask["layers"][1].getbbox())
 
-    def test_source_is_required(self):
-        with self.assertRaisesRegex(ValueError, "source image"):
+    def test_drawing_without_an_uploaded_source_becomes_the_image(self):
+        visible_mask = pixel_layer(self.paint.size, (1, 1), (40, 220, 40, 255))
+        editor = {"background": None, "layers": [self.paint, visible_mask], "composite": None}
+        image = layered_canvas.source_and_paint(editor)
+        self.assertEqual(self.paint.size, image.size)
+        self.assertEqual((0, 0, 200, 255), image.getpixel((0, 0)))
+        self.assertEqual((255, 255, 255, 255), image.getpixel((1, 1)))
+        self.assertEqual(self.paint.size, layered_canvas.editor_dimensions(editor))
+
+    def test_empty_canvas_still_needs_a_stroke(self):
+        with self.assertRaisesRegex(ValueError, "draw on the empty canvas"):
             layered_canvas.source_and_paint(None)
 
 

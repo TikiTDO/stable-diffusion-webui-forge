@@ -31,6 +31,24 @@ def _background(editor: Any) -> Image.Image | None:
     return _rgba(image) if isinstance(image, Image.Image) else None
 
 
+def _canvas_background(editor: Any) -> Image.Image | None:
+    """Return the uploaded source or Gradio's white drawing canvas.
+
+    Gradio normally synthesizes an opaque white background as soon as the
+    first stroke is drawn on an empty editor.  Deriving the same background
+    from a layer keeps drawing-only input valid when a client omits that
+    synthesized image.
+    """
+    background = _background(editor)
+    if background is not None:
+        return background
+    if not isinstance(editor, dict):
+        return None
+    candidates = [*(editor.get("layers") or []), editor.get("composite")]
+    reference = next((image for image in candidates if isinstance(image, Image.Image)), None)
+    return Image.new("RGBA", reference.size, "white") if reference is not None else None
+
+
 def _transparent(size: tuple[int, int]) -> Image.Image:
     return Image.new("RGBA", size, (0, 0, 0, 0))
 
@@ -59,30 +77,30 @@ def _editor_value(background: Image.Image, layers: list[Image.Image]) -> dict[st
 
 def source_and_paint(editor: Any) -> Image.Image:
     """Return the img2img source with paint applied, but never the visible mask."""
-    background = _background(editor)
+    background = _canvas_background(editor)
     if background is None:
-        raise ValueError("Add a source image before generating.")
+        raise ValueError("Add a source image or draw on the empty canvas before generating.")
     paint, _mask = _layers(editor, background.size)
     return Image.alpha_composite(background, paint)
 
 
 def inpaint_mask(editor: Any) -> Image.Image:
     """Return the selection layer as an RGBA black/white inpaint mask."""
-    background = _background(editor)
+    background = _canvas_background(editor)
     if background is None:
-        raise ValueError("Add a source image before generating.")
+        raise ValueError("Add a source image or draw on the empty canvas before generating.")
     _paint, selection = _layers(editor, background.size)
     alpha = selection.getchannel("A")
     return Image.merge("RGBA", (alpha, alpha, alpha, Image.new("L", alpha.size, 255)))
 
 
 def editor_dimensions(editor: Any) -> tuple[int, int]:
-    background = _background(editor)
+    background = _canvas_background(editor)
     return background.size if background is not None else (0, 0)
 
 
 def clear_layer(editor: Any, layer_index: int) -> Any:
-    background = _background(editor)
+    background = _canvas_background(editor)
     if background is None:
         return editor
     layers = _layers(editor, background.size)

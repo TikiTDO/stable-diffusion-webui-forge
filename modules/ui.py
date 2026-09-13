@@ -578,10 +578,11 @@ def create_ui():
                                 allow_additional_layers=False,
                                 layers=["Paint", "Mask"],
                             ),
-                            brush=Brush(default_size=24, default_color="#ffffff"),
+                            canvas_size=(1024, 1024),
+                            brush=Brush(default_size=12, default_color="#000000"),
                         )
                         gr.HTML(
-                            "Paint colour changes on <strong>Paint</strong>. "
+                            "Paint colour changes on <strong>Paint</strong>; use the eyedropper to sample the image. "
                             "The <strong>Mask</strong> layer selects where Inpaint may work."
                         )
                         with gr.Row(variant="compact", elem_id="img2img_layer_actions"):
