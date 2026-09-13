@@ -15,8 +15,13 @@
 - Projects use stable identifiers and transactional ordering.
 - Preview/status uses one event stream, not progress plus preview polling.
 - Dynamic and regional prompting share one native prompt compiler.
+- Plain prompt text can expose selected terms as named or temporary toggleable
+  fragments without creating a parallel prompt representation.
 - ControlNet inputs are native condition cards.
 - SDXL and Flux are the supported model families.
+- The new UI becomes the default only after real generation and durable project
+  sequencing both work.
+- Blocking Forge inference never runs on the API/event loop.
 
 ## Questions answered by a small implementation probe
 

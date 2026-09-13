@@ -5,12 +5,20 @@
 Three things that the inherited application treats as variations of “image” are
 separate:
 
-- **Candidate** — a disposable result of a generation job.
+- **Candidate** — a project-scoped, disposable result of a generation job that
+  has not thereby become a storyboard frame.
 - **Frame** — a stable ordered place in a project's story.
 - **Asset** — immutable image content and its technical metadata.
 
 A frame points to one current frame version. A frame version points to an asset.
 Replacing a frame creates another version. Adding creates another frame.
+
+Generation happens inside a project workspace, so a ready candidate and its
+immutable asset already belong to that project. **Promotion means giving that
+asset a place in the storyboard**, not copying it across an imaginary project
+boundary. Add links it through a new frame and frame version; Replace links it
+through a new version of an existing frame. The candidate remains attributable
+to its job and realization until an explicit retention operation removes it.
 
 ## Project
 
@@ -80,6 +88,25 @@ Asset
 Large masks, previews, and condition images are referenced assets rather than
 base64 fields embedded in recipes or event streams.
 
+## Candidate
+
+```text
+Candidate
+  id
+  project_id
+  generation_id
+  candidate_index
+  state
+  asset_id?
+  realization_id?
+  created_at / ready_at?
+```
+
+A ready candidate owns an asset reference whether or not any frame uses that
+asset. Candidate identity explains generation and review; frame identity
+explains narrative position. Promotion creates a frame relation and does not
+mutate either the candidate or asset.
+
 ## Generation recipe
 
 ```text
@@ -105,6 +132,27 @@ GenerationRecipe
 The same type represents txt2img, img2img, and inpaint. Absence or presence of
 source and mask changes the execution plan; it does not select an unrelated
 form with a different memory of every control.
+
+## Prompt program and toggleable fragments
+
+Plain positive and negative text remain the primary editing surface. A person
+may lift selected text into a named or temporary fragment and toggle that
+fragment without deleting or manually reconstructing it:
+
+```text
+PromptFragment
+  id
+  label?
+  polarity: positive | negative
+  text
+  enabled
+  order
+```
+
+The prompt program compiles base text plus enabled fragments before dynamic or
+regional expansion. Disabled fragments remain visible editable intent but do
+not appear in a realization. This is one stored representation surfaced as
+text selection and toggles, not a second prompt language beside the editor.
 
 ## Recipe and realization
 

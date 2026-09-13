@@ -16,10 +16,13 @@ Create the new package and application shell with:
 - typed recipe/job/event models;
 - one fake project in an isolated temporary directory;
 - Compose, Stage, Candidate tray, and Project sequence layout.
+- named and temporary prompt-fragment toggles beside plain prompt text.
 
 Acceptance:
 
 - prompt typing has no unrelated network request or project-grid rerender;
+- toggling a prompt fragment changes the fake realization without deleting its
+  text;
 - a fake four-candidate job exercises preview and terminal states;
 - Add and Replace visibly enter different placement modes;
 - group movement preserves relative order through the API fake;
@@ -39,9 +42,14 @@ Acceptance:
 - Cancel and Finish active produce truthful terminal state;
 - each candidate retains seed, model hashes, recipe, and realization;
 - the new path does not import or inspect Gradio components.
+- under an actual 1024 render, prompt input remains local and responsive while
+  enqueue acknowledgement, cancellation acknowledgement, projection reads, and
+  SSE event delivery are not serialized behind inference;
+- idle and under-render timings for those paths are retained as cutover
+  evidence rather than inferred from the fake adapter.
 
-At this point the new application becomes the default local route. Gradio moves
-to `/legacy`.
+At this point the new application is a usable preview route. It does not become
+the default while its project sequence is still fake.
 
 ## Slice 2 — projects and promotion
 
@@ -58,6 +66,9 @@ Acceptance:
 - reopening the project restores the same order, versions, and generation
   provenance;
 - importing an `image_processor` project does not mutate its source.
+
+After this slice passes visual story-workflow review, the new application
+becomes the default local route and Gradio moves to `/legacy`.
 
 ## Slice 3 — img2img and inpaint
 
@@ -87,19 +98,7 @@ Acceptance:
 - unsupported model/condition combinations fail at preflight;
 - saved recipe and realization reconstruct the exact condition plan.
 
-## Slice 5 — native dynamic and regional prompts
-
-Implement the typed compiler described in `native-prompt-composition.md`.
-
-Acceptance includes its first-native-slice criteria plus:
-
-- exhaustive alternatives map intentionally across requested candidates;
-- each candidate displays its resolved prompt;
-- grammar help inserts valid constructs;
-- visible regions edit the same stored objects used by conditioning;
-- ordinary prompts without composition remain unchanged.
-
-## Slice 6 — Flux and render profiles
+## Slice 5 — Flux and render profiles
 
 Prove the same creative loop with Flux and make model profiles choose valid VAE,
 text encoders, default profile, and supported conditions.
@@ -110,6 +109,18 @@ Acceptance:
 - normal Flux generation does not require manual VAE repair;
 - model-specific controls appear only where meaningful;
 - Fast Draft and at least one refinement profile round-trip through provenance.
+
+## Slice 6 — native dynamic and regional prompts
+
+Implement the typed compiler described in `native-prompt-composition.md`.
+
+Acceptance includes its first-native-slice criteria plus:
+
+- exhaustive alternatives map intentionally across requested candidates;
+- each candidate displays its resolved prompt;
+- grammar help inserts valid constructs;
+- visible regions edit the same stored objects used by conditioning;
+- ordinary prompts without composition remain unchanged.
 
 ## Slice 7 — legacy deletion
 

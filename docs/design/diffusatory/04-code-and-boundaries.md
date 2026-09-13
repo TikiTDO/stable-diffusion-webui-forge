@@ -66,8 +66,10 @@ FastAPI already exists in the Forge process. The new application should:
 - use the existing launcher's device and model initialization;
 - avoid importing Gradio from domain, project, prompt, or generation modules.
 
-The default route moves to the new application only after the first generation
-slice is usable. A launch flag can retain legacy-first behavior during bring-up.
+The default route moves to the new application only after both real generation
+and durable project/storyboard operations are usable. Before then it is an
+explicit preview route and Gradio remains the default. A launch flag can retain
+legacy-first behavior during and briefly after cutover.
 
 ## Frontend state
 

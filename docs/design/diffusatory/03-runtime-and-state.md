@@ -150,6 +150,18 @@ Forge remains the executor during migration. The adapter receives one normalized
 candidate or microbatch plan and emits callbacks into the job event model. UI
 components never call sampler globals directly.
 
+The API/event loop must never execute a blocking Forge operation. The scheduler
+hands work to one dedicated inference-worker boundary; the first implementation
+may use a worker thread and queue where Forge globals require the same process,
+but its interface must also permit a supervised worker process later. Progress
+callbacks cross that boundary through a thread-safe, bounded channel into the
+server-owned event journal. SSE reads the journal rather than sampler globals.
+
+“One Python process” is therefore not permission to share one execution lane.
+It is acceptable only if prompt editing remains browser-local and enqueue,
+cancel, projection reads, and event delivery stay responsive during a real
+render. That behavior is a cutover gate, not a polish task.
+
 A process restart cannot resume an interrupted diffusion step. On recovery,
 nonterminal persisted jobs become `failed` with a restart reason; completed
 assets and candidates remain available.

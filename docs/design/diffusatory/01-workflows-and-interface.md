@@ -74,7 +74,10 @@ detail into the product again.
 
 ## Add, Replace, and Refine
 
-A candidate is not in the project until one of these actions completes.
+A candidate already belongs to the current project workspace and its asset
+store. It is **not in the storyboard sequence** until Add or Replace completes.
+Those actions create frame relations; they do not copy or reclassify image
+bytes.
 
 ### Add
 
@@ -157,3 +160,11 @@ The useful output is not merely expanded text. Every candidate shows the exact
 resolved positive and negative prompt it received. “Use every prompt” is a
 first-class exhaustive expansion policy and is especially useful for generating
 a short visual progression in one request.
+
+Selected text can also become a named or temporary prompt fragment. Enabled
+fragments compose into the prompt in visible order; disabled fragments remain
+near the editor as one-click alternatives. This supports “keep the rain and
+lighting, try three different character actions” without making the person
+rewrite, comment out, or remember pieces of the prompt. Fragment toggles and
+plain text compile through the same server preflight path and every candidate
+still shows the exact resolved prompt it received.
