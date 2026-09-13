@@ -442,6 +442,23 @@ class Api:
 
         return params
 
+    def realize_prompt_modes(self, req, args: dict, sampler_name: str | None):
+        """`prompts` (the modes object) overrides `prompt`/`negative_prompt`; the schedule is derived here."""
+        from modules.prompt_modes import Prompts, realize
+
+        raw = args.pop('prompts', None)
+        if not raw:
+            return None
+        try:
+            prompts = Prompts.from_dict(raw)
+        except (KeyError, TypeError, ValueError) as e:
+            raise HTTPException(status_code=422, detail=f"prompts: {e}") from e
+        checkpoint = shared.sd_model.sd_checkpoint_info.shorthash if getattr(shared.sd_model, "sd_checkpoint_info", None) else None
+        realized = realize(prompts, checkpoint, sampler_name, int(args.get('steps') or 20))
+        args['prompt'] = realized.prompt
+        args['negative_prompt'] = realized.negative
+        return realized.schedule or {}
+
     def text2imgapi(self, txt2imgreq: models.StableDiffusionTxt2ImgProcessingAPI):
         task_id = txt2imgreq.force_task_id or create_task_id("txt2img")
 
@@ -469,6 +486,7 @@ class Api:
         args.pop('script_args', None) # will refeed them to the pipeline directly after initializing them
         args.pop('alwayson_scripts', None)
         args.pop('infotext', None)
+        prompt_schedule = self.realize_prompt_modes(txt2imgreq, args, populate.sampler_name)
 
         script_args = self.init_script_args(txt2imgreq, self.default_script_arg_txt2img, selectable_scripts, selectable_script_idx, script_runner, input_script_args=infotext_script_args)
 
@@ -501,7 +519,10 @@ class Api:
 
         b64images = list(map(encode_pil_to_base64, processed.images + processed.extra_images)) if send_images else []
 
-        return models.TextToImageResponse(images=b64images, parameters=vars(txt2imgreq), info=processed.js())
+        parameters = vars(txt2imgreq)
+        if prompt_schedule is not None:
+            parameters = {**parameters, "prompt_schedule": prompt_schedule, "realized_prompt": args['prompt']}
+        return models.TextToImageResponse(images=b64images, parameters=parameters, info=processed.js())
 
     def img2imgapi(self, img2imgreq: models.StableDiffusionImg2ImgProcessingAPI):
         task_id = img2imgreq.force_task_id or create_task_id("img2img")
@@ -540,6 +561,7 @@ class Api:
         args.pop('script_args', None)  # will refeed them to the pipeline directly after initializing them
         args.pop('alwayson_scripts', None)
         args.pop('infotext', None)
+        prompt_schedule = self.realize_prompt_modes(img2imgreq, args, populate.sampler_name)
 
         script_args = self.init_script_args(img2imgreq, self.default_script_arg_img2img, selectable_scripts, selectable_script_idx, script_runner, input_script_args=infotext_script_args)
 
@@ -577,7 +599,10 @@ class Api:
             img2imgreq.init_images = None
             img2imgreq.mask = None
 
-        return models.ImageToImageResponse(images=b64images, parameters=vars(img2imgreq), info=processed.js())
+        parameters = vars(img2imgreq)
+        if prompt_schedule is not None:
+            parameters = {**parameters, "prompt_schedule": prompt_schedule, "realized_prompt": args['prompt']}
+        return models.ImageToImageResponse(images=b64images, parameters=parameters, info=processed.js())
 
     def extras_single_image_api(self, req: models.ExtrasSingleImageRequest):
         reqDict = setUpscalers(req)
