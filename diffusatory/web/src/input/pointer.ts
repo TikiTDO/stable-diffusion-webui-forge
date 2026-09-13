@@ -106,4 +106,3 @@ export function pointerSamples(
     normalizePointerSample(sample, phase, clientToImage),
   );
 }
-

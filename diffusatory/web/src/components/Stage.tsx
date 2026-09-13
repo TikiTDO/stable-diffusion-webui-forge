@@ -14,7 +14,10 @@ function formatEta(eta: number | null): string | null {
 }
 
 export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
-  const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<{
+    image: string;
+    index: number | null;
+  } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewerZoom, setViewerZoom] = useState(1);
   const selectedImage = generation.images[selectedIndex] ?? generation.images[0];
@@ -23,20 +26,45 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
 
   useEffect(() => {
     setSelectedIndex(0);
+    setViewer(null);
   }, [generation.taskId]);
 
   useEffect(() => {
-    if (!viewerImage) return;
+    if (!viewer) return;
     const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setViewerImage(null);
+      if (event.key === "Escape") {
+        setViewer(null);
+        return;
+      }
+      if (viewer.index === null || generation.images.length < 2) return;
+      if (event.key === "ArrowLeft") {
+        const index =
+          (viewer.index - 1 + generation.images.length) %
+          generation.images.length;
+        setSelectedIndex(index);
+        setViewer({ image: generation.images[index], index });
+      } else if (event.key === "ArrowRight") {
+        const index = (viewer.index + 1) % generation.images.length;
+        setSelectedIndex(index);
+        setViewer({ image: generation.images[index], index });
+      }
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [viewerImage]);
+  }, [generation.images, viewer]);
 
-  const openViewer = (image: string) => {
+  const openViewer = (image: string, index: number | null) => {
     setViewerZoom(1);
-    setViewerImage(image);
+    setViewer({ image, index });
+  };
+
+  const moveViewer = (direction: -1 | 1) => {
+    if (!viewer || viewer.index === null || !generation.images.length) return;
+    const index =
+      (viewer.index + direction + generation.images.length) %
+      generation.images.length;
+    setSelectedIndex(index);
+    setViewer({ image: generation.images[index], index });
   };
 
   return (
@@ -56,7 +84,9 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
           <button
             className="stage__image-button"
             type="button"
-            onClick={() => openViewer(activeImage)}
+            onClick={() =>
+              openViewer(activeImage, selectedImage ? selectedIndex : null)
+            }
             aria-label="Open image in viewer"
           >
             <img src={activeImage} alt="Current generated composition" />
@@ -94,7 +124,7 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
                 key={`${generation.taskId}-${index}`}
                 className={selectedIndex === index ? "is-selected" : ""}
                 onClick={() => setSelectedIndex(index)}
-                onDoubleClick={() => openViewer(image)}
+                onDoubleClick={() => openViewer(image, index)}
                 aria-label={`Select result ${index + 1}`}
               >
                 <img src={image} alt={`Generated result ${index + 1}`} />
@@ -137,7 +167,7 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
         </details>
       )}
 
-      {viewerImage && (
+      {viewer && (
         <div
           className="viewer"
           role="dialog"
@@ -145,6 +175,27 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
           aria-label="Image viewer"
         >
           <div className="viewer__toolbar">
+            {viewer.index !== null && generation.images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => moveViewer(-1)}
+                  aria-label="Previous image"
+                >
+                  ←
+                </button>
+                <span>
+                  {viewer.index + 1} / {generation.images.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => moveViewer(1)}
+                  aria-label="Next image"
+                >
+                  →
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setViewerZoom((zoom) => Math.max(1, zoom - 0.5))}
@@ -165,13 +216,13 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
             <button type="button" onClick={() => setViewerZoom(1)}>
               Fit
             </button>
-            <button type="button" onClick={() => setViewerImage(null)}>
+            <button type="button" onClick={() => setViewer(null)}>
               Close
             </button>
           </div>
           <div
             className="viewer__viewport"
-            onClick={() => setViewerImage(null)}
+            onClick={() => setViewer(null)}
           >
             <div
               className="viewer__canvas"
@@ -181,7 +232,7 @@ export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
               }}
             >
               <img
-                src={viewerImage}
+                src={viewer.image}
                 alt="Generated composition at full size"
                 onClick={(event) => event.stopPropagation()}
               />

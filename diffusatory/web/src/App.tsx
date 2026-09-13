@@ -246,7 +246,10 @@ export default function App() {
     },
     [draft.height, draft.width],
   );
-  const handleEditorReady = useCallback(() => setEditorReady(true), []);
+  const handleEditorReady = useCallback((width: number, height: number) => {
+    setEditorDimensions({ width, height });
+    setEditorReady(true);
+  }, []);
   const changeWorkspaceMode = useCallback(
     (mode: "compose" | "edit") => {
       if (mode === "edit" && editorSession === 0) openEditor(null);
@@ -293,6 +296,7 @@ export default function App() {
           canGenerate={canGenerate}
           workspaceMode={workspaceMode}
           editSettings={editSettings}
+          editDimensions={editorDimensions}
           onChange={(patch) =>
             setDraft((current) => ({ ...current, ...patch }))
           }

@@ -43,9 +43,26 @@ export const BINDABLE_ACTIONS: BindableAction[] = [
 function isTabletProfile(value: unknown): value is TabletProfile {
   if (!value || typeof value !== "object") return false;
   const profile = value as Partial<TabletProfile>;
+  const pressure = profile.pressure as
+    | Partial<TabletProfile["pressure"]>
+    | undefined;
+  const pressureIsUsable =
+    pressure === undefined ||
+    (pressure !== null &&
+      [
+        pressure.inputMinimum,
+        pressure.inputMaximum,
+        pressure.outputMinimum,
+        pressure.outputMaximum,
+        pressure.curve,
+      ].every(
+        (candidate) =>
+          typeof candidate === "number" && Number.isFinite(candidate),
+      ));
   return (
     profile.schemaVersion === 1 &&
     typeof profile.name === "string" &&
+    pressureIsUsable &&
     Array.isArray(profile.bindings) &&
     profile.bindings.every(
       (binding) =>

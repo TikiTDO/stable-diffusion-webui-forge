@@ -22,6 +22,7 @@ interface ComposerProps {
     inpaintOnlyMasked: boolean;
     inpaintPadding: number;
   };
+  editDimensions: { width: number; height: number };
   onChange: (patch: Partial<GenerationDraft>) => void;
   onGenerate: () => void;
   onInterrupt: () => void;
@@ -73,6 +74,7 @@ export function Composer({
   canGenerate,
   workspaceMode,
   editSettings,
+  editDimensions,
   onChange,
   onGenerate,
   onInterrupt,
@@ -93,6 +95,9 @@ export function Composer({
   onPreviewCondition,
   onReloadControlNet,
 }: ComposerProps) {
+  const editing = workspaceMode === "edit";
+  const frameWidth = editing ? editDimensions.width : draft.width;
+  const frameHeight = editing ? editDimensions.height : draft.height;
   const insertPrompt = (text: string) => {
     const separator = draft.prompt.trim() ? ", " : "";
     onChange({ prompt: `${draft.prompt.trimEnd()}${separator}${text}` });
@@ -214,16 +219,22 @@ export function Composer({
       <div className="draft-controls">
         <fieldset className="dimensions">
           <legend>Frame</legend>
+          {editing && (
+            <small className="dimensions__truth">
+              Source size · resizing is not implemented yet
+            </small>
+          )}
           <div className="aspect-presets">
             {ASPECTS.map((aspect) => (
               <button
                 type="button"
                 key={aspect.label}
                 className={
-                  draft.width === aspect.width && draft.height === aspect.height
+                  frameWidth === aspect.width && frameHeight === aspect.height
                     ? "is-selected"
                     : ""
                 }
+                disabled={editing}
                 onClick={() =>
                   onChange({ width: aspect.width, height: aspect.height })
                 }
@@ -240,7 +251,8 @@ export function Composer({
                 min="64"
                 max="2048"
                 step="64"
-                value={draft.width}
+                value={frameWidth}
+                disabled={editing}
                 onChange={(event) =>
                   onChange({
                     width: changedNumber(
@@ -256,6 +268,7 @@ export function Composer({
             <button
               type="button"
               className="swap-dimensions"
+              disabled={editing}
               onClick={() =>
                 onChange({ width: draft.height, height: draft.width })
               }
@@ -270,7 +283,8 @@ export function Composer({
                 min="64"
                 max="2048"
                 step="64"
-                value={draft.height}
+                value={frameHeight}
+                disabled={editing}
                 onChange={(event) =>
                   onChange({
                     height: changedNumber(

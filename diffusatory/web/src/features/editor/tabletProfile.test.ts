@@ -39,6 +39,25 @@ describe("tablet profiles", () => {
     });
   });
 
+  it("falls back instead of letting malformed pressure data crash controls", () => {
+    installStorage(
+      JSON.stringify({
+        schemaVersion: 1,
+        name: "Broken pressure",
+        bindings: [],
+        pressure: {
+          inputMinimum: "not-a-number",
+          inputMaximum: 0.85,
+          outputMinimum: 0.08,
+          outputMaximum: 1,
+          curve: 1,
+        },
+      }),
+    );
+
+    expect(loadTabletProfile()).toEqual(createTabletProfile("My tablet"));
+  });
+
   it("persists a profile without changing its observed binding", () => {
     const localStorage = installStorage();
     const profile = createTabletProfile("Wacom desk");

@@ -633,6 +633,17 @@ export function useEditorSurface({
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (
+        target?.isContentEditable ||
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        tagName === "button"
+      ) {
+        return;
+      }
       if (event.metaKey || event.ctrlKey) {
         if (event.key.toLowerCase() === "z") {
           event.preventDefault();
@@ -676,6 +687,18 @@ export function useEditorSurface({
 
   const handleKeyUp = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (
+        keyboardPanPriorRef.current === null &&
+        (target?.isContentEditable ||
+          tagName === "input" ||
+          tagName === "textarea" ||
+          tagName === "select" ||
+          tagName === "button")
+      ) {
+        return;
+      }
       if (event.key === " " && keyboardPanPriorRef.current !== null) {
         event.preventDefault();
         const prior = keyboardPanPriorRef.current;

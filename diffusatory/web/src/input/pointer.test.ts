@@ -44,7 +44,6 @@ describe("pointer normalization", () => {
       timestamp: 100,
     });
   });
-
   it("uses coalesced movement samples without duplicating the wrapper event", () => {
     const event = pointer({
       clientX: 99,
@@ -86,4 +85,3 @@ describe("pointer normalization", () => {
     expect(sample.tangentialPressure).toBe(-1);
   });
 });
-
