@@ -961,6 +961,10 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
             p.setup_conds()
 
+            if getattr(p, "diffusatory_spatial_plan", None) is not None:
+                from diffusatory.server.spatial_conditioning import prepare_spatial_runtime
+                prepare_spatial_runtime(p)
+
             p.extra_generation_params.update(p.sd_model.extra_generation_params)
 
             # params.txt should be saved after scripts.process_batch, since the
@@ -1372,6 +1376,10 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
 
             self.sd_model.forge_objects = self.sd_model.forge_objects_after_applying_lora.shallow_copy()
             apply_token_merging(self.sd_model, self.get_token_merging_ratio())
+
+            if getattr(self, "_diffusatory_spatial_runtime", None) is not None:
+                from diffusatory.server.spatial_conditioning import install_spatial_runtime
+                install_spatial_runtime(self)
 
             if self.scripts is not None:
                 self.scripts.process_before_every_sampling(self,
@@ -1850,6 +1858,10 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
 
         self.sd_model.forge_objects = self.sd_model.forge_objects_after_applying_lora.shallow_copy()
         apply_token_merging(self.sd_model, self.get_token_merging_ratio())
+
+        if getattr(self, "_diffusatory_spatial_runtime", None) is not None:
+            from diffusatory.server.spatial_conditioning import install_spatial_runtime
+            install_spatial_runtime(self)
 
         if self.scripts is not None:
             self.scripts.process_before_every_sampling(self,

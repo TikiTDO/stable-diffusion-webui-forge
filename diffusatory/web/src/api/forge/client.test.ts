@@ -114,6 +114,54 @@ describe("ForgeClient", () => {
     });
   });
 
+  it("sends a resolved spatial plan through the native Forge request", async () => {
+    let body: Record<string, unknown> | null = null;
+    const fetcher: typeof fetch = async (_input, request) => {
+      body = JSON.parse(request?.body as string) as Record<string, unknown>;
+      return json({ images: ["a"], parameters: {}, info: "{}" });
+    };
+
+    await new ForgeClient("", fetcher).txt2img("task(diffusatory-regions)", {
+      prompt: "two friends",
+      spatialPlan: {
+        version: 1,
+        frame: { width: 1024, height: 1024 },
+        transform: {
+          centerX: 0.5,
+          centerY: 0.5,
+          width: 0.75,
+          height: 0.75,
+          rotation: 8,
+        },
+        softnessPixels: 24,
+        cells: [
+          {
+            id: "r1c1",
+            row: 0,
+            column: 0,
+            prompt: "red coat",
+            polygon: [
+              { x: 128, y: 128 },
+              { x: 512, y: 128 },
+              { x: 512, y: 896 },
+              { x: 128, y: 896 },
+            ],
+          },
+        ],
+        background: { enabled: true, prompt: "train station" },
+      },
+    });
+
+    expect(body).toMatchObject({
+      diffusatory_spatial_plan: {
+        version: 1,
+        softnessPixels: 24,
+        cells: [{ id: "r1c1", prompt: "red coat" }],
+        background: { enabled: true, prompt: "train station" },
+      },
+    });
+  });
+
   it("sends the visible editor source and mask through img2img", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {

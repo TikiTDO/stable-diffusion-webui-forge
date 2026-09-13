@@ -23,7 +23,10 @@ import type {
   ControlNetCondition,
 } from "./features/controlnet/types";
 import { useControlNetCatalog } from "./features/controlnet/useControlNetCatalog";
-import { createRegionalComposition } from "./features/regions/model";
+import {
+  createRegionalComposition,
+  resolveSpatialPlan,
+} from "./features/regions/model";
 import { RegionStage } from "./features/regions/RegionStage";
 import {
   draftFromCatalog,
@@ -51,7 +54,7 @@ export default function App() {
   const [promptMode, setPromptMode] = useState<PromptExpansionMode>("off");
   const [expansionSeed, setExpansionSeed] = useState(newExpansionSeed);
   const [promptActionError, setPromptActionError] = useState<string | null>(null);
-  const [canvasView, setCanvasView] = useState<"variants" | "editor">("variants");
+  const [canvasView, setCanvasView] = useState<"variants" | "editor" | "regions">("variants");
   const [generationSource, setGenerationSource] = useState<"prompt" | "editor">("prompt");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [editorSource, setEditorSource] = useState<string | null>(null);
@@ -168,7 +171,8 @@ export default function App() {
     !promptExpansion.loading &&
     Boolean(promptExpansion.response?.resolved_count) &&
     !promptExpansion.response?.issues.some((issue) => issue.blocking) &&
-    !regionalComposition.enabled;
+    (!regionalComposition.enabled ||
+      Boolean(instance?.capabilities.includes("spatial-conditioning")));
 
   const changeCondition = useCallback((id: string, patch: ConditionPatch) => {
     const invalidatesPreview =
@@ -295,9 +299,19 @@ export default function App() {
       negativePrompt: promptSet.realizations.map((item) => item.negative_prompt),
       outputs: promptSet.realizations.length,
       controlNet,
+      ...(regionalComposition.enabled
+        ? {
+            spatialPlan: resolveSpatialPlan(
+              regionalComposition,
+              activeDimensions.width,
+              activeDimensions.height,
+            ),
+          }
+        : {}),
     };
     if (!sourceActive) {
       await generate({ kind: "txt2img", input: request });
+      setCanvasView("variants");
       return;
     }
     if (!editor) {
@@ -315,6 +329,7 @@ export default function App() {
         ...editSettings,
       },
     });
+    setCanvasView("variants");
   };
 
   const openEditor = useCallback(
@@ -401,7 +416,16 @@ export default function App() {
           controlNetLoading={controlNetLoading}
           conditions={conditions}
           regionalComposition={regionalComposition}
-          onRegionalCompositionChange={setRegionalComposition}
+          regionalStageVisible={canvasView === "regions"}
+          onShowRegionalStage={() => setCanvasView("regions")}
+          onRegionalCompositionChange={(next) => {
+            const enabledNow = regionalComposition.enabled;
+            setRegionalComposition(next);
+            if (!enabledNow && next.enabled) setCanvasView("regions");
+            if (enabledNow && !next.enabled && canvasView === "regions") {
+              setCanvasView(sourceActive ? "editor" : "variants");
+            }
+          }}
           promptMode={promptMode}
           expansionSeed={expansionSeed}
           promptExpansion={promptExpansion.response}
@@ -431,7 +455,7 @@ export default function App() {
           onReloadControlNet={reloadControlNet}
         />
 
-        <div className="workspace-pane" hidden={canvasView !== "variants" || regionalComposition.enabled}>
+        <div className="workspace-pane" hidden={canvasView !== "variants"}>
           <Stage
             generation={state}
             candidates={candidates}
@@ -442,7 +466,7 @@ export default function App() {
             onClearCandidates={() => setCandidates([])}
           />
         </div>
-        <div className="workspace-pane" hidden={!regionalComposition.enabled}>
+        <div className="workspace-pane" hidden={canvasView !== "regions"}>
           <RegionStage
             value={regionalComposition}
             frameWidth={activeDimensions.width}
@@ -451,7 +475,7 @@ export default function App() {
           />
         </div>
         {editorSession > 0 && (
-          <div className="workspace-pane" hidden={canvasView !== "editor" || regionalComposition.enabled}>
+          <div className="workspace-pane" hidden={canvasView !== "editor"}>
           <section className="stage stage--editor" aria-label="Editing stage">
             <header className="stage__header">
               <div>

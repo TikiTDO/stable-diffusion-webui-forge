@@ -31,6 +31,7 @@ export interface ResolvedRegionCell {
 }
 
 export interface ResolvedSpatialPlan {
+  version: 1;
   frame: { width: number; height: number };
   transform: RegionTransform;
   softnessPixels: number;

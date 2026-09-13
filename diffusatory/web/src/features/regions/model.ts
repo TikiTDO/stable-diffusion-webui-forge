@@ -187,6 +187,7 @@ export function resolveSpatialPlan(
     })),
   );
   return {
+    version: 1,
     frame: { width: frameWidth, height: frameHeight },
     transform: composition.transform,
     softnessPixels:

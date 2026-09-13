@@ -1,3 +1,5 @@
+import type { ResolvedSpatialPlan } from "../../features/regions/types";
+
 export interface InstanceDescriptor {
   id: string;
   name: string;
@@ -22,6 +24,7 @@ export interface Txt2ImgInput {
   outputs?: number;
   previewEvery?: number;
   controlNet?: ControlNetUnitInput[];
+  spatialPlan?: ResolvedSpatialPlan;
 }
 
 export interface Img2ImgInput extends Txt2ImgInput {

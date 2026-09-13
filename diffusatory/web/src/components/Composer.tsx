@@ -48,7 +48,9 @@ interface ComposerProps {
   controlNetLoading: boolean;
   conditions: ControlNetCondition[];
   regionalComposition: RegionalComposition;
+  regionalStageVisible: boolean;
   onRegionalCompositionChange: (value: RegionalComposition) => void;
+  onShowRegionalStage: () => void;
   currentImageAvailable: boolean;
   onAddCondition: () => void;
   onChangeCondition: (id: string, patch: ConditionPatch) => void;
@@ -112,7 +114,9 @@ export function Composer({
   controlNetLoading,
   conditions,
   regionalComposition,
+  regionalStageVisible,
   onRegionalCompositionChange,
+  onShowRegionalStage,
   currentImageAvailable,
   onAddCondition,
   onChangeCondition,
@@ -597,7 +601,9 @@ export function Composer({
           frameWidth={frameWidth}
           frameHeight={frameHeight}
           commonPrompt={draft.prompt}
+          stageVisible={regionalStageVisible}
           onChange={onRegionalCompositionChange}
+          onShowStage={onShowRegionalStage}
         />
 
         <ConditionStack

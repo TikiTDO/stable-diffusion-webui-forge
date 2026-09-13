@@ -1,7 +1,7 @@
 # Unified shot and regional-stage implementation
 
-Status: frontend slice implemented; native regional conditioning and durable
-projects remain open
+Status: native spatial request and sampler adapter implemented; real GPU
+conditioning acceptance and durable projects remain open
 
 Date: 2026-09-13
 
@@ -127,10 +127,47 @@ between portrait and landscape formats. The same Pointer Events path handles
 pen, mouse, and touch input, and capture begins on the exact manipulation
 handle rather than on the whole page.
 
-Enabling this editor currently blocks Generate. That is intentional. No
-backend adapter yet consumes the resolved masks, so silently issuing an
-ordinary whole-frame generation would make the visible plan a lie. Disabling
-regions restores the proven generation path.
+## Native spatial-conditioning path
+
+The visible plan is now part of the actual generation request rather than a
+frontend-only diagram. When regional composition is enabled, the client sends
+one versioned `diffusatory_spatial_plan` beside the ordinary txt2img or img2img
+fields. The normal source/mask rule still selects the route; spatial
+conditioning is orthogonal to that decision.
+
+The implementation deliberately does **not** transplant Regional Prompter's
+global cross-attention monkeypatches or its positional Gradio argument surface.
+Forge already has a lower and more stable leverage point: its sampler accepts
+multiple text conditionings carrying image-space masks and blends their model
+predictions by per-pixel accumulated weight. The native adapter therefore:
+
+1. validates a bounded typed plan at the API boundary (version, frame,
+   transform, at most sixteen four-point cells, finite coordinates, softness,
+   and explicit complement prompt);
+2. combines each realized common prompt with each cell fragment, and combines
+   that same common prompt with the optional background fragment;
+3. compiles those prompt schedules once per generation batch using Forge's own
+   text-conditioning engine;
+4. rasterizes rotated cell polygons at the actual latent dimensions, applies
+   the requested edge blur, and derives the complement as
+   `1 - clamp(sum(cell masks), 0, 1)`;
+5. replaces the whole-frame positive text conditioning with those masked
+   conditions while retaining the global negative prompt, img2img concat
+   conditioning, and ControlNet link;
+6. normalizes the global sum of condition strengths so adding spatial regions
+   cannot accidentally multiply CFG, while preserving all local overlap and
+   composable-prompt ratios.
+
+Generate is enabled only when the current instance advertises
+`spatial-conditioning`. The request fails closed on a malformed plan and on
+Hires.fix, which has not been integrated with the second-pass dimensions yet.
+LoRA and other extra-network tags remain a common-prompt operation because
+they change global model weights; a cell-local tag is rejected instead of
+pretending those weights can be spatially scoped.
+
+This closes the former frontend-lie gate in code. It does **not** establish
+that the conditioning produces the intended composition on SDXL or Flux: that
+requires a real GPU run and visual comparison, which remains explicitly open.
 
 ## Evidence obtained
 
@@ -156,6 +193,20 @@ Focused frontend checks on the implementation head established:
   moved from 3/3 to 2/3, dismissing the selected candidate chose its adjacent
   survivor at 2/2, and Clear removed the shelf without issuing any network
   mutation.
+- a typed client test preserved the complete spatial plan on the Forge
+  txt2img request;
+- a mocked browser journey enabled regions, authored a cell prompt, submitted
+  while Generate was live, observed the exact versioned plan on the txt2img
+  request, returned automatically to the resulting candidate, exposed its
+  `1 region spatial plan · 25.6px edge` provenance, and retained a Show map
+  route back to the editor;
+- focused Python tests established plan rejection, common/cell/background
+  prompt composition, softened polygon and complement masks, latent-size mask
+  scaling, full-frame coverage, replacement of global positive text
+  conditioning, preservation of img2img/ControlNet additions, and CFG-strength
+  normalization;
+- the current frontend suite reports 13 files and 60 tests passing, and the
+  spatial/mount Python suite reports 9 tests passing.
 
 The browser's ordinary screenshot command continued to hang on its stability
 wait. A direct Playwright full-page capture succeeded for the regional surface
@@ -164,8 +215,13 @@ evidence of layout, not tablet or inference behavior.
 
 ## Still open
 
-- Compile the cell polygons and complement into the mask/conditioning objects
-  consumed by a native Forge regional adapter.
+- Run an actual SDXL generation with a strongly falsifiable left/right plan,
+  then repeat with rotation, softness, img2img, and ControlNet. Static tests do
+  not close visual conditioning behavior.
+- Prove or repair Flux compatibility against its actual text-conditioning
+  dictionaries rather than inferring it from the shared compiler.
+- Add Hires.fix second-pass conditioning dimensions before allowing that
+  combination.
 - Resolve dynamic prompt alternatives across common, cell, and background
   fragments through one server compiler and record each output's spatial plan.
 - Replace transient candidate state with the project/asset/candidate database

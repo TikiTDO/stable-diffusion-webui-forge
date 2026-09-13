@@ -9,9 +9,9 @@ const completed: GenerationState = {
   taskId: "run-1",
   kind: "txt2img",
   results: [
-    { image: "sheet", kind: "contact-sheet", prompt: null, negativePrompt: null, seed: null, infotext: null },
-    { image: "one", kind: "image", prompt: "one", negativePrompt: "", seed: 4, infotext: null },
-    { image: "map", kind: "auxiliary", prompt: null, negativePrompt: null, seed: null, infotext: null },
+    { image: "sheet", kind: "contact-sheet", prompt: null, negativePrompt: null, seed: null, infotext: null, spatialPlan: null },
+    { image: "one", kind: "image", prompt: "one", negativePrompt: "", seed: 4, infotext: null, spatialPlan: null },
+    { image: "map", kind: "auxiliary", prompt: null, negativePrompt: null, seed: null, infotext: null, spatialPlan: null },
   ],
 };
 

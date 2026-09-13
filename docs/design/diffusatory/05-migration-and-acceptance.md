@@ -127,6 +127,13 @@ If positional script arguments cannot carry this contract reliably, this slice
 may add the smallest typed backend endpoint that can. It does not authorize a
 new scheduler, project store, or unrelated API redesign.
 
+Implementation state: the typed plan, latent mask/complement compiler, and
+native sampler-conditioning adapter now exist, and the frontend sends that
+plan through both generation request shapes. Pure tests cover the request and
+conditioning invariants. Slice acceptance remains open until a real SDXL run
+visibly obeys a falsifiable region plan and the resolved plan is attached to
+each candidate's inspectable provenance.
+
 ## Slice 5 — hands-on UI cutover
 
 The operator uses the replacement UI for the ordinary workflow and decides

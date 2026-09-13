@@ -47,6 +47,7 @@ class DiffusatoryMountTests(unittest.TestCase):
                     "task-progress",
                     "interrupt",
                     "prompt-expansion",
+                    "spatial-conditioning",
                 ],
                 body["capabilities"],
             )

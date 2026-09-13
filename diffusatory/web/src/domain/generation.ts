@@ -1,5 +1,6 @@
 import { imageSource } from "../api/forge/client";
 import type { ProgressResponse, Txt2ImgResponse } from "../api/forge/types";
+import type { ResolvedSpatialPlan } from "../features/regions/types";
 
 export type GenerationPhase =
   | "idle"
@@ -18,6 +19,7 @@ export interface GenerationResult {
   negativePrompt: string | null;
   seed: number | null;
   infotext: string | null;
+  spatialPlan: ResolvedSpatialPlan | null;
 }
 
 export interface GenerationState {
@@ -93,6 +95,52 @@ function numberArray(value: unknown): number[] {
     : [];
 }
 
+function resolvedSpatialPlan(value: unknown): ResolvedSpatialPlan | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const plan = value as Record<string, unknown>;
+  const frame = plan.frame as Record<string, unknown> | undefined;
+  const transform = plan.transform as Record<string, unknown> | undefined;
+  const background = plan.background as Record<string, unknown> | undefined;
+  if (
+    plan.version !== 1 ||
+    !frame ||
+    typeof frame.width !== "number" ||
+    typeof frame.height !== "number" ||
+    !transform ||
+    !Array.isArray(plan.cells) ||
+    !background
+  ) {
+    return null;
+  }
+  const softness = plan.softnessPixels ?? plan.softness_pixels;
+  const centerX = transform.centerX ?? transform.center_x;
+  const centerY = transform.centerY ?? transform.center_y;
+  if (
+    typeof softness !== "number" ||
+    typeof centerX !== "number" ||
+    typeof centerY !== "number" ||
+    typeof transform.width !== "number" ||
+    typeof transform.height !== "number" ||
+    typeof transform.rotation !== "number"
+  ) {
+    return null;
+  }
+  return {
+    version: 1,
+    frame: { width: frame.width, height: frame.height },
+    transform: {
+      centerX,
+      centerY,
+      width: transform.width,
+      height: transform.height,
+      rotation: transform.rotation,
+    },
+    softnessPixels: softness,
+    cells: plan.cells as ResolvedSpatialPlan["cells"],
+    background: background as unknown as ResolvedSpatialPlan["background"],
+  };
+}
+
 export function resultsFromResponse(value: Txt2ImgResponse): GenerationResult[] {
   const images = (value.images ?? []).map(imageSource);
   let info: ProcessedInfo = {};
@@ -118,6 +166,9 @@ export function resultsFromResponse(value: Txt2ImgResponse): GenerationResult[] 
     info.index_of_first_image <= images.length
       ? info.index_of_first_image
       : 0;
+  const spatialPlan = resolvedSpatialPlan(
+    value.parameters.diffusatory_spatial_plan,
+  );
 
   return images.map((image, imageIndex) => {
     if (imageIndex < firstImage) {
@@ -128,6 +179,7 @@ export function resultsFromResponse(value: Txt2ImgResponse): GenerationResult[] 
         negativePrompt: null,
         seed: null,
         infotext: infotexts[imageIndex] ?? null,
+        spatialPlan,
       };
     }
     const sampleIndex = imageIndex - firstImage;
@@ -140,6 +192,7 @@ export function resultsFromResponse(value: Txt2ImgResponse): GenerationResult[] 
       negativePrompt: negativePrompts[sampleIndex] ?? null,
       seed: seeds[sampleIndex] ?? null,
       infotext: infotexts[imageIndex] ?? null,
+      spatialPlan,
     };
   });
 }

@@ -31,6 +31,7 @@ diffusatory/
 
   server/                    # added by measured need, not up front
     mount.py                 # built frontend and instance metadata
+    spatial_conditioning.py  # typed plan, mask compiler, Forge sampler adapter
     projects/                # arrives with the project slice
     prompting/               # native endpoints arrive after parity
     generation/              # native job contract arrives if justified
@@ -121,6 +122,15 @@ Exact path names can change. None of these endpoints should be created merely to
 make the architecture diagram symmetrical. Resource boundaries and effect
 semantics should not be blurred to mimic an inherited callback.
 
+The first measured exception to the compatibility-only generation surface is
+regional conditioning. The existing API could not truthfully express a
+transformable set of cell polygons and a complement through extension
+positional arguments. Both txt2img and img2img therefore accept one optional,
+versioned `diffusatory_spatial_plan`. It is not a second generation endpoint:
+the ordinary Forge route still owns queueing, sampling, output, and raw-file
+behavior. The added field selects one native conditioning adapter inside that
+existing run.
+
 ## Local project storage (project slice)
 
 Preferred first implementation of project storage:
@@ -151,10 +161,15 @@ at a file that was never durably written.
 dialog metadata, and hashes. Import creates new Diffusatory IDs and an explicit
 receipt rather than silently rewriting the source directory.
 
-## Native Forge adapter (later)
+## Native Forge adapter
 
-The adapter translates a validated `GenerationRecipe` and its realizations into
-Forge processing objects. It owns:
+The current narrow adapter translates the validated spatial plan and already
+realized common prompts into masked Forge conditioning objects. It reuses the
+existing processing object and sampler rather than constructing a parallel
+generation scheduler.
+
+The broader future adapter will translate a validated `GenerationRecipe` and
+its realizations into Forge processing objects. It owns:
 
 - model/profile resolution;
 - prompt and extra-network preparation;
@@ -169,7 +184,7 @@ immediately be removed stay behind one execution lock and one documented seam.
 Every new domain test should be able to replace the adapter with a deterministic
 fake.
 
-## Native prompt compiler (later)
+## Native prompt compiler
 
 The native prompt-composition design remains the owner of semantics:
 
@@ -185,6 +200,12 @@ PromptProgram
 UI and API use the same preflight/compiler path. Browser syntax highlighting may
 parse for presentation, but it cannot claim a render plan independently of the
 server compiler.
+
+Today the common prompt reaches the existing native Dynamic Prompts compiler
+first, and the spatial adapter then composes each realized common prompt with
+static cell/background fragments. Forge prompt scheduling inside a fragment is
+retained. Dynamic alternatives and wildcards inside the fragments themselves
+are not yet one program and must not be described as such.
 
 ## What must not become permanent product contracts
 

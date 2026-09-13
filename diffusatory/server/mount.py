@@ -56,7 +56,10 @@ def _capabilities(app: FastAPI) -> list[str]:
     # The native prompt compiler is installed by this mount itself. FastAPI
     # 0.141 keeps included routers behind a lazy route object, so it is not
     # visible to the shallow Forge-route inventory above until resolution.
-    return [name for name, path in routes if path in paths] + ["prompt-expansion"]
+    return [name for name, path in routes if path in paths] + [
+        "prompt-expansion",
+        "spatial-conditioning",
+    ]
 
 
 def _instance_id(host: str) -> str:

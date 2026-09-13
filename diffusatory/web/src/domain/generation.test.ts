@@ -135,6 +135,7 @@ describe("resultsFromResponse", () => {
         negativePrompt: null,
         seed: null,
         infotext: "grid info",
+        spatialPlan: null,
       },
       {
         image: "data:image/png;base64,one",
@@ -143,6 +144,7 @@ describe("resultsFromResponse", () => {
         negativePrompt: "rain",
         seed: 10,
         infotext: "one info",
+        spatialPlan: null,
       },
       {
         image: "data:image/png;base64,two",
@@ -151,6 +153,7 @@ describe("resultsFromResponse", () => {
         negativePrompt: "fog",
         seed: 11,
         infotext: "two info",
+        spatialPlan: null,
       },
     ]);
   });
@@ -166,8 +169,52 @@ describe("resultsFromResponse", () => {
         negativePrompt: null,
         seed: null,
         infotext: null,
+        spatialPlan: null,
       },
     ]);
+  });
+
+  it("normalizes spatial provenance returned with every candidate", () => {
+    const [result] = resultsFromResponse({
+      images: ["one"],
+      parameters: {
+        diffusatory_spatial_plan: {
+          version: 1,
+          frame: { width: 1024, height: 1024 },
+          transform: {
+            center_x: 0.5,
+            center_y: 0.5,
+            width: 0.75,
+            height: 0.75,
+            rotation: 4,
+          },
+          softness_pixels: 20,
+          cells: [
+            {
+              id: "r1c1",
+              row: 0,
+              column: 0,
+              prompt: "red coat",
+              polygon: [
+                { x: 0, y: 0 },
+                { x: 512, y: 0 },
+                { x: 512, y: 1024 },
+                { x: 0, y: 1024 },
+              ],
+            },
+          ],
+          background: { enabled: false, prompt: "" },
+        },
+      },
+      info: "legacy",
+    });
+
+    expect(result.spatialPlan).toMatchObject({
+      version: 1,
+      softnessPixels: 20,
+      transform: { centerX: 0.5, centerY: 0.5, rotation: 4 },
+      cells: [{ id: "r1c1", prompt: "red coat" }],
+    });
   });
 
   it("labels returned extras rather than assigning another image's prompt", () => {

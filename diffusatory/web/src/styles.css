@@ -661,6 +661,12 @@ h2 {
   flex: 0 0 auto;
 }
 
+.region-composer__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
 .region-tools {
   display: grid;
   grid-template-columns: auto auto auto minmax(145px, 1fr);
@@ -915,10 +921,10 @@ h2 {
   color: var(--muted);
 }
 
-.region-render-hold {
-  border-left: 2px solid var(--amber);
+.region-render-note {
+  border-left: 2px solid var(--green);
   padding-left: 9px;
-  color: var(--amber-bright);
+  color: var(--muted);
   font-size: 9px;
   line-height: 1.45;
 }
@@ -2148,6 +2154,43 @@ h2 {
   margin-top: 5px;
   color: var(--quiet);
   font-size: 9px;
+}
+
+.spatial-provenance {
+  margin-top: 7px;
+  border-top: 1px solid rgba(141, 123, 231, 0.18);
+  padding-top: 6px;
+}
+
+.spatial-provenance summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.spatial-provenance dl {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.spatial-provenance dl div {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) 1fr;
+  gap: 8px;
+}
+
+.spatial-provenance dt {
+  color: var(--accent-strong);
+  font: 700 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.spatial-provenance dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--quiet);
+  font: 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .resolved-prompt .resolved-prompt__note {

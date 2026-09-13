@@ -261,6 +261,33 @@ export const Stage = memo(function Stage({
           {selectedResult.negativePrompt && (
             <small>Without: {selectedResult.negativePrompt}</small>
           )}
+          {selectedResult.spatialPlan && (
+            <details className="spatial-provenance">
+              <summary>
+                {selectedResult.spatialPlan.cells.length} region spatial plan · {selectedResult.spatialPlan.softnessPixels.toFixed(1)}px edge
+              </summary>
+              <dl>
+                {selectedResult.spatialPlan.cells.map((cell) => (
+                  <div key={cell.id}>
+                    <dt>{cell.id}</dt>
+                    <dd>
+                      {cell.prompt || "common prompt only"} · {cell.polygon
+                        .map((point) => `${Math.round(point.x)},${Math.round(point.y)}`)
+                        .join(" · ")}
+                    </dd>
+                  </div>
+                ))}
+                <div>
+                  <dt>Complement</dt>
+                  <dd>
+                    {selectedResult.spatialPlan.background.enabled
+                      ? selectedResult.spatialPlan.background.prompt || "common prompt only"
+                      : "common prompt only"}
+                  </dd>
+                </div>
+              </dl>
+            </details>
+          )}
         </section>
       )}
 

@@ -243,6 +243,9 @@ export class ForgeClient {
         override_settings: overrideSettings,
         override_settings_restore_afterwards: false,
         alwayson_scripts: controlNetAlwaysOnScripts(input.controlNet),
+        ...(input.spatialPlan
+          ? { diffusatory_spatial_plan: input.spatialPlan }
+          : {}),
       }),
     });
     return readJson<Txt2ImgResponse>(response);
@@ -296,6 +299,9 @@ export class ForgeClient {
         override_settings: overrideSettings,
         override_settings_restore_afterwards: false,
         alwayson_scripts: controlNetAlwaysOnScripts(input.controlNet),
+        ...(input.spatialPlan
+          ? { diffusatory_spatial_plan: input.spatialPlan }
+          : {}),
       }),
     });
     return readJson<Txt2ImgResponse>(response);

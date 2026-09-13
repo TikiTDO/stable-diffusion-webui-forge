@@ -12,7 +12,9 @@ interface RegionComposerProps {
   frameWidth: number;
   frameHeight: number;
   commonPrompt: string;
+  stageVisible: boolean;
   onChange: (value: RegionalComposition) => void;
+  onShowStage: () => void;
 }
 
 const CELL_COLORS = [
@@ -25,7 +27,9 @@ export function RegionComposer({
   frameWidth,
   frameHeight,
   commonPrompt,
+  stageVisible,
   onChange,
+  onShowStage,
 }: RegionComposerProps) {
   const plan = useMemo(
     () => resolveSpatialPlan(value, frameWidth, frameHeight),
@@ -55,9 +59,14 @@ export function RegionComposer({
           <h3 id="regions-title">Describe each part</h3>
           <small>The transformable grid is open on the stage.</small>
         </div>
-        <button type="button" className="region-disable" onClick={() => onChange({ ...value, enabled: false })}>
-          Whole frame
-        </button>
+        <div className="region-composer__actions">
+          {!stageVisible && (
+            <button type="button" onClick={onShowStage}>Show map</button>
+          )}
+          <button type="button" className="region-disable" onClick={() => onChange({ ...value, enabled: false })}>
+            Whole frame
+          </button>
+        </div>
       </header>
 
       <div className="region-prompts">
@@ -105,8 +114,8 @@ export function RegionComposer({
         </dl>
       </details>
 
-      <p className="region-render-hold" role="status">
-        Generation is held—not silently flattened—until the native conditioning adapter consumes this plan.
+      <p className="region-render-note" role="status">
+        Native masked conditioning is active. LoRA and other model-weight tags belong in the common prompt because their effect is global.
       </p>
     </section>
   );
