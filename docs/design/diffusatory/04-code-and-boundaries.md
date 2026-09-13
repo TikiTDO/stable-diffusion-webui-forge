@@ -4,38 +4,6 @@
 
 ```text
 diffusatory/
-  server/
-    app.py
-    api/
-      generations.py
-      projects.py
-      assets.py
-      models.py
-      prompting.py
-    generation/
-      models.py
-      scheduler.py
-      jobs.py
-      events.py
-      forge_adapter.py
-    projects/
-      models.py
-      store.py
-      ordering.py
-      operations.py
-      import_image_processor.py
-    prompting/
-      schema.py
-      parse.py
-      expand.py
-      spatial.py
-      compile.py
-      provenance.py
-    storage/
-      database.py
-      assets.py
-      migrations/
-
   web/
     src/
       app/
@@ -49,26 +17,43 @@ diffusatory/
         prompting/
         viewer/
       api/
+        forge/
+          client.ts
+          requests.ts
+          progress.ts
+          scripts.ts
+          capabilities.ts
       components/
+
+  server/                    # added by measured need, not up front
+    mount.py                 # built frontend and instance metadata
+    projects/                # arrives with the project slice
+    prompting/               # native endpoints arrive after parity
+    generation/              # native job contract arrives if justified
 ```
 
-Existing Forge directories remain in place while the adapter is established.
-Do not begin the rewrite by moving thousands of engine files. A later engine
-package extraction should be driven by actual imports through the adapter.
+The first production code is the React application and a typed compatibility
+adapter over the existing API. Existing Forge directories and generation paths
+remain in place. Do not begin the rewrite by moving thousands of engine files
+or manufacturing a parallel scheduler. A later backend module or engine package
+extraction must be driven by an interaction the current contract cannot express.
 
 ## Application runtime
 
-FastAPI already exists in the Forge process. The new application should:
+FastAPI already exists in the Forge process. During parity, the new application
+should:
 
-- mount versioned Diffusatory APIs;
 - serve the built frontend;
 - mount the inherited Gradio application at `/legacy` while needed;
 - use the existing launcher's device and model initialization;
-- avoid importing Gradio from domain, project, prompt, or generation modules.
+- call existing `/sdapi/v1`, `/internal/progress`, and ControlNet routes through
+  the compatibility adapter;
+- avoid importing Gradio from new frontend, project, or prompt modules.
 
-The default route moves to the new application only after both real generation
-and durable project/storyboard operations are usable. Before then it is an
-explicit preview route and Gradio remains the default. A launch flag can retain
+The default route moves only after the required existing generation workflows
+pass hands-on comparison. Durable projects are a subsequent product feature,
+not a hostage gate for replacing the settings form. Before cutover React is an
+explicit preview route and Gradio remains the default. A launch flag retains
 legacy-first behavior during and briefly after cutover.
 
 ## Frontend state
@@ -82,15 +67,31 @@ legacy-first behavior during and briefly after cutover.
 - Components subscribe only to the state they render. Prompt input must not
   rerender a project full of image cards.
 
-## API contract
+## Compatibility API contract
 
-The Python API models are the contract owner. Generate an OpenAPI TypeScript
-client rather than maintaining parallel handwritten request shapes.
+The existing API is the initial contract owner. The client gives its loosely
+typed and extension-shaped surface one bounded typed facade. That facade owns:
+
+- task IDs and progress polling;
+- base64 request/result conversion;
+- ordinary generation request construction;
+- extension script discovery and positional argument translation;
+- capability discovery per backend instance;
+- normalization of API errors without hiding their source.
+
+Production uses the same-origin Forge routes. Vite may proxy them in development;
+that proxy does not become a second application backend.
+
+## Native API contract
+
+When projects or a measured missing generation capability require native APIs,
+their Python models become the contract owner. Generate an OpenAPI TypeScript
+client for those routes rather than maintaining parallel handwritten shapes.
 
 API resources use stable IDs. Binary assets are uploaded and fetched separately
 from JSON recipes. Long operations return job IDs immediately.
 
-Representative surface:
+Representative eventual surface:
 
 ```text
 GET    /api/v1/models
@@ -112,12 +113,13 @@ POST   /api/v1/projects/{project}/moves
 POST   /api/v1/projects/{project}/undo
 ```
 
-Exact path names can change. Resource boundaries and effect semantics should not
-be blurred to mimic an inherited callback.
+Exact path names can change. None of these endpoints should be created merely to
+make the architecture diagram symmetrical. Resource boundaries and effect
+semantics should not be blurred to mimic an inherited callback.
 
-## Local project storage
+## Local project storage (project slice)
 
-Preferred first implementation:
+Preferred first implementation of project storage:
 
 ```text
 project-root/
@@ -145,7 +147,7 @@ at a file that was never durably written.
 dialog metadata, and hashes. Import creates new Diffusatory IDs and an explicit
 receipt rather than silently rewriting the source directory.
 
-## Forge adapter
+## Native Forge adapter (later)
 
 The adapter translates a validated `GenerationRecipe` and its realizations into
 Forge processing objects. It owns:
@@ -163,7 +165,7 @@ immediately be removed stay behind one execution lock and one documented seam.
 Every new domain test should be able to replace the adapter with a deterministic
 fake.
 
-## Prompt compiler
+## Native prompt compiler (later)
 
 The native prompt-composition design remains the owner of semantics:
 
@@ -180,7 +182,10 @@ UI and API use the same preflight/compiler path. Browser syntax highlighting may
 parse for presentation, but it cannot claim a render plan independently of the
 server compiler.
 
-## What not to carry forward
+## What must not become permanent product contracts
+
+Some of these shapes are necessarily quarantined inside the compatibility
+adapter during parity. “Not permanent” does not mean “rewrite before use.”
 
 - Gradio component IDs as API or domain identifiers;
 - hidden DOM controls as state transport;

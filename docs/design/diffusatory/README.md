@@ -54,20 +54,29 @@ that faithfully implements an unclear model.
 
 - Forge's SDXL/Flux inference, loading, memory, sampling, LoRA, VAE, ControlNet,
   and preprocessing machinery remains valuable.
-- Gradio stops being the product UI. It remains temporarily as an opt-in legacy
-  and diagnostic surface during migration, then is deleted.
+- Gradio stops being the product UI, but replacing it does **not** imply
+  replacing the working generation backend. It remains temporarily as an
+  opt-in legacy and comparison surface, then is deleted only after parity.
 - A React/TypeScript application owns the human interface.
-- A FastAPI application beside the inference engine owns project and generation
-  APIs and serves the built frontend.
+- The first React slices use Forge's existing FastAPI routes. New backend
+  contracts are introduced only where a concrete workflow cannot be expressed
+  truthfully through those routes.
 - `image_processor` is source material for project ordering, lightbox, history,
   and interaction behavior. A permanent Go relay between the frontend and Forge
   is not part of the preferred end state.
-- Regional Prompting and Dynamic Prompts become native typed capabilities, not
-  runtime extensions or detached accordions.
+- Regional Prompting and Dynamic Prompts eventually become native typed
+  capabilities, not runtime extensions or detached accordions.
 - Projects, frames, versions, recipes, conditions, and candidates are explicit
   domain objects. Directories are storage locations, not the domain model.
 - Server state reaches the browser through one ordered generation event stream.
   The UI does not infer a job by coordinating Gradio callbacks and polling loops.
+
+The last three bullets describe the destination, not prerequisites for drawing
+the first image in React. Migration restores the operator's existing generation
+workflows before introducing project storage, a richer job model, or native
+replacement APIs. The clean frontend can initially sit over an imperfect but
+known engine contract; it must not hold ordinary image generation hostage to a
+simultaneous rewrite of every layer.
 
 ## Design documents
 
@@ -82,6 +91,8 @@ that faithfully implements an unclear model.
    delivery slices, cutover, and deletion gates.
 6. [`06-decisions-and-unknowns.md`](06-decisions-and-unknowns.md) — settled choices
    and questions that should be answered by a focused implementation probe.
+7. [`07-current-api-bridge.md`](07-current-api-bridge.md) — the existing Forge
+   seams that let the interface move first.
 
 ## Related records
 

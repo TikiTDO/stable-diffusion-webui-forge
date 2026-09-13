@@ -3,25 +3,32 @@
 ## Settled for the working design
 
 - The product is a visual story workbench.
-- The project sequence remains present during generation.
+- Once a project is open, its sequence remains present during generation.
 - Candidate, frame, and asset are different objects.
 - Add and Replace are explicit modes with different hover behavior.
 - Replacement creates history; it does not overwrite it.
 - Candidate count is user intent; microbatch size is engine policy.
-- Forge remains the first inference adapter.
+- The first React client uses Forge's existing HTTP API and generation paths.
+- A fresh interface does not require a fresh generation backend.
+- Backend endpoints are added only for measured missing contracts.
 - Gradio is transitional and ultimately removed from the product.
 - React/TypeScript owns the new interface; FastAPI owns the local application
   API and serves it.
 - Projects use stable identifiers and transactional ordering.
-- Preview/status uses one event stream, not progress plus preview polling.
+- The eventual native Preview/status contract uses one event stream; the parity
+  client initially quarantines current polling in one adapter.
 - Dynamic and regional prompting share one native prompt compiler.
 - Plain prompt text can expose selected terms as named or temporary toggleable
   fragments without creating a parallel prompt representation.
 - ControlNet inputs are native condition cards.
 - SDXL and Flux are the supported model families.
-- The new UI becomes the default only after real generation and durable project
-  sequencing both work.
+- The new UI becomes the default after required generation parity and a hands-on
+  operator cutover decision; projects follow rather than gate that cutover.
 - Blocking Forge inference never runs on the API/event loop.
+- Regional composition begins as a transformable split grid with an explicit
+  background complement; common prompt and background prompt remain distinct.
+- The client discovers an instance name, ID, and capabilities rather than
+  assuming exactly one Forge exists.
 
 ## Questions answered by a small implementation probe
 
@@ -30,9 +37,9 @@ These do not need speculative architecture debate before Slice 0.
 ### Canvas implementation
 
 Determine whether direct PixiJS use, another focused canvas library, or a small
-custom renderer best supports:
+custom renderer best supports the img2img/inpaint editor:
 
-- source, paint, mask, and named region layers;
+- source, paint, and mask layers;
 - high-resolution zoom/pan;
 - tablet pressure where available;
 - deterministic export of masks and transforms;
@@ -40,19 +47,20 @@ custom renderer best supports:
 
 Build one throwaway canvas probe and keep only the finding.
 
-### Preview image transport
+### Native preview image transport
 
-Start with SSE event plus revisioned HTTP image URL. During a real 1024 render,
-confirm that this is responsive without excessive encode overhead. If binary
-streaming materially improves the actual workflow, compare it then; do not add a
-WebSocket in anticipation.
+Begin parity with the current task-aware polling and data-URI preview. If its
+measured encode or delivery cost remains material after Gradio is gone, compare
+SSE events plus revisioned HTTP image URLs during a real 1024 render. If binary
+streaming materially improves the actual workflow, compare it then; do not add
+a WebSocket in anticipation.
 
 ### Candidate scheduling
 
-Trace the smallest Forge seam that can execute one candidate or controlled
-microbatch without rebuilding model state. Begin with the simplest correct
-scheduler. Add adaptive batching only after real memory and latency behavior is
-known.
+After project-aware candidates exist, trace the smallest Forge seam that can
+execute one candidate or controlled microbatch without rebuilding model state.
+Begin with the simplest correct scheduler. Add adaptive batching only after
+real memory and latency behavior is known.
 
 ### Project database placement
 

@@ -1,5 +1,10 @@
 # Domain model
 
+This is the native project model introduced after replacement-UI parity. The
+compatibility client may display transient Forge generation results before this
+model exists; it must call them results rather than claiming they already have
+durable Candidate, Asset, or Frame identities.
+
 ## Core distinction
 
 Three things that the inherited application treats as variations of “image” are

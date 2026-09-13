@@ -1,11 +1,17 @@
 # Workflows and interface
 
+This is the product destination. The replacement UI reaches it incrementally:
+first it restores the existing generation workflows over Forge's current API,
+then adds the persistent story workspace. Before projects land, the same Stage
+and result interactions operate as a transient generation session rather than
+pretending a project already exists.
+
 ## The ordinary creative loop
 
-The current story position should remain visible while generating. The person
-is rarely making an isolated image; they are asking what shot belongs beside
-other shots. Generation therefore starts from a project anchor even when the
-new image has no img2img source.
+Once a project is open, the current story position should remain visible while
+generating. The person is rarely making an isolated image; they are asking what
+shot belongs beside other shots. Project-aware generation therefore starts from
+an anchor even when the new image has no img2img source.
 
 The ordinary workspace has four persistent regions:
 
@@ -140,8 +146,24 @@ states its intent and source at a glance:
 The common path should be “Add condition → choose intent → choose source.” Model
 and preprocessor details can default from intent and remain editable.
 
-Regions are first-class named shapes connected to prompt fragments. The visual
-editor, resolved-prompt view, and saved recipe operate on the same objects.
+Regional composition begins smaller than a freeform mask editor:
+
+- disabled means one implicit region covering the full canvas and no regional
+  machinery in the request;
+- enabling it creates one transformable orthogonal grid;
+- horizontal and vertical splits create cells with draggable ratios;
+- the grid can translate, scale, and rotate as a whole;
+- cell boundaries may be softened;
+- the complement outside the transformed foreground grid becomes an optional
+  background region.
+
+Each cell has a prompt fragment. A **common prompt** contributes to every cell;
+it is not the same thing as the **background prompt**, which applies only to the
+complement. An SVG overlay with handles is sufficient for this grid. It compiles
+cells and the complement into ordinary masks, so later freeform regions can use
+the same generation contract without being a prerequisite for the first useful
+regional editor. The visual editor, resolved-prompt view, and saved recipe
+operate on the same objects.
 
 ## Dynamic prompts and prompt help
 
