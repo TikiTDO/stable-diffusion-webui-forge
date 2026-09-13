@@ -144,11 +144,12 @@ class Options:
     def set(self, key, value, is_api=False, run_callbacks=True):
         """sets an option and calls its onchange callback, returning True if the option changed and False otherwise"""
 
-        oldval = self.data.get(key, None)
+        option = self.data_labels[key]
+        had_stored_value = key in self.data
+        oldval = self.data[key] if had_stored_value else option.default
         if oldval == value:
             return False
 
-        option = self.data_labels[key]
         if option.do_not_save:
             return False
 
@@ -165,7 +166,10 @@ class Options:
                 option.onchange()
             except Exception as e:
                 errors.display(e, f"changing setting {key} to {value}")
-                setattr(self, key, oldval)
+                if had_stored_value:
+                    setattr(self, key, oldval)
+                else:
+                    self.data.pop(key, None)
                 return False
 
         return True
