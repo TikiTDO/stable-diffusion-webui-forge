@@ -8,14 +8,23 @@ function set_theme(theme) {
 }
 
 function all_gallery_buttons() {
-    var allGalleryButtons = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
-    var visibleGalleryButtons = [];
-    allGalleryButtons.forEach(function(elem) {
-        if (elem.parentElement.offsetParent) {
-            visibleGalleryButtons.push(elem);
-        }
-    });
-    return visibleGalleryButtons;
+    // Gradio 6 no longer marks the active tab with the exact inline
+    // `display: block` declaration the old selector depended on. Resolve the
+    // actually visible generation gallery, then navigate its preview strip.
+    const galleries = Array.from(gradioApp().querySelectorAll(
+        '#txt2img_gallery.gradio-gallery, #img2img_gallery.gradio-gallery'
+    ));
+    const gallery = galleries.find((element) => element.offsetParent !== null);
+    if (!gallery) return [];
+
+    const previewButtons = Array.from(gallery.querySelectorAll(
+        '.thumbnails > button.thumbnail-item.thumbnail-small'
+    ));
+    if (previewButtons.length) return previewButtons;
+
+    return Array.from(gallery.querySelectorAll(
+        '.grid-container button.thumbnail-item.thumbnail-lg'
+    ));
 }
 
 function selected_gallery_button() {

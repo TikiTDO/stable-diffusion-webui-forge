@@ -358,9 +358,9 @@ def on_preset_change(preset=None):
             gr.update(visible=False, value='Queue'),                                    # ui_forge_async_loading
             gr.update(visible=False, value='CPU'),                                      # ui_forge_pin_shared_memory
             gr.update(visible=True, value=model_mem),                                   # ui_forge_inference_memory
-            gr.update(value=getattr(shared.opts, "xl_t2i_width", 896)),                 # ui_txt2img_width
+            gr.update(value=getattr(shared.opts, "xl_t2i_width", 1024)),                # ui_txt2img_width
             gr.update(value=getattr(shared.opts, "xl_i2i_width", 1024)),                # ui_img2img_width
-            gr.update(value=getattr(shared.opts, "xl_t2i_height", 1152)),               # ui_txt2img_height
+            gr.update(value=getattr(shared.opts, "xl_t2i_height", 1024)),               # ui_txt2img_height
             gr.update(value=getattr(shared.opts, "xl_i2i_height", 1024)),               # ui_img2img_height
             gr.update(value=getattr(shared.opts, "xl_t2i_cfg", 5)),                     # ui_txt2img_cfg
             gr.update(value=getattr(shared.opts, "xl_i2i_cfg", 5)),                     # ui_img2img_cfg
@@ -385,9 +385,9 @@ def on_preset_change(preset=None):
             gr.update(visible=True, value='Queue'),                                     # ui_forge_async_loading
             gr.update(visible=True, value='CPU'),                                       # ui_forge_pin_shared_memory
             gr.update(visible=True, value=model_mem),                                   # ui_forge_inference_memory
-            gr.update(value=getattr(shared.opts, "flux_t2i_width", 896)),               # ui_txt2img_width
+            gr.update(value=getattr(shared.opts, "flux_t2i_width", 1024)),              # ui_txt2img_width
             gr.update(value=getattr(shared.opts, "flux_i2i_width", 1024)),              # ui_img2img_width
-            gr.update(value=getattr(shared.opts, "flux_t2i_height", 1152)),             # ui_txt2img_height
+            gr.update(value=getattr(shared.opts, "flux_t2i_height", 1024)),             # ui_txt2img_height
             gr.update(value=getattr(shared.opts, "flux_i2i_height", 1024)),             # ui_img2img_height
             gr.update(value=getattr(shared.opts, "flux_t2i_cfg", 1)),                   # ui_txt2img_cfg
             gr.update(value=getattr(shared.opts, "flux_i2i_cfg", 1)),                   # ui_img2img_cfg
@@ -405,8 +405,8 @@ def on_preset_change(preset=None):
 
 
 shared.options_templates.update(shared.options_section(('ui_xl', "UI defaults 'xl'", "ui"), {
-    "xl_t2i_width":  shared.OptionInfo(896,  "txt2img width",      gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
-    "xl_t2i_height": shared.OptionInfo(1152, "txt2img height",     gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
+    "xl_t2i_width":  shared.OptionInfo(1024, "txt2img width",      gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
+    "xl_t2i_height": shared.OptionInfo(1024, "txt2img height",     gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
     "xl_t2i_cfg":    shared.OptionInfo(5,    "txt2img CFG",        gr.Slider, {"minimum": 1,  "maximum": 30,   "step": 0.1}),
     "xl_t2i_hr_cfg": shared.OptionInfo(5,    "txt2img HiRes CFG",  gr.Slider, {"minimum": 1,  "maximum": 30,   "step": 0.1}),
     "xl_i2i_width":  shared.OptionInfo(1024, "img2img width",      gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
@@ -415,8 +415,8 @@ shared.options_templates.update(shared.options_section(('ui_xl', "UI defaults 'x
     "xl_GPU_MB":     shared.OptionInfo(total_vram - 1024, "GPU Weights (MB)", gr.Slider, {"minimum": 0,  "maximum": total_vram,   "step": 1}),
 }))
 shared.options_templates.update(shared.options_section(('ui_flux', "UI defaults 'flux'", "ui"), {
-    "flux_t2i_width":    shared.OptionInfo(896,  "txt2img width",                gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
-    "flux_t2i_height":   shared.OptionInfo(1152, "txt2img height",               gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
+    "flux_t2i_width":    shared.OptionInfo(1024, "txt2img width",                gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
+    "flux_t2i_height":   shared.OptionInfo(1024, "txt2img height",               gr.Slider, {"minimum": 64, "maximum": 2048, "step": 8}),
     "flux_t2i_cfg":      shared.OptionInfo(1,    "txt2img CFG",                  gr.Slider, {"minimum": 1,  "maximum": 30,   "step": 0.1}),
     "flux_t2i_hr_cfg":   shared.OptionInfo(1,    "txt2img HiRes CFG",            gr.Slider, {"minimum": 1,  "maximum": 30,   "step": 0.1}),
     "flux_t2i_d_cfg":    shared.OptionInfo(3.5,  "txt2img Distilled CFG",        gr.Slider, {"minimum": 0,  "maximum": 30,   "step": 0.1}),

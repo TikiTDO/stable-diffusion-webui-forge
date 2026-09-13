@@ -55,12 +55,13 @@ function modalImageSwitch(offset) {
     var galleryButtons = all_gallery_buttons();
 
     if (galleryButtons.length > 1) {
-        var result = selected_gallery_index();
+        const modalImage = gradioApp().getElementById("modalImage");
+        const resultFromImage = galleryButtons.findIndex((button) => button.querySelector("img")?.src === modalImage?.src);
+        var result = resultFromImage >= 0 ? resultFromImage : selected_gallery_index();
 
         if (result != -1) {
             var nextButton = galleryButtons[negmod((result + offset), galleryButtons.length)];
             nextButton.click();
-            const modalImage = gradioApp().getElementById("modalImage");
             const modal = gradioApp().getElementById("lightboxModal");
             modalImage.src = nextButton.children[0].src;
             if (modalImage.style.display === 'none') {
@@ -154,8 +155,8 @@ function setupGalleryFullscreenForLightbox(button) {
         if (!opts.js_modal_lightbox || evt.button != 0) return;
 
         const gallery = button.closest('.gradio-gallery');
-        const source = gallery?.querySelector('button.media-button img[data-testid="detailed-image"]')
-            || gallery?.querySelector('button.thumbnail-item.selected img');
+        const source = gallery?.querySelector('button.media-button img[data-testid="detailed-image"]') ||
+            gallery?.querySelector('button.thumbnail-item.selected img');
         if (!source) return;
 
         // Gradio 6's native fullscreen mode expands the whole gallery and its
@@ -202,9 +203,9 @@ function modalTileImageToggle(event) {
 
 onAfterUiUpdate(function() {
     const fullImgPreview = gradioApp().querySelectorAll(
-        '.gradio-gallery button.media-button > img, '
-        + '.gradio-gallery button.thumbnail-item > img, '
-        + '.gradio-gallery .livePreview > img'
+        '.gradio-gallery button.media-button > img, ' +
+        '.gradio-gallery button.thumbnail-item > img, ' +
+        '.gradio-gallery .livePreview > img'
     );
     fullImgPreview.forEach(setupImageForLightbox);
 
