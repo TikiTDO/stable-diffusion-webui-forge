@@ -4,6 +4,7 @@ import type { GenerationState } from "../domain/generation";
 
 interface StageProps {
   generation: GenerationState;
+  onRefine?: (source: string) => void;
 }
 
 function formatEta(eta: number | null): string | null {
@@ -12,7 +13,7 @@ function formatEta(eta: number | null): string | null {
   return `${Math.ceil(eta / 60)}m remaining`;
 }
 
-export const Stage = memo(function Stage({ generation }: StageProps) {
+export const Stage = memo(function Stage({ generation, onRefine }: StageProps) {
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewerZoom, setViewerZoom] = useState(1);
@@ -85,19 +86,30 @@ export const Stage = memo(function Stage({ generation }: StageProps) {
       </div>
 
       {generation.images.length > 0 && (
-        <div className="result-tray" aria-label="Generation results">
-          {generation.images.map((image, index) => (
+        <div className="result-actions">
+          <div className="result-tray" aria-label="Generation results">
+            {generation.images.map((image, index) => (
+              <button
+                type="button"
+                key={`${generation.taskId}-${index}`}
+                className={selectedIndex === index ? "is-selected" : ""}
+                onClick={() => setSelectedIndex(index)}
+                onDoubleClick={() => openViewer(image)}
+                aria-label={`Select result ${index + 1}`}
+              >
+                <img src={image} alt={`Generated result ${index + 1}`} />
+              </button>
+            ))}
+          </div>
+          {selectedImage && onRefine && (
             <button
               type="button"
-              key={`${generation.taskId}-${index}`}
-              className={selectedIndex === index ? "is-selected" : ""}
-              onClick={() => setSelectedIndex(index)}
-              onDoubleClick={() => openViewer(image)}
-              aria-label={`Select result ${index + 1}`}
+              className="refine-result"
+              onClick={() => onRefine(selectedImage)}
             >
-              <img src={image} alt={`Generated result ${index + 1}`} />
+              Paint / inpaint this shot
             </button>
-          ))}
+          )}
         </div>
       )}
 

@@ -12,6 +12,7 @@ export type GenerationPhase =
   | "failed";
 
 export interface GenerationState {
+  kind: "txt2img" | "img2img" | null;
   phase: GenerationPhase;
   taskId: string | null;
   progress: number;
@@ -26,6 +27,7 @@ export interface GenerationState {
 }
 
 export const initialGenerationState: GenerationState = {
+  kind: null,
   phase: "idle",
   taskId: null,
   progress: 0,
@@ -40,7 +42,7 @@ export const initialGenerationState: GenerationState = {
 };
 
 export type GenerationAction =
-  | { type: "started"; taskId: string }
+  | { type: "started"; taskId: string; kind: "txt2img" | "img2img" }
   | { type: "progress"; value: ProgressResponse }
   | { type: "interrupt-requested" }
   | { type: "control-failed"; error: string }
@@ -66,6 +68,7 @@ export function generationReducer(
     case "started":
       return {
         ...initialGenerationState,
+        kind: action.kind,
         phase: "submitting",
         taskId: action.taskId,
         text: "Submitting to Forge…",

@@ -33,7 +33,13 @@ describe("tablet bindings", () => {
       schemaVersion: 1,
       name: "Huion desk",
       bindings: [],
+      pressure: {
+        inputMinimum: 0.02,
+        inputMaximum: 0.85,
+        outputMinimum: 0.08,
+        outputMaximum: 1,
+        curve: 1,
+      },
     });
   });
 });
-

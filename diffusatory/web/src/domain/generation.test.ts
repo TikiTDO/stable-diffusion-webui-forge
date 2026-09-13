@@ -22,6 +22,7 @@ describe("generationReducer", () => {
     const started = generationReducer(initialGenerationState, {
       type: "started",
       taskId: "task(diffusatory-test)",
+      kind: "txt2img",
     });
     const requested = generationReducer(started, {
       type: "interrupt-requested",

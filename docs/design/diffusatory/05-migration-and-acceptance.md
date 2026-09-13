@@ -52,26 +52,12 @@ Acceptance:
 
 The React application remains a preview route after this slice.
 
-## Slice 2 — ControlNet and Dynamic Prompts parity
+The implementation order deliberately puts the pen-first image editor before
+ControlNet. A visible result must become a trustworthy editable source before
+additional conditioning cards can depend on that surface. This is a sequencing
+choice, not a reduction of the ControlNet parity target.
 
-Use current ControlNet discovery and preprocessing endpoints and one typed
-translation into the existing generation script payload. Do the same for the
-vendored Dynamic Prompts capability before replacing either backend contract.
-
-Acceptance:
-
-- ControlNet model, module, and intent lists come from the active instance;
-- IP-Adapter, depth, line art, OpenPose, and one ordinary ControlNet route
-  generate through React;
-- a condition may use the current source or an independent image;
-- preprocessor output is inspectable before generation;
-- dynamic alternatives can be random or exhaustive across requested outputs;
-- every result shows the resolved prompt it actually received;
-- one adapter owns extension names and positional argument mapping;
-- a current endpoint deficiency is recorded before any replacement endpoint is
-  introduced.
-
-## Slice 3 — img2img and inpaint parity
+## Slice 2 — img2img and inpaint parity
 
 Build one editor with source, paint, and selection-mask layers.
 
@@ -99,6 +85,25 @@ Acceptance:
   visible transfer;
 - the complete path is exercised on the operator's actual Wacom or Huion
   tablet; synthetic pointer tests and mouse use do not close this acceptance.
+
+## Slice 3 — ControlNet and Dynamic Prompts parity
+
+Use current ControlNet discovery and preprocessing endpoints and one typed
+translation into the existing generation script payload. Do the same for the
+vendored Dynamic Prompts capability before replacing either backend contract.
+
+Acceptance:
+
+- ControlNet model, module, and intent lists come from the active instance;
+- IP-Adapter, depth, line art, OpenPose, and one ordinary ControlNet route
+  generate through React;
+- a condition may use the current source or an independent image;
+- preprocessor output is inspectable before generation;
+- dynamic alternatives can be random or exhaustive across requested outputs;
+- every result shows the resolved prompt it actually received;
+- one adapter owns extension names and positional argument mapping;
+- a current endpoint deficiency is recorded before any replacement endpoint is
+  introduced.
 
 ## Slice 4 — transformable region grid
 

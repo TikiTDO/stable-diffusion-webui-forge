@@ -1,4 +1,8 @@
 import type { PointerEventLike, PointerKind } from "./pointer";
+import {
+  DEFAULT_PRESSURE_CALIBRATION,
+  type PressureCalibration,
+} from "./calibration";
 
 export type TabletAction =
   | "draw-paint"
@@ -33,6 +37,7 @@ export interface TabletProfile {
   schemaVersion: 1;
   name: string;
   bindings: TabletBinding[];
+  pressure: PressureCalibration;
 }
 
 function pointerKind(pointerType: string): PointerKind {
@@ -65,6 +70,6 @@ export function createTabletProfile(name: string): TabletProfile {
     schemaVersion: 1,
     name: name.trim() || "Tablet",
     bindings: [],
+    pressure: { ...DEFAULT_PRESSURE_CALIBRATION },
   };
 }
-

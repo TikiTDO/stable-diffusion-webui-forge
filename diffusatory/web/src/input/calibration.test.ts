@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { calibratePressure } from "./calibration";
+import { calibratePressure, representativePressure } from "./calibration";
 
 describe("pressure calibration", () => {
   const calibration = {
@@ -36,5 +36,15 @@ describe("pressure calibration", () => {
         inputMaximum: 1,
       }),
     ).toBeCloseTo(0.8);
+  });
+});
+
+describe("pressure capture", () => {
+  it("uses the median nonzero reading instead of one noisy peak", () => {
+    expect(representativePressure([0, 0.12, 0.13, 0.14, 0.9])).toBe(0.135);
+  });
+
+  it("does not manufacture pen pressure from an empty stroke", () => {
+    expect(representativePressure([0, Number.NaN])).toBeNull();
   });
 });

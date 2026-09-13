@@ -23,6 +23,21 @@ export interface Txt2ImgInput {
   previewEvery?: number;
 }
 
+export interface Img2ImgInput extends Txt2ImgInput {
+  /** The exact composited source visibly shown in the editor. */
+  initImage: string;
+  /** White selects the region to regenerate. Omit for ordinary img2img. */
+  mask?: string;
+  denoisingStrength?: number;
+  maskBlur?: number;
+  inpaintOnlyMasked?: boolean;
+  inpaintPadding?: number;
+}
+
+export type ForgeGenerationInput =
+  | { kind: "txt2img"; input: Txt2ImgInput }
+  | { kind: "img2img"; input: Img2ImgInput };
+
 export interface Txt2ImgResponse {
   images: string[] | null;
   parameters: Record<string, unknown>;

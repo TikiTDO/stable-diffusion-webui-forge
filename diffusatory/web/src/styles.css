@@ -173,6 +173,14 @@ h2 {
   padding: 22px 0;
 }
 
+.workspace-pane {
+  min-width: 0;
+}
+
+.workspace-pane > .stage {
+  height: 100%;
+}
+
 .composer,
 .stage {
   min-width: 0;
@@ -195,6 +203,52 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.workspace-mode,
+.layer-switch,
+.tool-switch,
+.editor-button-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.workspace-mode {
+  margin-top: 16px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(9, 8, 14, 0.5);
+}
+
+.workspace-mode button,
+.layer-switch button,
+.tool-switch button,
+.editor-button-row button,
+.return-to-results,
+.refine-result,
+.pen-controls button,
+.binding-row button {
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 10px;
+}
+
+.workspace-mode button.is-selected,
+.layer-switch button.is-selected,
+.tool-switch button.is-selected {
+  border-color: rgba(232, 169, 88, 0.4);
+  color: var(--amber-bright);
+  background: rgba(232, 169, 88, 0.09);
+}
+
+.workspace-mode button:last-child {
+  margin-left: auto;
 }
 
 .draft-label,
@@ -366,6 +420,46 @@ h2 {
 .render-character__grid {
   border-top: 1px solid var(--line);
   padding: 14px;
+}
+
+.edit-generation-controls {
+  display: grid;
+  grid-template-columns: 1.15fr 0.55fr 1.15fr 0.7fr;
+  gap: 8px;
+  margin: 12px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.edit-generation-controls legend {
+  padding: 0 5px;
+  color: var(--quiet);
+  font-size: 10px;
+}
+
+.edit-generation-controls label {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.edit-generation-controls label > span,
+.editor-controls label > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.edit-generation-controls input,
+.edit-generation-controls select {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: rgba(16, 14, 22, 0.96);
 }
 
 .ingredient-columns {
@@ -653,6 +747,293 @@ h2 {
   padding-bottom: 5px;
 }
 
+.result-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.refine-result {
+  min-height: 44px;
+  margin-bottom: 5px;
+  border-color: rgba(232, 169, 88, 0.35);
+  color: var(--amber-bright);
+}
+
+.return-to-results {
+  border-color: var(--line-strong);
+}
+
+.stage--editor {
+  min-height: 760px;
+}
+
+.image-editor {
+  outline: none;
+}
+
+.image-editor:focus-visible {
+  border-radius: 12px;
+  box-shadow: 0 0 0 2px rgba(232, 169, 88, 0.3);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.layer-switch kbd {
+  margin-left: 4px;
+  color: var(--quiet);
+  font-family: inherit;
+  font-size: 9px;
+}
+
+.tool-switch button {
+  text-transform: capitalize;
+}
+
+.editor-controls {
+  display: grid;
+  grid-template-columns: 76px minmax(130px, 1fr) minmax(120px, 0.8fr) auto;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(9, 8, 14, 0.5);
+}
+
+.editor-controls label {
+  display: grid;
+  gap: 5px;
+}
+
+.color-control input {
+  width: 100%;
+  height: 29px;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 2px;
+  background: transparent;
+}
+
+.editor-controls input[type="range"] {
+  accent-color: var(--amber);
+}
+
+.pen-controls {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.pen-controls summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.pen-controls__body {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.pen-controls__body > label {
+  grid-template-columns: 60px minmax(120px, 260px);
+  align-items: center;
+}
+
+.pen-controls__body input {
+  height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: rgba(16, 14, 22, 0.96);
+}
+
+.binding-row {
+  display: grid;
+  grid-template-columns: 110px minmax(100px, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.binding-row small,
+.pen-controls p {
+  color: var(--quiet);
+  font-size: 9px;
+}
+
+.pressure-calibration {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto auto minmax(120px, 0.8fr) minmax(120px, 0.8fr);
+  align-items: end;
+  gap: 7px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.pressure-calibration > div,
+.pressure-calibration label {
+  display: grid;
+  gap: 4px;
+}
+
+.pressure-calibration strong {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.pressure-calibration small,
+.pressure-calibration label span {
+  color: var(--quiet);
+  font-size: 9px;
+}
+
+.pressure-calibration button.is-recording {
+  border-color: var(--amber);
+  color: var(--amber-bright);
+}
+
+.binding-row button.is-recording {
+  border-color: var(--amber);
+  color: var(--amber-bright);
+}
+
+.binding-conflict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(255, 143, 137, 0.32);
+  border-radius: 7px;
+  padding: 7px;
+  color: var(--danger);
+  font-size: 10px;
+}
+
+.editor-canvas-wrap {
+  position: relative;
+  min-height: 570px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    linear-gradient(45deg, #111019 25%, transparent 25%),
+    linear-gradient(-45deg, #111019 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #111019 75%),
+    linear-gradient(-45deg, transparent 75%, #111019 75%),
+    #0b0a10;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-size: 16px 16px;
+}
+
+.editor-canvas {
+  display: block;
+  width: 100%;
+  height: 570px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.editor-canvas-status {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--muted);
+  background: rgba(9, 8, 14, 0.78);
+  backdrop-filter: blur(8px);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.editor-canvas-status strong {
+  color: var(--amber-bright);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.editor-source-error {
+  color: var(--danger);
+}
+
+.edit-results {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 10px;
+  background: rgba(9, 8, 14, 0.5);
+}
+
+.edit-results > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.edit-results strong {
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.edit-results small {
+  color: var(--quiet);
+  font-size: 9px;
+}
+
+.edit-results__tray {
+  display: flex;
+  min-width: 0;
+  gap: 7px;
+  overflow-x: auto;
+}
+
+.edit-results__tray button {
+  position: relative;
+  flex: 0 0 74px;
+  height: 74px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0;
+  background: #09080e;
+}
+
+.edit-results__tray img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.edit-results__tray span {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 4px 2px;
+  color: var(--ink);
+  background: rgba(4, 3, 7, 0.78);
+  font-size: 8px;
+}
+
 .result-tray button {
   flex: 0 0 92px;
   height: 92px;
@@ -796,6 +1177,14 @@ h2 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .editor-controls {
+    grid-template-columns: 70px 1fr 1fr;
+  }
+
+  .editor-button-row {
+    grid-column: 1 / -1;
+  }
+
   .stage__canvas,
   .stage__image-button {
     min-height: 420px;
@@ -829,7 +1218,37 @@ h2 {
   .model-rack,
   .ingredient-columns,
   .draft-controls,
-  .render-character__grid {
+  .render-character__grid,
+  .edit-generation-controls,
+  .editor-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-toolbar,
+  .result-actions {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .editor-toolbar {
+    flex-direction: column;
+  }
+
+  .layer-switch,
+  .tool-switch {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .binding-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .pressure-calibration {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .edit-results {
     grid-template-columns: 1fr;
   }
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import { createTaskId, ForgeClient } from "../api/forge/client";
-import type { Txt2ImgInput } from "../api/forge/types";
+import type { ForgeGenerationInput } from "../api/forge/types";
 import {
   generationReducer,
   initialGenerationState,
@@ -51,14 +51,14 @@ export function useForgeGeneration(client: ForgeClient) {
   }, []);
 
   const generate = useCallback(
-    async (input: Txt2ImgInput) => {
+    async (request: ForgeGenerationInput) => {
       if (currentAbort.current || isGenerating(state.phase)) return;
 
       const run = ++runNumber.current;
       const taskId = createTaskId();
       const abort = new AbortController();
       currentAbort.current = abort;
-      dispatch({ type: "started", taskId });
+      dispatch({ type: "started", taskId, kind: request.kind });
 
       let polling = true;
       let previewId = -1;
@@ -87,7 +87,10 @@ export function useForgeGeneration(client: ForgeClient) {
 
       const pollPromise = poll();
       try {
-        const result = await client.txt2img(taskId, input, abort.signal);
+        const result =
+          request.kind === "txt2img"
+            ? await client.txt2img(taskId, request.input, abort.signal)
+            : await client.img2img(taskId, request.input, abort.signal);
         if (mounted.current && run === runNumber.current) {
           dispatch({ type: "completed", value: result });
         }

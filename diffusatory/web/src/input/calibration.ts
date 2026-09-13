@@ -48,3 +48,15 @@ export function calibratePressure(
 
   return outputMinimum + curved * (outputMaximum - outputMinimum);
 }
+
+export function representativePressure(readings: number[]): number | null {
+  const usable = readings
+    .filter((reading) => Number.isFinite(reading) && reading > 0)
+    .map((reading) => clamp(reading, 0, 1))
+    .sort((left, right) => left - right);
+  if (!usable.length) return null;
+  const middle = Math.floor(usable.length / 2);
+  return usable.length % 2
+    ? usable[middle]
+    : (usable[middle - 1] + usable[middle]) / 2;
+}

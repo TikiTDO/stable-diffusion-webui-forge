@@ -3,6 +3,7 @@ import type {
   EmbeddingInventory,
   ForgeCatalog,
   ForgeOptions,
+  Img2ImgInput,
   InstanceDescriptor,
   Lora,
   ModelModule,
@@ -160,6 +161,57 @@ export class ForgeClient {
         batch_size: input.outputs ?? 1,
         n_iter: 1,
         force_task_id: taskId,
+        send_images: true,
+        save_images: true,
+        override_settings: overrideSettings,
+        override_settings_restore_afterwards: false,
+      }),
+    });
+    return readJson<Txt2ImgResponse>(response);
+  }
+
+  async img2img(
+    taskId: string,
+    input: Img2ImgInput,
+    signal?: AbortSignal,
+  ): Promise<Txt2ImgResponse> {
+    const overrideSettings: Record<string, unknown> = {};
+    if (input.checkpoint) {
+      overrideSettings.sd_model_checkpoint = input.checkpoint;
+    }
+    if (input.modules) {
+      overrideSettings.forge_additional_modules = input.modules;
+    }
+    if (input.previewEvery !== undefined) {
+      overrideSettings.show_progress_every_n_steps = input.previewEvery;
+    }
+
+    const response = await this.fetcher(`${this.baseUrl}/sdapi/v1/img2img`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal,
+      body: JSON.stringify({
+        prompt: input.prompt,
+        negative_prompt: input.negativePrompt ?? "",
+        styles: input.styles ?? [],
+        init_images: [input.initImage],
+        ...(input.mask ? { mask: input.mask } : {}),
+        denoising_strength: input.denoisingStrength ?? 0.6,
+        mask_blur: input.maskBlur ?? 4,
+        inpaint_full_res: input.inpaintOnlyMasked ?? true,
+        inpaint_full_res_padding: input.inpaintPadding ?? 32,
+        inpainting_fill: 1,
+        width: input.width ?? 1024,
+        height: input.height ?? 1024,
+        steps: input.steps ?? 20,
+        sampler_name: input.sampler ?? "Euler a",
+        scheduler: input.scheduler ?? "Karras",
+        cfg_scale: input.cfgScale ?? 5,
+        seed: input.seed ?? -1,
+        batch_size: input.outputs ?? 1,
+        n_iter: 1,
+        force_task_id: taskId,
+        include_init_images: false,
         send_images: true,
         save_images: true,
         override_settings: overrideSettings,

@@ -67,8 +67,11 @@ old mapping, and conflicting mappings are surfaced rather than silently won by
 registration order.
 
 Mappings are browser/profile preferences. The design does not pretend that a
-transient `pointerId` is a durable hardware identity. A second physical tablet
-can use another saved profile selected by name.
+transient `pointerId` is a durable hardware identity. The first implementation
+persists one named active profile. A real Wacom/Huion swap will tell us whether
+the next useful move is a small profile selector, automatic matching from
+observable capabilities, or simply changing the active mappings; naming a
+profile does not yet claim that multi-profile selection exists.
 
 Application-wide Wacom or Huion driver shortcuts remain useful for actions
 such as undo, redo, zoom, and brush-size keys. Diffusatory does not intercept

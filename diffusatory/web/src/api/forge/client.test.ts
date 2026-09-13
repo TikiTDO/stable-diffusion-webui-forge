@@ -58,6 +58,60 @@ describe("ForgeClient", () => {
     });
   });
 
+  it("sends the visible editor source and mask through img2img", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      return json({ images: ["abc"], parameters: {}, info: "{}" });
+    };
+    const client = new ForgeClient("", fetcher);
+
+    await client.img2img("task(diffusatory-edit)", {
+      prompt: "repair the sleeve",
+      initImage: "data:image/png;base64,source",
+      mask: "data:image/png;base64,mask",
+      denoisingStrength: 0.55,
+      maskBlur: 6,
+      inpaintOnlyMasked: false,
+      inpaintPadding: 48,
+      width: 832,
+      height: 1216,
+    });
+
+    expect(calls).toHaveLength(1);
+    const [url, request] = calls[0];
+    expect(url).toBe("/sdapi/v1/img2img");
+    expect(JSON.parse(request?.body as string)).toMatchObject({
+      prompt: "repair the sleeve",
+      init_images: ["data:image/png;base64,source"],
+      mask: "data:image/png;base64,mask",
+      denoising_strength: 0.55,
+      mask_blur: 6,
+      inpaint_full_res: false,
+      inpaint_full_res_padding: 48,
+      inpainting_fill: 1,
+      width: 832,
+      height: 1216,
+      force_task_id: "task(diffusatory-edit)",
+      include_init_images: false,
+    });
+  });
+
+  it("uses ordinary img2img when the editor has no inpaint mask", async () => {
+    let body: Record<string, unknown> | null = null;
+    const fetcher: typeof fetch = async (_input, request) => {
+      body = JSON.parse(request?.body as string) as Record<string, unknown>;
+      return json({ images: ["abc"], parameters: {}, info: "{}" });
+    };
+
+    await new ForgeClient("", fetcher).img2img("task(diffusatory-edit)", {
+      prompt: "",
+      initImage: "data:image/png;base64,source",
+    });
+
+    expect(body).not.toHaveProperty("mask");
+  });
+
   it("loads and normalizes the current Forge catalog", async () => {
     const responses: Record<string, unknown> = {
       "/sdapi/v1/sd-models": [

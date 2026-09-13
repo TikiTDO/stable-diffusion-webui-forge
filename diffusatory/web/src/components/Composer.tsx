@@ -9,11 +9,23 @@ interface ComposerProps {
   catalogLoading: boolean;
   generating: boolean;
   canGenerate: boolean;
+  workspaceMode: "compose" | "edit";
+  editSettings: {
+    denoisingStrength: number;
+    maskBlur: number;
+    inpaintOnlyMasked: boolean;
+    inpaintPadding: number;
+  };
   onChange: (patch: Partial<GenerationDraft>) => void;
   onGenerate: () => void;
   onInterrupt: () => void;
   onSkip: () => void;
   onReloadCatalog: () => void;
+  onWorkspaceModeChange: (mode: "compose" | "edit") => void;
+  onNewDrawing: () => void;
+  onEditSettingsChange: (
+    patch: Partial<ComposerProps["editSettings"]>,
+  ) => void;
 }
 
 const ASPECTS = [
@@ -42,11 +54,16 @@ export function Composer({
   catalogLoading,
   generating,
   canGenerate,
+  workspaceMode,
+  editSettings,
   onChange,
   onGenerate,
   onInterrupt,
   onSkip,
   onReloadCatalog,
+  onWorkspaceModeChange,
+  onNewDrawing,
+  onEditSettingsChange,
 }: ComposerProps) {
   const insertPrompt = (text: string) => {
     const separator = draft.prompt.trim() ? ", " : "";
@@ -61,6 +78,24 @@ export function Composer({
           <h2>What should exist?</h2>
         </div>
         <span className="draft-label">SDXL · fast draft</span>
+      </div>
+
+      <div className="workspace-mode" aria-label="Workspace mode">
+        <button
+          type="button"
+          className={workspaceMode === "compose" ? "is-selected" : ""}
+          onClick={() => onWorkspaceModeChange("compose")}
+        >
+          Compose
+        </button>
+        <button
+          type="button"
+          className={workspaceMode === "edit" ? "is-selected" : ""}
+          onClick={() => onWorkspaceModeChange("edit")}
+        >
+          Paint / inpaint
+        </button>
+        <button type="button" onClick={onNewDrawing}>New drawing</button>
       </div>
 
       <div className="model-rack">
@@ -241,6 +276,80 @@ export function Composer({
         </label>
       </div>
 
+      {workspaceMode === "edit" && (
+        <fieldset className="edit-generation-controls">
+          <legend>Image edit</legend>
+          <label>
+            <span>Denoise {editSettings.denoisingStrength.toFixed(2)}</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={editSettings.denoisingStrength}
+              onChange={(event) =>
+                onEditSettingsChange({
+                  denoisingStrength: event.target.valueAsNumber,
+                })
+              }
+            />
+          </label>
+          <label>
+            <span>Mask blur</span>
+            <input
+              type="number"
+              min="0"
+              max="64"
+              value={editSettings.maskBlur}
+              onChange={(event) =>
+                onEditSettingsChange({
+                  maskBlur: changedNumber(
+                    event.target.valueAsNumber,
+                    editSettings.maskBlur,
+                    0,
+                    64,
+                  ),
+                })
+              }
+            />
+          </label>
+          <label>
+            <span>Inpaint area</span>
+            <select
+              value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
+              onChange={(event) =>
+                onEditSettingsChange({
+                  inpaintOnlyMasked: event.target.value === "masked",
+                })
+              }
+            >
+              <option value="masked">Only masked</option>
+              <option value="whole">Whole image</option>
+            </select>
+          </label>
+          <label>
+            <span>Mask padding</span>
+            <input
+              type="number"
+              min="0"
+              max="256"
+              step="4"
+              value={editSettings.inpaintPadding}
+              onChange={(event) =>
+                onEditSettingsChange({
+                  inpaintPadding: changedNumber(
+                    event.target.valueAsNumber,
+                    editSettings.inpaintPadding,
+                    0,
+                    256,
+                  ),
+                })
+              }
+            />
+          </label>
+        </fieldset>
+      )}
+
       <details className="render-character">
         <summary>
           <span>Render character</span>
@@ -347,7 +456,13 @@ export function Composer({
           disabled={!canGenerate}
           onClick={onGenerate}
         >
-          <span>{generating ? "Forge is working" : "Generate"}</span>
+          <span>
+            {generating
+              ? "Forge is working"
+              : workspaceMode === "edit"
+                ? "Generate edit"
+                : "Generate"}
+          </span>
           <kbd>⌘/Ctrl ↵</kbd>
         </button>
         <button
