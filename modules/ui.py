@@ -124,19 +124,6 @@ def calc_resolution_hires(enable, width, height, hr_scale, hr_resize_x, hr_resiz
     return f"from <span class='resolution'>{p.width}x{p.height}</span> to <span class='resolution'>{new_width}x{new_height}</span>"
 
 
-def resize_from_to_html(width, height, scale_by):
-    target_width = int(float(width) * scale_by)
-    target_height = int(float(height) * scale_by)
-
-    if not target_width or not target_height:
-        return "no image selected"
-
-    target_width -= target_width % 8        #   note: hardcoded latent size 8
-    target_height -= target_height % 8
-
-    return f"resize: from <span class='resolution'>{width}x{height}</span> to <span class='resolution'>{target_width}x{target_height}</span>"
-
-
 def interrogate(image):
     prompt = shared.interrogator.interrogate(image.convert("RGB"))
     return gr.update() if prompt is None else prompt
@@ -591,21 +578,27 @@ def create_ui():
                             mask_from_paint_button = gr.Button("Mask from paint")
 
                         clear_paint_button.click(
-                            fn=layered_canvas.clear_paint,
-                            inputs=[layered_editor],
-                            outputs=[layered_editor],
+                            fn=None,
+                            _js="clearImg2ImgPaint",
+                            inputs=[],
+                            outputs=[],
+                            queue=False,
                             show_progress=False,
                         )
                         clear_mask_button.click(
-                            fn=layered_canvas.clear_mask,
-                            inputs=[layered_editor],
-                            outputs=[layered_editor],
+                            fn=None,
+                            _js="clearImg2ImgMask",
+                            inputs=[],
+                            outputs=[],
+                            queue=False,
                             show_progress=False,
                         )
                         mask_from_paint_button.click(
-                            fn=layered_canvas.mask_from_paint,
-                            inputs=[layered_editor],
-                            outputs=[layered_editor],
+                            fn=None,
+                            _js="maskImg2ImgFromPaint",
+                            inputs=[],
+                            outputs=[],
+                            queue=False,
                             show_progress=False,
                         )
 
@@ -631,37 +624,31 @@ def create_ui():
                                         scale_by = gr.Slider(minimum=0.05, maximum=4.0, step=0.01, label="Scale", value=1.0, elem_id="img2img_scale")
 
                                         with FormRow():
-                                            scale_by_html = FormHTML(resize_from_to_html(0, 0, 0.0), elem_id="img2img_scale_resolution_preview")
+                                            FormHTML("no image selected", elem_id="img2img_scale_resolution_preview")
 
-                                    def resize_from_editor_html(editor, scale):
-                                        image_width, image_height = layered_canvas.editor_dimensions(editor)
-                                        return resize_from_to_html(image_width, image_height, scale)
-
-                                    on_change_args = dict(
-                                        fn=resize_from_editor_html,
-                                        inputs=[layered_editor, scale_by],
-                                        outputs=scale_by_html,
+                                    scale_by.change(
+                                        fn=None,
+                                        _js="updateImg2ImgScaleResolutionPreview",
+                                        inputs=[scale_by],
+                                        outputs=[],
+                                        queue=False,
                                         show_progress=False,
                                     )
 
-                                    scale_by.change(**on_change_args)
-
-                                    def updateWH(editor, w, h):
-                                        image_width, image_height = layered_canvas.editor_dimensions(editor)
-                                        if image_width and shared.opts.img2img_autosize:
-                                            return image_width, image_height
-                                        return w, h
-
-                                    layered_editor.change(
-                                        fn=updateWH,
-                                        inputs=[layered_editor, width, height],
-                                        outputs=[width, height],
-                                        show_progress="hidden",
-                                    )
-                                    layered_editor.change(**on_change_args)
-
-                            tab_scale_to.select(fn=lambda: 0, inputs=[], outputs=[selected_scale_tab])
-                            tab_scale_by.select(fn=lambda: 1, inputs=[], outputs=[selected_scale_tab])
+                            tab_scale_to.select(
+                                fn=None,
+                                _js="function(){return selectImg2ImgResizeMode(0)}",
+                                inputs=[],
+                                outputs=[selected_scale_tab],
+                                queue=False,
+                            )
+                            tab_scale_by.select(
+                                fn=None,
+                                _js="function(){return selectImg2ImgResizeMode(1)}",
+                                inputs=[],
+                                outputs=[selected_scale_tab],
+                                queue=False,
+                            )
 
                             if opts.dimensions_and_batch_together:
                                 with gr.Column(elem_id="img2img_column_batch"):
@@ -777,12 +764,21 @@ def create_ui():
             toprow.prompt.submit(**img2img_args)
             toprow.submit.click(**img2img_args)
 
-            res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress=False)
+            res_switch_btn.click(
+                fn=None,
+                _js="function(){return switchWidthHeight('img2img')}",
+                inputs=[],
+                outputs=[],
+                queue=False,
+                show_progress=False,
+            )
 
             detect_image_size_btn.click(
-                fn=lambda editor: tuple(value or gr.update() for value in layered_canvas.editor_dimensions(editor)),
-                inputs=[layered_editor],
-                outputs=[width, height],
+                fn=None,
+                _js="detectImg2ImgSize",
+                inputs=[],
+                outputs=[],
+                queue=False,
                 show_progress=False,
             )
 

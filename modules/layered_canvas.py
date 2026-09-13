@@ -13,8 +13,6 @@ from typing import Any
 from PIL import Image
 
 
-PAINT_LAYER = 0
-MASK_LAYER = 1
 LAYER_COUNT = 2
 
 
@@ -68,13 +66,6 @@ def _layers(editor: Any, size: tuple[int, int]) -> list[Image.Image]:
     return layers
 
 
-def _editor_value(background: Image.Image, layers: list[Image.Image]) -> dict[str, Any]:
-    composite = background.copy()
-    for layer in layers:
-        composite = Image.alpha_composite(composite, layer)
-    return {"background": background, "layers": layers, "composite": composite}
-
-
 def source_and_paint(editor: Any) -> Image.Image:
     """Return the img2img source with paint applied, but never the visible mask."""
     background = _canvas_background(editor)
@@ -92,37 +83,3 @@ def inpaint_mask(editor: Any) -> Image.Image:
     _paint, selection = _layers(editor, background.size)
     alpha = selection.getchannel("A")
     return Image.merge("RGBA", (alpha, alpha, alpha, Image.new("L", alpha.size, 255)))
-
-
-def editor_dimensions(editor: Any) -> tuple[int, int]:
-    background = _canvas_background(editor)
-    return background.size if background is not None else (0, 0)
-
-
-def clear_layer(editor: Any, layer_index: int) -> Any:
-    background = _canvas_background(editor)
-    if background is None:
-        return editor
-    layers = _layers(editor, background.size)
-    layers[layer_index] = _transparent(background.size)
-    return _editor_value(background, layers)
-
-
-def clear_paint(editor: Any) -> Any:
-    return clear_layer(editor, PAINT_LAYER)
-
-
-def clear_mask(editor: Any) -> Any:
-    return clear_layer(editor, MASK_LAYER)
-
-
-def mask_from_paint(editor: Any) -> Any:
-    """Copy paint coverage into the selection layer without changing the paint."""
-    background = _background(editor)
-    if background is None:
-        return editor
-    layers = _layers(editor, background.size)
-    alpha = layers[PAINT_LAYER].getchannel("A")
-    layers[MASK_LAYER] = Image.new("RGBA", background.size, "white")
-    layers[MASK_LAYER].putalpha(alpha)
-    return _editor_value(background, layers)

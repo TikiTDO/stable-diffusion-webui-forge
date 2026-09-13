@@ -1,6 +1,110 @@
 const img2imgLayerNames = ["Paint", "Mask"];
 const img2imgBrushMaximum = 32;
 
+function diffusatoryImg2ImgEditor() {
+    const editor = window.editor;
+    const root = gradioApp().getElementById("img2img_editor");
+    if (!editor?.layer_manager || !editor?.app?.renderer || !root?.contains(editor.target_element)) {
+        console.warn("The Diffusatory image editor is not ready");
+        return null;
+    }
+    return editor;
+}
+
+function renderImg2ImgLayer(sourceIndex, targetIndex) {
+    const editor = diffusatoryImg2ImgEditor();
+    const layers = editor?.layer_manager.get_layers();
+    const target = layers?.[targetIndex];
+    const targetTexture = target && editor.layer_manager.get_layer_textures(target.id)?.draw;
+    if (!targetTexture) return [];
+
+    // Rendering an empty Pixi container is the reliable way to clear the
+    // layer's render texture. renderer.clear() does not invalidate the
+    // texture snapshot returned by Gradio's ImageEditor.
+    const Container = target.container.constructor;
+    const renderContainer = new Container();
+    if (sourceIndex !== null) {
+        const source = layers[sourceIndex];
+        const sourceTexture = source && editor.layer_manager.get_layer_textures(source.id)?.draw;
+        const sourceSprite = source?.container.children[0];
+        if (!sourceTexture || !sourceSprite) {
+            renderContainer.destroy();
+            return [];
+        }
+        const Sprite = sourceSprite.constructor;
+        renderContainer.addChild(new Sprite(sourceTexture));
+    }
+
+    editor.app.renderer.render({container: renderContainer, target: targetTexture, clear: true});
+    renderContainer.destroy({children: true});
+    editor.wake_render_loop();
+    return [];
+}
+
+function clearImg2ImgPaint() {
+    return renderImg2ImgLayer(null, 0);
+}
+
+function clearImg2ImgMask() {
+    return renderImg2ImgLayer(null, 1);
+}
+
+function maskImg2ImgFromPaint() {
+    return renderImg2ImgLayer(0, 1);
+}
+
+function setImg2ImgNumber(id, value) {
+    const input = gradioApp().querySelector(`#${id} input[type="number"]`);
+    if (!input) return;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    setValue.call(input, String(value));
+    input.dispatchEvent(new Event("input", {bubbles: true}));
+    input.dispatchEvent(new Event("change", {bubbles: true}));
+}
+
+function detectImg2ImgSize() {
+    const editor = diffusatoryImg2ImgEditor();
+    if (!editor?.width || !editor?.height) return [];
+    setImg2ImgNumber("img2img_width", editor.width);
+    setImg2ImgNumber("img2img_height", editor.height);
+    updateImg2ImgScaleResolutionPreview();
+    return [];
+}
+
+function selectImg2ImgResizeMode(mode) {
+    setTimeout(updateImg2ImgScaleResolutionPreview, 0);
+    return [mode];
+}
+
+function autoSizeImg2Img(editorRoot) {
+    const editor = diffusatoryImg2ImgEditor();
+    if (!opts.img2img_autosize || !editor?.width || !editor?.height) return;
+    const size = `${editor.width}x${editor.height}`;
+    if (editorRoot.dataset.diffusatoryAutoSize === size) return;
+    editorRoot.dataset.diffusatoryAutoSize = size;
+    setImg2ImgNumber("img2img_width", editor.width);
+    setImg2ImgNumber("img2img_height", editor.height);
+}
+
+function updateImg2ImgScaleResolutionPreview(scale) {
+    const editor = diffusatoryImg2ImgEditor();
+    const output = gradioApp().getElementById("img2img_scale_resolution_preview");
+    if (!output) return [];
+
+    const scaleInput = gradioApp().querySelector('#img2img_scale input[type="number"]');
+    const factor = Number(scale ?? scaleInput?.value ?? 0);
+    let html = "no image selected";
+    if (editor?.width && editor?.height && factor > 0) {
+        const targetWidth = Math.floor(editor.width * factor / 8) * 8;
+        const targetHeight = Math.floor(editor.height * factor / 8) * 8;
+        html = `resize: from <span class="resolution">${editor.width}x${editor.height}</span> ` +
+            `to <span class="resolution">${targetWidth}x${targetHeight}</span>`;
+    }
+    const content = output.querySelector(".prose") || output;
+    if (content.innerHTML !== html) content.innerHTML = html;
+    return [];
+}
+
 function img2imgEyedropperIcon() {
     return `<div style="display:flex;width:1.5rem;height:1.5rem"><svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="m19.4 3.6 1 1a2 2 0 0 1 0 2.8l-3.1 3.1 1.2 1.2-1.8 1.8-6.2-6.2 1.8-1.8 1.2 1.2 3.1-3.1a2 2 0 0 1 2.8 0Z" fill="currentColor"/>
@@ -41,7 +145,7 @@ function equipImg2ImgBrush(editor) {
     eyedropper.setAttribute("aria-label", "Pick colour from image");
     eyedropper.title = "Pick colour from image";
     eyedropper.innerHTML = img2imgEyedropperIcon();
-    eyedropper.addEventListener("click", async () => {
+    eyedropper.addEventListener("click", async() => {
         if (!window.EyeDropper) {
             colorButton.click();
             eyedropper.title = "Eyedropper unavailable in this browser; choose a colour from the palette";
@@ -78,10 +182,12 @@ function labelImg2ImgLayers() {
     const editor = gradioApp().getElementById("img2img_editor");
     if (!editor) return;
     equipImg2ImgBrush(editor);
+    autoSizeImg2Img(editor);
+    updateImg2ImgScaleResolutionPreview();
 
-    // A server-returning action rebuilds the layers with Gradio's generic
-    // names. When the panel is closed, its layer buttons are not mounted, so
-    // restore the selected label directly from the generic title as well.
+    // Restored editor values can arrive with Gradio's generic layer names.
+    // When the panel is closed, its layer buttons are not mounted, so restore
+    // the selected label directly from the generic title as well.
     const toggle = editor.querySelector('button[aria-label="Show Layers"]');
     const genericTitle = toggle?.textContent.trim().match(/^Layer (\d+)$/);
     const genericIndex = genericTitle ? Number(genericTitle[1]) - 1 : -1;
@@ -100,9 +206,9 @@ function labelImg2ImgLayers() {
     layerButtons.slice(0, img2imgLayerNames.length).forEach((button, index) => {
         const name = img2imgLayerNames[index];
         const layerIndex = String(index + 1);
-        const title = index == 0
-            ? "Colour painted onto the source image"
-            : "Selection used by the Inpaint workflow";
+        const title = index == 0 ?
+            "Colour painted onto the source image" :
+            "Selection used by the Inpaint workflow";
 
         if (button.dataset.diffusatoryLayerIndex != layerIndex) {
             button.dataset.diffusatoryLayerIndex = layerIndex;
@@ -122,7 +228,7 @@ function labelImg2ImgLayers() {
     }
 }
 
-// Gradio restores returned image layers with generic names. The layer order is
+// Gradio may restore image layers with generic names. The layer order is
 // stable, so restore the product names after both initial mount and callbacks.
 onUiLoaded(labelImg2ImgLayers);
 onAfterUiUpdate(labelImg2ImgLayers);

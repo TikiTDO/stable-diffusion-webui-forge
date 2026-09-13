@@ -32,21 +32,6 @@ class LayeredCanvasTests(unittest.TestCase):
         self.assertEqual((0, 0, 0, 255), mask.getpixel((0, 0)))
         self.assertEqual((255, 255, 255, 255), mask.getpixel((1, 1)))
 
-    def test_mask_from_paint_preserves_paint(self):
-        updated = layered_canvas.mask_from_paint(self.editor)
-        self.assertEqual(self.paint.tobytes(), updated["layers"][0].tobytes())
-        self.assertEqual(255, updated["layers"][1].getpixel((0, 0))[3])
-        self.assertEqual(0, updated["layers"][1].getpixel((1, 1))[3])
-
-    def test_layers_clear_independently(self):
-        without_paint = layered_canvas.clear_paint(self.editor)
-        self.assertIsNone(without_paint["layers"][0].getbbox())
-        self.assertIsNotNone(without_paint["layers"][1].getbbox())
-
-        without_mask = layered_canvas.clear_mask(self.editor)
-        self.assertIsNotNone(without_mask["layers"][0].getbbox())
-        self.assertIsNone(without_mask["layers"][1].getbbox())
-
     def test_drawing_without_an_uploaded_source_becomes_the_image(self):
         visible_mask = pixel_layer(self.paint.size, (1, 1), (40, 220, 40, 255))
         editor = {"background": None, "layers": [self.paint, visible_mask], "composite": None}
@@ -54,7 +39,6 @@ class LayeredCanvasTests(unittest.TestCase):
         self.assertEqual(self.paint.size, image.size)
         self.assertEqual((0, 0, 200, 255), image.getpixel((0, 0)))
         self.assertEqual((255, 255, 255, 255), image.getpixel((1, 1)))
-        self.assertEqual(self.paint.size, layered_canvas.editor_dimensions(editor))
 
     def test_empty_canvas_still_needs_a_stroke(self):
         with self.assertRaisesRegex(ValueError, "draw on the empty canvas"):
