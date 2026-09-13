@@ -1,5 +1,11 @@
 import type { ForgeCatalog } from "../api/forge/types";
+import type { ControlNetCatalog } from "../api/forge/types";
 import type { GenerationDraft } from "../domain/draft";
+import { ConditionStack } from "../features/controlnet/ConditionStack";
+import type {
+  ConditionPatch,
+  ControlNetCondition,
+} from "../features/controlnet/types";
 import { PromptTools } from "./PromptTools";
 
 interface ComposerProps {
@@ -26,6 +32,17 @@ interface ComposerProps {
   onEditSettingsChange: (
     patch: Partial<ComposerProps["editSettings"]>,
   ) => void;
+  controlNetCatalog: ControlNetCatalog | null;
+  controlNetError: string | null;
+  controlNetLoading: boolean;
+  conditions: ControlNetCondition[];
+  currentImageAvailable: boolean;
+  onAddCondition: () => void;
+  onChangeCondition: (id: string, patch: ConditionPatch) => void;
+  onReplaceCondition: (condition: ControlNetCondition) => void;
+  onRemoveCondition: (id: string) => void;
+  onPreviewCondition: (condition: ControlNetCondition) => void;
+  onReloadControlNet: () => void;
 }
 
 const ASPECTS = [
@@ -64,6 +81,17 @@ export function Composer({
   onWorkspaceModeChange,
   onNewDrawing,
   onEditSettingsChange,
+  controlNetCatalog,
+  controlNetError,
+  controlNetLoading,
+  conditions,
+  currentImageAvailable,
+  onAddCondition,
+  onChangeCondition,
+  onReplaceCondition,
+  onRemoveCondition,
+  onPreviewCondition,
+  onReloadControlNet,
 }: ComposerProps) {
   const insertPrompt = (text: string) => {
     const separator = draft.prompt.trim() ? ", " : "";
@@ -168,6 +196,20 @@ export function Composer({
           onInsert={insertPrompt}
         />
       )}
+
+      <ConditionStack
+        catalog={controlNetCatalog}
+        error={controlNetError}
+        loading={controlNetLoading}
+        conditions={conditions}
+        currentImageAvailable={currentImageAvailable}
+        onAdd={onAddCondition}
+        onChange={onChangeCondition}
+        onReplace={onReplaceCondition}
+        onRemove={onRemoveCondition}
+        onPreview={onPreviewCondition}
+        onReload={onReloadControlNet}
+      />
 
       <div className="draft-controls">
         <fieldset className="dimensions">

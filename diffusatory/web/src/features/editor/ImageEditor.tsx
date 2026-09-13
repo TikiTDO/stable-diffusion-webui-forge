@@ -21,11 +21,21 @@ interface ImageEditorProps {
   width: number;
   height: number;
   onReady?: (width: number, height: number) => void;
+  onContentChange?: () => void;
 }
 
 export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
-  function ImageEditor({ source, width, height, onReady }, forwardedRef) {
-    const editor = useEditorSurface({ source, width, height, onReady });
+  function ImageEditor(
+    { source, width, height, onReady, onContentChange },
+    forwardedRef,
+  ) {
+    const editor = useEditorSurface({
+      source,
+      width,
+      height,
+      onReady,
+      onContentChange,
+    });
 
     useImperativeHandle(
       forwardedRef,

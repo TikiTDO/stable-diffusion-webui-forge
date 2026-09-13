@@ -9,6 +9,17 @@ import {
   type ImageEditorHandle,
 } from "./features/editor/ImageEditor";
 import {
+  conditionIssue,
+  createCondition,
+  resolveConditions,
+  sourceForCondition,
+} from "./features/controlnet/model";
+import type {
+  ConditionPatch,
+  ControlNetCondition,
+} from "./features/controlnet/types";
+import { useControlNetCatalog } from "./features/controlnet/useControlNetCatalog";
+import {
   draftFromCatalog,
   requestFromDraft,
   starterDraft,
@@ -32,6 +43,7 @@ export default function App() {
   });
   const [editorReady, setEditorReady] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [conditions, setConditions] = useState<ControlNetCondition[]>([]);
   const [editSettings, setEditSettings] = useState({
     denoisingStrength: 0.6,
     maskBlur: 4,
@@ -40,8 +52,15 @@ export default function App() {
   });
   const editorRef = useRef<ImageEditorHandle>(null);
   const catalogApplied = useRef(false);
+  const previewRuns = useRef(new Map<string, number>());
   const { catalog, error: catalogError, loading: catalogLoading, reload } =
     useForgeCatalog(client);
+  const {
+    catalog: controlNetCatalog,
+    error: controlNetError,
+    loading: controlNetLoading,
+    reload: reloadControlNet,
+  } = useControlNetCatalog(client);
   const { state, generate, interrupt, skip, generating } =
     useForgeGeneration(client);
 
@@ -72,6 +91,14 @@ export default function App() {
     setDraft((current) => draftFromCatalog(current, catalog));
   }, [catalog]);
 
+  const currentImageAvailable = editorSession > 0 && editorReady;
+  const conditionsReady = conditions.every(
+    (condition) =>
+      !conditionIssue(
+        condition,
+        currentImageAvailable ? "available" : null,
+      ),
+  );
   const canGenerate =
     (workspaceMode === "edit" || Boolean(draft.prompt.trim())) &&
     !generating &&
@@ -81,16 +108,116 @@ export default function App() {
       ),
     ) &&
     (workspaceMode === "compose" || editorReady) &&
-    Boolean(catalog);
+    Boolean(catalog) &&
+    conditionsReady;
+
+  const changeCondition = useCallback((id: string, patch: ConditionPatch) => {
+    const invalidatesPreview =
+      "source" in patch ||
+      "module" in patch ||
+      "processorResolution" in patch ||
+      "thresholdA" in patch ||
+      "thresholdB" in patch;
+    if (invalidatesPreview) {
+      previewRuns.current.set(id, (previewRuns.current.get(id) ?? 0) + 1);
+    }
+    setConditions((current) =>
+      current.map((condition) =>
+        condition.id === id
+          ? {
+              ...condition,
+              ...(invalidatesPreview
+                ? {
+                    preview: null,
+                    previewStatus: "idle" as const,
+                    previewError: null,
+                  }
+                : {}),
+              ...patch,
+            }
+          : condition,
+      ),
+    );
+  }, []);
+
+  const replaceCondition = useCallback((replacement: ControlNetCondition) => {
+    setConditions((current) =>
+      current.map((condition) =>
+        condition.id === replacement.id ? replacement : condition,
+      ),
+    );
+  }, []);
+
+  const currentEditorImage = useCallback((): string | null => {
+    if (!editorReady) return null;
+    return editorRef.current?.exportForGeneration()?.initImage ?? null;
+  }, [editorReady]);
+
+  const previewCondition = useCallback(
+    async (condition: ControlNetCondition) => {
+      const image = sourceForCondition(condition, currentEditorImage());
+      if (!image) {
+        changeCondition(condition.id, {
+          previewStatus: "failed",
+          previewError: "The condition source is not ready.",
+        });
+        return;
+      }
+      changeCondition(condition.id, {
+        previewStatus: "loading",
+        previewError: null,
+      });
+      const run = (previewRuns.current.get(condition.id) ?? 0) + 1;
+      previewRuns.current.set(condition.id, run);
+      try {
+        const result = await client.detectControlNet({
+          module: condition.module,
+          image,
+          processorResolution: condition.processorResolution,
+          thresholdA: condition.thresholdA,
+          thresholdB: condition.thresholdB,
+        });
+        if (previewRuns.current.get(condition.id) !== run) return;
+        changeCondition(condition.id, {
+          preview: result.images[0] ?? null,
+          previewStatus: "ready",
+          previewError: result.images.length
+            ? null
+            : "The preprocessor returned no image.",
+        });
+      } catch (error) {
+        if (previewRuns.current.get(condition.id) !== run) return;
+        changeCondition(condition.id, {
+          previewStatus: "failed",
+          previewError:
+            error instanceof Error ? error.message : "Preprocessing failed.",
+        });
+      }
+    },
+    [changeCondition, client, currentEditorImage],
+  );
+
   const submit = async () => {
     if (!canGenerate) return;
     setEditorError(null);
-    const request = requestFromDraft(draft);
+    const editor = editorReady
+      ? editorRef.current?.exportForGeneration() ?? null
+      : null;
+    const currentImage = editor?.initImage ?? null;
+    let controlNet;
+    try {
+      controlNet = resolveConditions(conditions, currentImage);
+    } catch (error) {
+      setEditorError(
+        error instanceof Error ? error.message : "A condition is incomplete.",
+      );
+      return;
+    }
+    const request = { ...requestFromDraft(draft), controlNet };
     if (workspaceMode === "compose") {
       await generate({ kind: "txt2img", input: request });
       return;
     }
-    const editor = editorRef.current?.exportForGeneration();
     if (!editor) {
       setEditorError("The visible editor source is not ready yet.");
       return;
@@ -160,7 +287,7 @@ export default function App() {
         <Composer
           draft={draft}
           catalog={catalog}
-          catalogError={catalogError ?? instanceError}
+          catalogError={catalogError}
           catalogLoading={catalogLoading}
           generating={generating}
           canGenerate={canGenerate}
@@ -181,6 +308,28 @@ export default function App() {
           onEditSettingsChange={(patch) =>
             setEditSettings((current) => ({ ...current, ...patch }))
           }
+          controlNetCatalog={controlNetCatalog}
+          controlNetError={controlNetError}
+          controlNetLoading={controlNetLoading}
+          conditions={conditions}
+          currentImageAvailable={currentImageAvailable}
+          onAddCondition={() => {
+            if (!controlNetCatalog || conditions.length >= 3) return;
+            setConditions((current) => [
+              ...current,
+              createCondition(controlNetCatalog),
+            ]);
+          }}
+          onChangeCondition={changeCondition}
+          onReplaceCondition={replaceCondition}
+          onRemoveCondition={(id) =>
+            setConditions((current) => {
+              previewRuns.current.delete(id);
+              return current.filter((condition) => condition.id !== id);
+            })
+          }
+          onPreviewCondition={(condition) => void previewCondition(condition)}
+          onReloadControlNet={reloadControlNet}
         />
 
         <div className="workspace-pane" hidden={workspaceMode !== "compose"}>
@@ -212,6 +361,20 @@ export default function App() {
               width={editorDimensions.width}
               height={editorDimensions.height}
               onReady={handleEditorReady}
+              onContentChange={() =>
+                setConditions((current) =>
+                  current.map((condition) =>
+                    condition.source.kind === "current" && condition.preview
+                      ? {
+                          ...condition,
+                          preview: null,
+                          previewStatus: "idle",
+                          previewError: null,
+                        }
+                      : condition,
+                  ),
+                )
+              }
             />
             {state.kind === "img2img" && state.images.length > 0 && (
               <div className="edit-results" aria-label="Edited candidates">

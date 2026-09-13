@@ -82,6 +82,7 @@ interface EditorSurfaceOptions {
   width: number;
   height: number;
   onReady?: (width: number, height: number) => void;
+  onContentChange?: () => void;
 }
 
 function touchGeometry(points: TouchPoint[]): {
@@ -111,6 +112,7 @@ export function useEditorSurface({
   width,
   height,
   onReady,
+  onContentChange,
 }: EditorSurfaceOptions) {
   const [profile, setProfile] = useState<TabletProfile>(loadTabletProfile);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -284,14 +286,16 @@ export function useEditorSurface({
     (layer: EditorLayer) => {
       editorDocumentRef.current?.clear(layer);
       requestRender();
+      onContentChange?.();
     },
-    [requestRender],
+    [onContentChange, requestRender],
   );
 
   const undo = useCallback(() => {
     editorDocumentRef.current?.undo();
     requestRender();
-  }, [requestRender]);
+    onContentChange?.();
+  }, [onContentChange, requestRender]);
 
   const actionForEvent = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>): TabletAction => {
@@ -602,6 +606,7 @@ export function useEditorSurface({
           pointerSamples(event.nativeEvent, "up", clientToImage),
         );
         editorDocumentRef.current?.commit(interaction.operation);
+        onContentChange?.();
       } else if (cancelled && interaction.kind === "stroke") {
         rebuildDocument();
       }
@@ -618,6 +623,7 @@ export function useEditorSurface({
       applyStrokeSamples,
       clientToImage,
       rebuildDocument,
+      onContentChange,
       requestRender,
       restoreInteractionState,
       setCalibrationTarget,

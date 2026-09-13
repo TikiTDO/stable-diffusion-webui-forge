@@ -21,6 +21,7 @@ export interface Txt2ImgInput {
   seed?: number;
   outputs?: number;
   previewEvery?: number;
+  controlNet?: ControlNetUnitInput[];
 }
 
 export interface Img2ImgInput extends Txt2ImgInput {
@@ -110,4 +111,61 @@ export interface ForgeCatalog {
   loras: Lora[];
   embeddings: string[];
   options: ForgeOptions;
+}
+
+export interface ControlNetTypeWire {
+  module_list: string[];
+  model_list: string[];
+  default_option: string;
+  default_model: string;
+}
+
+export interface ControlNetTypesResponse {
+  control_types: Record<string, ControlNetTypeWire>;
+}
+
+export interface ControlNetCatalog {
+  types: Record<
+    string,
+    {
+      modules: string[];
+      models: string[];
+      defaultModule: string;
+      defaultModel: string;
+    }
+  >;
+}
+
+export interface ControlNetDetectInput {
+  module: string;
+  image: string;
+  processorResolution?: number;
+  thresholdA?: number;
+  thresholdB?: number;
+}
+
+export interface ControlNetDetectResponse {
+  images: string[];
+  info: string;
+  poses?: unknown[];
+}
+
+/** A resolved ControlNet unit. Source selection remains a UI concern. */
+export interface ControlNetUnitInput {
+  module: string;
+  model: string;
+  image: string;
+  weight?: number;
+  resizeMode?: "Just Resize" | "Crop and Resize" | "Resize and Fill";
+  processorResolution?: number;
+  thresholdA?: number;
+  thresholdB?: number;
+  guidanceStart?: number;
+  guidanceEnd?: number;
+  pixelPerfect?: boolean;
+  controlMode?:
+    | "Balanced"
+    | "My prompt is more important"
+    | "ControlNet is more important";
+  saveDetectedMap?: boolean;
 }

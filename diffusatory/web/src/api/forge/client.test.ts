@@ -97,6 +97,42 @@ describe("ForgeClient", () => {
     });
   });
 
+  it("translates conditions into the installed ControlNet always-on script", async () => {
+    let body: Record<string, unknown> | null = null;
+    const fetcher: typeof fetch = async (_input, request) => {
+      body = JSON.parse(request?.body as string) as Record<string, unknown>;
+      return json({ images: ["abc"], parameters: {}, info: "{}" });
+    };
+
+    await new ForgeClient("", fetcher).txt2img("task(diffusatory-control)", {
+      prompt: "hold the pose",
+      controlNet: [
+        {
+          module: "openpose_full",
+          model: "pose-xl",
+          image: "data:image/png;base64,pose",
+          controlMode: "ControlNet is more important",
+        },
+      ],
+    });
+
+    expect(body).toMatchObject({
+      alwayson_scripts: {
+        controlnet: {
+          args: [
+            {
+              enabled: true,
+              module: "openpose_full",
+              model: "pose-xl",
+              image: "data:image/png;base64,pose",
+              control_mode: "ControlNet is more important",
+            },
+          ],
+        },
+      },
+    });
+  });
+
   it("uses ordinary img2img when the editor has no inpaint mask", async () => {
     let body: Record<string, unknown> | null = null;
     const fetcher: typeof fetch = async (_input, request) => {
@@ -142,6 +178,53 @@ describe("ForgeClient", () => {
     expect(catalog.checkpoints[0]?.title).toBe("model");
     expect(catalog.styles.map((style) => style.name)).toEqual(["useful"]);
     expect(catalog.embeddings).toEqual(["amber", "zebra"]);
+  });
+
+  it("discovers ControlNet intent defaults from the active instance", async () => {
+    const fetcher: typeof fetch = async () =>
+      json({
+        control_types: {
+          Depth: {
+            module_list: ["depth_midas"],
+            model_list: ["depth-xl"],
+            default_option: "depth_midas",
+            default_model: "depth-xl",
+          },
+        },
+      });
+
+    await expect(new ForgeClient("", fetcher).controlNetCatalog()).resolves.toEqual({
+      types: {
+        Depth: {
+          modules: ["depth_midas"],
+          models: ["depth-xl"],
+          defaultModule: "depth_midas",
+          defaultModel: "depth-xl",
+        },
+      },
+    });
+  });
+
+  it("preprocesses a condition and normalizes its preview image", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      return json({ images: ["preview"], info: "Success" });
+    };
+
+    const result = await new ForgeClient("", fetcher).detectControlNet({
+      module: "lineart_standard",
+      image: "data:image/png;base64,source",
+      processorResolution: 768,
+    });
+
+    expect(result.images).toEqual(["data:image/png;base64,preview"]);
+    expect(calls[0]?.[0]).toBe("/controlnet/detect");
+    expect(JSON.parse(calls[0]?.[1]?.body as string)).toEqual({
+      controlnet_module: "lineart_standard",
+      controlnet_input_images: ["data:image/png;base64,source"],
+      controlnet_processor_res: 768,
+    });
   });
 
   it("polls the task-aware progress route with the preview revision", async () => {

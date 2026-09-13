@@ -1,5 +1,9 @@
 import type {
   Checkpoint,
+  ControlNetCatalog,
+  ControlNetDetectInput,
+  ControlNetDetectResponse,
+  ControlNetTypesResponse,
   EmbeddingInventory,
   ForgeCatalog,
   ForgeOptions,
@@ -14,6 +18,7 @@ import type {
   Txt2ImgInput,
   Txt2ImgResponse,
 } from "./types";
+import { controlNetAlwaysOnScripts } from "./controlnet";
 
 export type Fetcher = typeof fetch;
 
@@ -127,6 +132,53 @@ export class ForgeClient {
     };
   }
 
+  async controlNetCatalog(signal?: AbortSignal): Promise<ControlNetCatalog> {
+    const response = await this.get<ControlNetTypesResponse>(
+      "/controlnet/control_types",
+      signal,
+    );
+    return {
+      types: Object.fromEntries(
+        Object.entries(response.control_types).map(([name, type]) => [
+          name,
+          {
+            modules: type.module_list,
+            models: type.model_list,
+            defaultModule: type.default_option,
+            defaultModel: type.default_model,
+          },
+        ]),
+      ),
+    };
+  }
+
+  async detectControlNet(
+    input: ControlNetDetectInput,
+    signal?: AbortSignal,
+  ): Promise<ControlNetDetectResponse> {
+    const response = await this.fetcher(`${this.baseUrl}/controlnet/detect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal,
+      body: JSON.stringify({
+        controlnet_module: input.module,
+        controlnet_input_images: [input.image],
+        ...(input.processorResolution !== undefined &&
+        input.processorResolution >= 0
+          ? { controlnet_processor_res: input.processorResolution }
+          : {}),
+        ...(input.thresholdA !== undefined && input.thresholdA >= 0
+          ? { controlnet_threshold_a: input.thresholdA }
+          : {}),
+        ...(input.thresholdB !== undefined && input.thresholdB >= 0
+          ? { controlnet_threshold_b: input.thresholdB }
+          : {}),
+      }),
+    });
+    const result = await readJson<ControlNetDetectResponse>(response);
+    return { ...result, images: result.images.map(imageSource) };
+  }
+
   async txt2img(
     taskId: string,
     input: Txt2ImgInput,
@@ -165,6 +217,7 @@ export class ForgeClient {
         save_images: true,
         override_settings: overrideSettings,
         override_settings_restore_afterwards: false,
+        alwayson_scripts: controlNetAlwaysOnScripts(input.controlNet),
       }),
     });
     return readJson<Txt2ImgResponse>(response);
@@ -216,6 +269,7 @@ export class ForgeClient {
         save_images: true,
         override_settings: overrideSettings,
         override_settings_restore_afterwards: false,
+        alwayson_scripts: controlNetAlwaysOnScripts(input.controlNet),
       }),
     });
     return readJson<Txt2ImgResponse>(response);
