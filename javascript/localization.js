@@ -4,9 +4,6 @@
 var ignore_ids_for_localization = {
     setting_sd_hypernetwork: 'OPTION',
     setting_sd_model_checkpoint: 'OPTION',
-    modelmerger_primary_model_name: 'OPTION',
-    modelmerger_secondary_model_name: 'OPTION',
-    modelmerger_tertiary_model_name: 'OPTION',
     train_embedding: 'OPTION',
     train_hypernetwork: 'OPTION',
     txt2img_styles: 'OPTION',

@@ -260,16 +260,6 @@ onAfterUiUpdate(function() {
 });
 
 
-function modelmerger() {
-    var id = randomId();
-    requestProgress(id, gradioApp().getElementById('modelmerger_results_panel'), null, function() {});
-
-    var res = create_submit_args(arguments);
-    res[0] = id;
-    return res;
-}
-
-
 function ask_for_style_name(_, prompt_text, negative_prompt_text) {
     var name_ = prompt('Style name:');
     return [name_, prompt_text, negative_prompt_text];
