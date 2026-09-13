@@ -29,8 +29,8 @@ REMOVED_PATHS = (
     "backend/huggingface/stabilityai/stable-diffusion-2-1",
     "backend/huggingface/stabilityai/stable-diffusion-2-inpainting",
     "backend/huggingface/lllyasviel/control_v11p_sd15_canny",
-    "extensions-builtin/forge_space_iclight",
-    "extensions-builtin/forge_space_illusion_diffusion",
+    "modules_forge/forge_space.py",
+    "spaces.py",
     "models/VAE-approx/model.pt",
 )
 
@@ -49,6 +49,9 @@ def main() -> int:
     for relative_path in REMOVED_PATHS:
         if (ROOT / relative_path).exists():
             failures.append(f"legacy path still exists: {relative_path}")
+
+    for space_path in (ROOT / "extensions-builtin").glob("forge_space_*"):
+        failures.append(f"Forge Space still exists: {space_path.relative_to(ROOT)}")
 
     if failures:
         print("model-family scope: FAILED")
