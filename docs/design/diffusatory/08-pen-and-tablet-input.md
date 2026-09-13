@@ -57,9 +57,25 @@ useful mappings but never silently interprets a right-click-shaped barrel event
 as a context menu inside the canvas after that event has been bound. The same
 actions remain available as visible buttons and keyboard shortcuts.
 
+The ordinary tablet workflow gets one compact **Pen controls** popover beside
+the layer/tool indicator, not a settings expedition. It shows the active named
+profile and every current binding, and its recorder says which action it is
+waiting for before the person presses the pen control. Paint versus mask is the
+primary one-button binding; pan, eyedropper, erase, brush size, and opacity can
+be added without displacing it. The recorder can cancel without changing the
+old mapping, and conflicting mappings are surfaced rather than silently won by
+registration order.
+
 Mappings are browser/profile preferences. The design does not pretend that a
 transient `pointerId` is a durable hardware identity. A second physical tablet
 can use another saved profile selected by name.
+
+Application-wide Wacom or Huion driver shortcuts remain useful for actions
+such as undo, redo, zoom, and brush-size keys. Diffusatory does not intercept
+them unless focus is on the canvas and the corresponding action is enabled;
+ordinary text editing shortcuts keep working in prompts. Express keys which
+arrive as keyboard events therefore share the visible keyboard binding path,
+while barrel buttons and eraser ends use the captured Pointer Event path.
 
 ## Pressure and brush behavior
 
