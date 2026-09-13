@@ -17,19 +17,24 @@ from backend.nn.vae import IntegratedAutoencoderKL
 from backend.nn.clip import IntegratedCLIP
 from backend.nn.unet import IntegratedUNet2DConditionModel
 
-from backend.diffusion_engine.sd15 import StableDiffusion
-from backend.diffusion_engine.sd20 import StableDiffusion2
 from backend.diffusion_engine.sdxl import StableDiffusionXL, StableDiffusionXLRefiner
 from backend.diffusion_engine.sd35 import StableDiffusion3
 from backend.diffusion_engine.flux import Flux
 from backend.diffusion_engine.chroma import Chroma
 
 
-possible_models = [StableDiffusion, StableDiffusion2, StableDiffusionXLRefiner, StableDiffusionXL, StableDiffusion3, Chroma, Flux]
+possible_models = [StableDiffusionXLRefiner, StableDiffusionXL, StableDiffusion3, Chroma, Flux]
 
 
 logging.getLogger("diffusers").setLevel(logging.ERROR)
 dir_path = os.path.dirname(__file__)
+
+
+def select_model_engine(estimated_config):
+    for engine in possible_models:
+        if any(isinstance(estimated_config, guess) for guess in engine.matched_guesses):
+            return engine
+    return None
 
 
 def load_huggingface_component(guess, component_name, lib_name, cls_name, repo_path, state_dict):
@@ -512,6 +517,14 @@ def forge_loader(sd, additional_state_dicts=None):
             del estimated_config.unet_config[x]
         state_dicts['text_encoder'] = state_dicts['text_encoder_2']
         del state_dicts['text_encoder_2'] 
+
+    model_engine = select_model_engine(estimated_config)
+    if model_engine is None:
+        message = f"Unsupported model family: {estimated_config.__class__.__name__}."
+        if isinstance(estimated_config, (huggingface_guess.model_list.SD15, huggingface_guess.model_list.SD20)):
+            message += " SD 1.x and SD 2.x support has been removed."
+        raise ValueError(message)
+
     repo_name = estimated_config.huggingface_repo
 
     local_path = os.path.join(dir_path, 'huggingface', repo_name)
@@ -568,9 +581,4 @@ def forge_loader(sd, additional_state_dicts=None):
 
     if not chroma_is_in_huggingface_guess and estimated_config.huggingface_repo == "Chroma":
         return Chroma(estimated_config=estimated_config, huggingface_components=huggingface_components)
-    for M in possible_models:
-        if any(isinstance(estimated_config, x) for x in M.matched_guesses):
-            return M(estimated_config=estimated_config, huggingface_components=huggingface_components)
-
-    print('Failed to recognize model type!')
-    return None
+    return model_engine(estimated_config=estimated_config, huggingface_components=huggingface_components)

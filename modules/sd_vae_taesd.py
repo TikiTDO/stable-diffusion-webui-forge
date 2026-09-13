@@ -58,7 +58,7 @@ class TAESDDecoder(nn.Module):
     latent_magnitude = 3
     latent_shift = 0.5
 
-    def __init__(self, decoder_path="taesd_decoder.pth", latent_channels=None):
+    def __init__(self, decoder_path, latent_channels=None):
         """Initialize pretrained TAESD on the given device from the given checkpoints."""
         super().__init__()
 
@@ -79,7 +79,7 @@ class TAESDEncoder(nn.Module):
     latent_magnitude = 3
     latent_shift = 0.5
 
-    def __init__(self, encoder_path="taesd_encoder.pth", latent_channels=None):
+    def __init__(self, encoder_path, latent_channels=None):
         """Initialize pretrained TAESD on the given device from the given checkpoints."""
         super().__init__()
 
@@ -112,7 +112,7 @@ def decoder_model():
     elif shared.sd_model.is_sdxl:
         model_name = "taesdxl_decoder.pth"
     else:
-        model_name = "taesd_decoder.pth"
+        raise ValueError("Unsupported model family for TAESD decoding")
 
     loaded_model = sd_vae_taesd_models.get(model_name)
 
@@ -139,7 +139,7 @@ def encoder_model():
     elif shared.sd_model.is_sdxl:
         model_name = "taesdxl_encoder.pth"
     else:
-        model_name = "taesd_encoder.pth"
+        raise ValueError("Unsupported model family for TAESD encoding")
 
     loaded_model = sd_vae_taesd_models.get(model_name)
 

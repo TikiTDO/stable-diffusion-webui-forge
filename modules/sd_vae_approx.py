@@ -48,7 +48,7 @@ def model():
     elif shared.sd_model.is_sdxl:
         model_name = "vaeapprox-sdxl.pt"
     else:
-        model_name = "model.pt"
+        return None
 
     loaded_model = sd_vae_approx_models.get(model_name)
 

@@ -70,9 +70,6 @@ class FreeUForForge(scripts.Script):
     presets_builtin = [
         #   name, b1, b2, s1, s2, start step, end step
         ('Forge default', 1.01, 1.02, 0.99, 0.95, 0.0, 1.0),
-        ('SD 1.4', 1.3, 1.4, 0.9, 0.2, 0.0, 1.0),
-        ('SD 1.5', 1.5, 1.6, 0.9, 0.2, 0.0, 1.0),
-        ('SD 2.1', 1.4, 1.6, 0.9, 0.2, 0.0, 1.0),
         ('SDXL', 1.3, 1.4, 0.9, 0.2, 0.0, 1.0),
     ]
     try:
@@ -82,7 +79,7 @@ class FreeUForForge(scripts.Script):
         presets = presets_builtin
 
     def title(self):
-        return "FreeU Integrated (SD 1.x, SD 2.x, SDXL)"
+        return "FreeU Integrated (SDXL)"
 
     def show(self, is_img2img):
         # make this extension visible in both txt2img and img2img tab.
