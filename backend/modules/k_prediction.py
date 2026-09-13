@@ -2,7 +2,6 @@ import math
 import torch
 import numpy as np
 
-from diffusers import FlowMatchEulerDiscreteScheduler
 from diffusers.pipelines.flux.pipeline_flux import calculate_shift
 
 
@@ -297,7 +296,12 @@ class PredictionFlux(AbstractPrediction):
         else:
             self.mu = mu
         sigmas = torch.arange(1, self.pseudo_timestep_range + 1, 1) / self.pseudo_timestep_range
-        sigmas = FlowMatchEulerDiscreteScheduler.time_shift(None, self.mu, 1.0, sigmas)
+        # Diffusers used to expose this calculation through an effectively
+        # static scheduler method.  Newer releases consult ``self.config``, so
+        # calling it without constructing a scheduler now fails during every
+        # Flux model load.  Forge always requested the exponential transform
+        # with sigma=1, which is exactly the existing SNR shift with exp(mu).
+        sigmas = time_snr_shift(math.exp(self.mu), sigmas)
         self.register_buffer('sigmas', sigmas)
 
     @property
