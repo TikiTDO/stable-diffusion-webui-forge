@@ -47,6 +47,22 @@ because they exist. Shared backend machinery survives when one of these paths
 uses it; unrelated surface area should not dictate the new information
 architecture.
 
+### Layered img2img and inpaint
+
+Img2img has two workflows, not six tabs: **Img2img** and **Inpaint**. They share
+one non-destructive editor with three pieces of state:
+
+1. the source image;
+2. a clearable RGBA paint layer applied to the source before generation;
+3. a separately clearable selection layer used as the inpaint mask.
+
+Img2img receives source plus paint. Inpaint receives that same composed image
+plus the selection mask, so ordinary mask inversion, fill, blur, whole-image,
+and only-masked rules continue to apply. `Mask from paint` copies paint alpha
+to the selection layer without flattening or deleting either layer. Upload is
+an input action, painting is a capability, and batch processing remains an API
+concern rather than three more authoring modes.
+
 ## Reference implementations
 
 The source studies are pinned so later implementation can distinguish what we

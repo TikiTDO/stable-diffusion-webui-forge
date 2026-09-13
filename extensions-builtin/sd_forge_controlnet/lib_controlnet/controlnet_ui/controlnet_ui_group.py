@@ -27,8 +27,6 @@ from modules_forge.forge_canvas.canvas import ForgeCanvas
 class A1111Context:
     """Contains all components from A1111."""
 
-    img2img_batch_input_dir = None
-    img2img_batch_output_dir = None
     txt2img_submit_button = None
     img2img_submit_button = None
 
@@ -38,65 +36,31 @@ class A1111Context:
     img2img_w_slider = None
     img2img_h_slider = None
 
-    img2img_img2img_tab = None
-    img2img_img2img_sketch_tab = None
-    img2img_batch_tab = None
-    img2img_inpaint_tab = None
-    img2img_inpaint_sketch_tab = None
-    img2img_inpaint_upload_tab = None
-
     img2img_inpaint_area = None
     txt2img_enable_hr = None
 
     @property
-    def img2img_inpaint_tabs(self):
-        return (
-            self.img2img_inpaint_tab,
-            self.img2img_inpaint_sketch_tab,
-            self.img2img_inpaint_upload_tab,
-        )
-
-    @property
-    def img2img_non_inpaint_tabs(self):
-        return (
-            self.img2img_img2img_tab,
-            self.img2img_img2img_sketch_tab,
-            self.img2img_batch_tab,
-        )
-
-    @property
     def ui_initialized(self) -> bool:
-        optional_components = {
-            # Optional components are only available after A1111 v1.7.0.
-            "img2img_img2img_tab": "img2img_img2img_tab",
-            "img2img_img2img_sketch_tab": "img2img_img2img_sketch_tab",
-            "img2img_batch_tab": "img2img_batch_tab",
-            "img2img_inpaint_tab": "img2img_inpaint_tab",
-            "img2img_inpaint_sketch_tab": "img2img_inpaint_sketch_tab",
-            "img2img_inpaint_upload_tab": "img2img_inpaint_upload_tab",
-        }
-        return all(
-            c
-            for name, c in vars(self).items()
-            if name not in optional_components.values()
+        required = (
+            "txt2img_submit_button",
+            "img2img_submit_button",
+            "txt2img_w_slider",
+            "txt2img_h_slider",
+            "img2img_w_slider",
+            "img2img_h_slider",
+            "img2img_inpaint_area",
+            "txt2img_enable_hr",
         )
+        return all(getattr(self, name) is not None for name in required)
 
     def set_component(self, component):
         id_mapping = {
-            "img2img_batch_input_dir": "img2img_batch_input_dir",
-            "img2img_batch_output_dir": "img2img_batch_output_dir",
             "txt2img_generate": "txt2img_submit_button",
             "img2img_generate": "img2img_submit_button",
             "txt2img_width": "txt2img_w_slider",
             "txt2img_height": "txt2img_h_slider",
             "img2img_width": "img2img_w_slider",
             "img2img_height": "img2img_h_slider",
-            "img2img_img2img_tab": "img2img_img2img_tab",
-            "img2img_img2img_sketch_tab": "img2img_img2img_sketch_tab",
-            "img2img_batch_tab": "img2img_batch_tab",
-            "img2img_inpaint_tab": "img2img_inpaint_tab",
-            "img2img_inpaint_sketch_tab": "img2img_inpaint_sketch_tab",
-            "img2img_inpaint_upload_tab": "img2img_inpaint_upload_tab",
             "img2img_inpaint_full_res": "img2img_inpaint_area",
             "txt2img_hr-checkbox": "txt2img_enable_hr",
         }
@@ -129,12 +93,6 @@ class ControlNetUiGroup(object):
         "⇄": "Mirror webcam",
     }
 
-    global_batch_input_dir = gr.Textbox(
-        label="Controlnet input directory",
-        placeholder="Leave empty to use input directory",
-        **shared.hide_dirs,
-        elem_id="controlnet_batch_input_dir",
-    )
     a1111_context = A1111Context()
     # All ControlNetUiGroup instances created.
     all_ui_groups: List["ControlNetUiGroup"] = []
@@ -946,34 +904,10 @@ class ControlNetUiGroup(object):
             )
 
     def register_sync_batch_dir(self):
-        def determine_batch_dir(batch_dir, fallback_dir, fallback_fallback_dir):
-            if batch_dir:
-                return batch_dir
-            elif fallback_dir:
-                return fallback_dir
-            else:
-                return fallback_fallback_dir
-
-        batch_dirs = [
-            self.batch_image_dir,
-            ControlNetUiGroup.global_batch_input_dir,
-            ControlNetUiGroup.a1111_context.img2img_batch_input_dir,
-        ]
-        for batch_dir_comp in batch_dirs:
-            subscriber = getattr(batch_dir_comp, "blur", None)
-            if subscriber is None:
-                continue
-            subscriber(
-                fn=determine_batch_dir,
-                inputs=batch_dirs,
-                outputs=[self.batch_image_dir_state],
-                queue=False,
-            )
-
-        ControlNetUiGroup.a1111_context.img2img_batch_output_dir.blur(
-            fn=lambda a: a,
-            inputs=[ControlNetUiGroup.a1111_context.img2img_batch_output_dir],
-            outputs=[self.output_dir_state],
+        self.batch_image_dir.blur(
+            fn=lambda value: value,
+            inputs=[self.batch_image_dir],
+            outputs=[self.batch_image_dir_state],
             queue=False,
         )
 
@@ -1109,9 +1043,5 @@ class ControlNetUiGroup(object):
     @staticmethod
     def on_after_component(component, **_kwargs):
         """Register the A1111 component."""
-        if getattr(component, "elem_id", None) == "img2img_batch_inpaint_mask_dir":
-            ControlNetUiGroup.global_batch_input_dir.render()
-            return
-
         ControlNetUiGroup.a1111_context.set_component(component)
         ControlNetUiGroup.try_register_all_callbacks()

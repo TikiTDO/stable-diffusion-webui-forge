@@ -52,38 +52,23 @@ function extract_image_from_gallery(gallery) {
 window.args_to_array = Array.from; // Compatibility with e.g. extensions that may expect this to be around
 
 function switch_to_txt2img() {
-    gradioApp().querySelector('#tabs').querySelectorAll('button')[0].click();
+    gradioApp().getElementById('tab_txt2img-button')?.click();
 
     return Array.from(arguments);
 }
 
-function switch_to_img2img_tab(no) {
-    gradioApp().querySelector('#tabs').querySelectorAll('button')[1].click();
-    gradioApp().getElementById('mode_img2img').querySelectorAll('button')[no].click();
+function switch_to_img2img_workflow(index) {
+    gradioApp().getElementById('tab_img2img-button')?.click();
+    gradioApp().querySelectorAll('#mode_img2img input[type="radio"]')[index]?.click();
 }
+
 function switch_to_img2img() {
-    switch_to_img2img_tab(0);
-    return Array.from(arguments);
-}
-
-function switch_to_sketch() {
-    switch_to_img2img_tab(1);
+    switch_to_img2img_workflow(0);
     return Array.from(arguments);
 }
 
 function switch_to_inpaint() {
-    switch_to_img2img_tab(2);
-    return Array.from(arguments);
-}
-
-function switch_to_inpaint_sketch() {
-    switch_to_img2img_tab(3);
-    return Array.from(arguments);
-}
-
-function switch_to_extras() {
-    gradioApp().querySelector('#tabs').querySelectorAll('button')[3].click();
-
+    switch_to_img2img_workflow(1);
     return Array.from(arguments);
 }
 
@@ -100,13 +85,6 @@ function get_tab_index(tabId) {
 function create_tab_index_args(tabId, args) {
     var res = Array.from(args);
     res[0] = get_tab_index(tabId);
-    return res;
-}
-
-function get_img2img_tab_index() {
-    let res = Array.from(arguments);
-    res.splice(-2);
-    res[0] = get_tab_index('mode_img2img');
     return res;
 }
 
@@ -447,25 +425,6 @@ var desiredVAEName = 0;
 function selectVAE(vae) {
     desiredVAEName = vae;
 }
-
-function currentImg2imgSourceResolution(w, h, r) {
-    var img = gradioApp().querySelector('#mode_img2img > div[style="display: block;"] :is(img, canvas)');
-    return img ? [img.naturalWidth || img.width, img.naturalHeight || img.height, r] : [0, 0, r];
-}
-
-function updateImg2imgResizeToTextAfterChangingImage() {
-    // At the time this is called from gradio, the image has no yet been replaced.
-    // There may be a better solution, but this is simple and straightforward so I'm going with it.
-
-    setTimeout(function() {
-        gradioApp().getElementById('img2img_update_resize_to').click();
-    }, 500);
-
-    return [];
-
-}
-
-
 
 function setRandomSeed(elem_id) {
     var input = gradioApp().querySelector("#" + elem_id + " input");

@@ -19,7 +19,10 @@ def dat_models_names():
 def postprocessing_scripts():
     import modules.scripts
 
-    return modules.scripts.scripts_postproc.scripts
+    runner = modules.scripts.scripts_postproc
+    if runner.scripts is None:
+        runner.initialize_scripts(modules.scripts.postprocessing_scripts_data)
+    return runner.scripts
 
 
 def sd_vae_items():

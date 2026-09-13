@@ -16,20 +16,7 @@ function dimensionChange(e, is_width, is_height) {
         return;
     }
 
-    var targetElement = null;
-
-    var tabIndex = get_tab_index('mode_img2img');
-    if (tabIndex == 0) { // img2img
-        targetElement = gradioApp().querySelector('#img2img_image div[class=forge-image-container] img');
-    } else if (tabIndex == 1) { //Sketch
-        targetElement = gradioApp().querySelector('#img2img_sketch div[class=forge-image-container] img');
-    } else if (tabIndex == 2) { // Inpaint
-        targetElement = gradioApp().querySelector('#img2maskimg div[class=forge-image-container] img');
-    } else if (tabIndex == 3) { // Inpaint sketch
-        targetElement = gradioApp().querySelector('#inpaint_sketch div[class=forge-image-container] img');
-    } else if (tabIndex == 4) { // Inpaint upload
-        targetElement = gradioApp().querySelector('#img_inpaint_base div[data-testid=image] img');
-    }
+    var targetElement = gradioApp().querySelector('#img2img_editor img');
 
     if (targetElement) {
         var arPreviewRect = gradioApp().querySelector('#imageARPreview');

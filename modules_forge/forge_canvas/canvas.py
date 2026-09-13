@@ -146,8 +146,9 @@ class ForgeCanvas:
             canvas_html_uuid = canvas_html_uuid.replace('class="forge-toolbar"', 'class="forge-toolbar-static"')
             
         self.block = gr.HTML(canvas_html_uuid, visible=visible, elem_id=elem_id, elem_classes=elem_classes)
-        self.foreground = LogicalImage(visible=DEBUG_MODE, label='foreground', numpy=numpy, elem_id=self.uuid, elem_classes=['logical_image_foreground'])
-        self.background = LogicalImage(visible=DEBUG_MODE, label='background', numpy=numpy, value=initial_image, elem_id=self.uuid, elem_classes=['logical_image_background'])
+        bridge_visibility = True if DEBUG_MODE else "hidden"
+        self.foreground = LogicalImage(visible=bridge_visibility, label='foreground', numpy=numpy, elem_id=self.uuid, elem_classes=['logical_image_foreground'])
+        self.background = LogicalImage(visible=bridge_visibility, label='background', numpy=numpy, value=initial_image, elem_id=self.uuid, elem_classes=['logical_image_background'])
         Context.root_block.load(None, js=f'async ()=>{{new ForgeCanvas("{self.uuid}", {no_upload}, {no_scribbles}, {contrast_scribbles}, {height}, '
                                          f"'{scribble_color}', {scribble_color_fixed}, {scribble_width}, {scribble_width_fixed}, "
                                          f'{scribble_alpha}, {scribble_alpha_fixed}, {scribble_softness}, {scribble_softness_fixed});}}')
