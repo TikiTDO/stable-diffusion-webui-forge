@@ -34,6 +34,10 @@
 - The editor uses standard Pointer Events and user-captured bindings rather than
   a Wacom-only or Huion-only API.
 - Real tablet behavior is required evidence for the img2img/inpaint slice.
+- Host-side heavyweight model residency uses a 64 GiB logical byte budget with
+  active leases and weighted LRU eviction of warm resources. Logical residency,
+  process RSS, transient headroom, and VRAM remain separate measurements. See
+  [`14-model-residency.md`](14-model-residency.md).
 
 ## Questions answered by a small implementation probe
 

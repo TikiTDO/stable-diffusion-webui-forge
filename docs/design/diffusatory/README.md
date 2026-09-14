@@ -108,6 +108,9 @@ simultaneous rewrite of every layer.
 13. [`13-near-term-work-order.md`](13-near-term-work-order.md) — the bounded
     SDXL, Flux, LoRA, regional, editing, project, and cutover sequence after the
     first replacement-workbench implementation.
+14. [`14-model-residency.md`](14-model-residency.md) — the 64 GiB weighted-LRU
+    model policy, Forge integration seam, and first rehearsal for the
+    Observatory ML manager.
 
 ## Related records
 
