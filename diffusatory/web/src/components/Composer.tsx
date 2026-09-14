@@ -153,23 +153,19 @@ export function Composer({
     <>
       <section className="workbench-rack" aria-label="Generation controls">
         <div className="source-context" aria-label="Generation source">
-          <div>
-            <span className={`source-context__light ${editing ? "is-active" : ""}`} aria-hidden="true" />
-            <div>
-              <strong>{editing ? "Active image" : "Prompt only"}</strong>
-              <small>{editing ? "Paint, mask, then generate a variation." : "Generate new variants without changing the active image."}</small>
-            </div>
-          </div>
-          {editing && <button type="button" onClick={onUsePromptOnly}>New variants</button>}
+          <span className="source-context__active" aria-current="true">
+            {editing ? "Image" : "Prompt"}
+          </span>
+          {editing && <button type="button" onClick={onUsePromptOnly}>Prompt</button>}
           {editing && !editorVisible && (
-            <button type="button" onClick={onResumeEditor}>Show source</button>
+            <button type="button" onClick={onResumeEditor}>Show image</button>
           )}
           {!editing && hasEditorDocument && (
-            <button type="button" onClick={onResumeEditor}>Active image</button>
+            <button type="button" onClick={onResumeEditor}>Image</button>
           )}
-          <button type="button" onClick={onNewDrawing}>Blank canvas</button>
+          <button type="button" onClick={onNewDrawing}>Draw</button>
           <label className="open-image-button">
-            Open image
+            Open
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
