@@ -21,6 +21,7 @@ import { EditorVariationTray } from "./EditorVariationTray";
 import { NumberInput } from "./NumberInput";
 import { PromptComposition } from "./PromptComposition";
 import { PromptTools } from "./PromptTools";
+import { CatalogRefreshButton } from "./CatalogRefreshButton";
 import { profileForCheckpoint } from "../domain/modelProfiles";
 import { adjustPromptAttention } from "../domain/promptAttention";
 import type { ActiveLora } from "../domain/loras";
@@ -59,6 +60,8 @@ interface FocusedEditWorkspaceProps {
   onSaveModelDefault: () => void;
   onRestoreModelDefault: () => void;
   onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
+  onRefreshLoras: () => Promise<number>;
+  onRefreshCheckpoints: () => Promise<number>;
   onEditSettingsChange: (patch: Partial<ImageEditSettings>) => void;
   onPromptModeChange: (mode: PromptExpansionMode) => void;
   onExpansionSeedChange: (seed: number) => void;
@@ -127,6 +130,8 @@ export const FocusedEditWorkspace = forwardRef<
     onSaveModelDefault,
     onRestoreModelDefault,
     onSaveLoraDefaults,
+    onRefreshLoras,
+    onRefreshCheckpoints,
     onEditSettingsChange,
     onPromptModeChange,
     onExpansionSeedChange,
@@ -281,7 +286,8 @@ export const FocusedEditWorkspace = forwardRef<
                 </span>
               )}
             </div>
-            <label className="focused-edit__checkpoint">
+            <div className="focused-edit__checkpoint">
+              <label>
               <span>Checkpoint <kbd className="shortcut-chip" aria-hidden="true">Alt M</kbd></span>
               <select
                 data-shortcut-target="model"
@@ -296,7 +302,13 @@ export const FocusedEditWorkspace = forwardRef<
                   </option>
                 ))}
               </select>
-            </label>
+              </label>
+              <CatalogRefreshButton
+                label="Refresh checkpoints"
+                noun="checkpoint"
+                onRefresh={onRefreshCheckpoints}
+              />
+            </div>
             <div className="focused-edit__model-default">
               <span>
                 {hasSavedModelDefault
@@ -578,6 +590,7 @@ export const FocusedEditWorkspace = forwardRef<
               onLorasChange={(loras) => onDraftChange({ loras })}
               onInsert={insertPrompt}
               onSaveDefaults={onSaveLoraDefaults}
+              onRefreshLibrary={onRefreshLoras}
             />
           )}
 

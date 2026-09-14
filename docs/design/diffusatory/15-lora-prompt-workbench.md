@@ -85,8 +85,31 @@ state. It must scale to thousands of files and search across:
 
 The same catalog can be projected as a flat list, directory tree, modified-date
 order, or randomized brainstorming order. Search uses fuzzy ranking rather than
-substring-only filtering. Cards show a thumbnail, model-family compatibility,
-folder, and enough metadata to decide whether to pin or inspect the LoRA.
+substring-only filtering. Results are grouped by the surface that matched,
+rather than flattening every metadata field into one unexplained score:
+
+1. display names, aliases, and relative filenames;
+2. tags;
+3. activation terms;
+4. descriptions and notes.
+
+The exact or fuzzy character match is highlighted in the field that produced
+the result. This makes a weak filename match visibly different from a strong
+tag or activation-term match and lets the user judge the search rather than
+trust an opaque relevance order. Tiny one- and two-character searches stay
+literal so a large metadata corpus does not turn into accidental fuzzy noise.
+Model-container extensions such as `.safetensors` are excluded from fuzzy
+filename matching; their letters describe storage, not the LoRA.
+
+Cards show a thumbnail, model-family compatibility, folder, and enough
+metadata to decide whether to pin or inspect the LoRA.
+
+The library has an explicit **Refresh library** action. It asks Forge to rescan
+the configured LoRA directories before replacing the client catalog, so adding
+a file does not require a server restart or ambiguous browser reload. The model
+rack provides the equivalent **Refresh checkpoints** action through Forge's
+existing serialized checkpoint refresh route; its refreshed model profiles are
+returned with the list so model-family defaults remain coherent.
 
 Pinning does not silently enable every training tag. Saved defaults are the
 activation terms selected for ordinary use; source-recommended words and

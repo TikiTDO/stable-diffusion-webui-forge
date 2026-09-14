@@ -3,9 +3,11 @@ import { useMemo, useState } from "react";
 import type { ForgeCatalog, Lora } from "../api/forge/types";
 import {
   activeLoraFromCatalog,
-  loraSearchScore,
+  loraSearchMatch,
   restoreLoraDefaults,
   type ActiveLora,
+  type LoraSearchGroup,
+  type LoraSearchMatch,
 } from "../domain/loras";
 
 interface PromptToolsProps {
@@ -16,6 +18,7 @@ interface PromptToolsProps {
   onLorasChange: (loras: ActiveLora[]) => void;
   onInsert: (text: string) => void;
   onSaveDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
+  onRefreshLibrary: () => Promise<number>;
 }
 
 function matches(candidate: string, query: string): boolean {
@@ -30,6 +33,54 @@ function loraTitle(lora: Lora): string {
   );
 }
 
+interface SearchResult {
+  lora: Lora;
+  match: LoraSearchMatch | null;
+  score: number;
+}
+
+interface SearchResultGroup {
+  key: LoraSearchGroup | "all" | "random";
+  label: string;
+  total: number;
+  results: SearchResult[];
+}
+
+const SEARCH_GROUPS: Array<{ key: LoraSearchGroup; label: string }> = [
+  { key: "identity", label: "Names & files" },
+  { key: "tags", label: "Tags" },
+  { key: "activation", label: "Activation terms" },
+  { key: "details", label: "Descriptions & notes" },
+];
+
+function HighlightedText({
+  value,
+  indexes,
+}: {
+  value: string;
+  indexes: number[];
+}) {
+  const selected = new Set(indexes);
+  const runs: Array<{ text: string; selected: boolean }> = [];
+  for (const [index, character] of Array.from(value).entries()) {
+    const highlighted = selected.has(index);
+    const previous = runs.at(-1);
+    if (previous?.selected === highlighted) previous.text += character;
+    else runs.push({ text: character, selected: highlighted });
+  }
+  return (
+    <>
+      {runs.map((run, index) =>
+        run.selected ? (
+          <mark key={index}>{run.text}</mark>
+        ) : (
+          <span key={index}>{run.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 export function PromptTools({
   catalog,
   selectedStyles,
@@ -38,12 +89,15 @@ export function PromptTools({
   onLorasChange,
   onInsert,
   onSaveDefaults,
+  onRefreshLibrary,
 }: PromptToolsProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [secondarySearch, setSecondarySearch] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshStatus, setRefreshStatus] = useState<string | null>(null);
   const [randomOrder, setRandomOrder] = useState<string[]>([]);
   const query = search.trim();
   const secondaryQuery = secondarySearch.trim().toLocaleLowerCase();
@@ -56,25 +110,44 @@ export function PromptTools({
     [catalog.loras],
   );
 
-  const loras = useMemo(() => {
-    const scored = catalog.loras.flatMap((lora) => {
-      const score = loraSearchScore(lora, query);
-      return score === null ? [] : [{ lora, score }];
-    });
+  const loraGroups = useMemo<SearchResultGroup[]>(() => {
     const randomRank = new Map(randomOrder.map((id, index) => [id, index]));
-    scored.sort((left, right) => {
-      if (randomOrder.length) {
-        return (
-          (randomRank.get(left.lora.id) ?? Number.MAX_SAFE_INTEGER) -
-          (randomRank.get(right.lora.id) ?? Number.MAX_SAFE_INTEGER)
-        );
-      }
-      return (
-        left.score - right.score ||
-        left.lora.name.localeCompare(right.lora.name)
+    if (!query) {
+      const results = catalog.loras.map((lora) => ({
+        lora,
+        match: null,
+        score: 0,
+      }));
+      results.sort((left, right) =>
+        randomOrder.length
+          ? (randomRank.get(left.lora.id) ?? Number.MAX_SAFE_INTEGER) -
+            (randomRank.get(right.lora.id) ?? Number.MAX_SAFE_INTEGER)
+          : left.lora.name.localeCompare(right.lora.name),
       );
+      return [{
+        key: randomOrder.length ? "random" : "all",
+        label: randomOrder.length ? "Random selection" : "All LoRAs",
+        total: catalog.loras.length,
+        results: results.slice(0, 48),
+      }];
+    }
+
+    const matches = catalog.loras.flatMap((lora) => {
+      const match = loraSearchMatch(lora, query);
+      return match ? [{ lora, match, score: match.score }] : [];
     });
-    return scored.slice(0, 48).map(({ lora }) => lora);
+    return SEARCH_GROUPS.flatMap(({ key, label }) => {
+      const results = matches
+        .filter((result) => result.match.group === key)
+        .sort(
+          (left, right) =>
+            left.score - right.score ||
+            left.lora.name.localeCompare(right.lora.name),
+        );
+      return results.length
+        ? [{ key, label, total: results.length, results: results.slice(0, 24) }]
+        : [];
+    });
   }, [catalog.loras, query, randomOrder]);
 
   const styles = useMemo(
@@ -115,7 +188,25 @@ export function PromptTools({
       const swap = Math.floor(Math.random() * (index + 1));
       [ids[index], ids[swap]] = [ids[swap], ids[index]];
     }
+    setSearch("");
     setRandomOrder(ids);
+  };
+
+  const refreshLibrary = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshStatus(null);
+    try {
+      const count = await onRefreshLibrary();
+      setRandomOrder([]);
+      setRefreshStatus(`Library refreshed · ${count} LoRAs found`);
+    } catch (error) {
+      setRefreshStatus(
+        error instanceof Error ? error.message : "LoRA refresh failed.",
+      );
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const saveDefaults = async (active: ActiveLora) => {
@@ -339,14 +430,33 @@ export function PromptTools({
             <button type="button" onClick={shuffle}>
               Random
             </button>
+            <button
+              type="button"
+              disabled={refreshing}
+              onClick={() => void refreshLibrary()}
+            >
+              {refreshing ? "Refreshing…" : "Refresh library"}
+            </button>
             {randomOrder.length > 0 && (
               <button type="button" onClick={() => setRandomOrder([])}>
                 Relevance
               </button>
             )}
           </div>
-          <div className="lora-library__grid">
-            {loras.map((lora) => {
+          {refreshStatus && (
+            <small className="lora-library__status" role="status">
+              {refreshStatus}
+            </small>
+          )}
+          <div className="lora-library__results">
+            {loraGroups.map((group) => (
+              <section className="lora-library__group" key={group.key}>
+                <header>
+                  <strong>{group.label}</strong>
+                  <span>{group.total}</span>
+                </header>
+                <div className="lora-library__grid">
+            {group.results.map(({ lora, match }) => {
               const pinned = activeIds.has(lora.id);
               return (
                 <article key={lora.id} className={pinned ? "is-pinned" : ""}>
@@ -361,11 +471,30 @@ export function PromptTools({
                     </span>
                   )}
                   <div>
-                    <strong>{loraTitle(lora)}</strong>
+                    <strong>
+                      {match?.field === "Title" ? (
+                        <HighlightedText
+                          value={loraTitle(lora)}
+                          indexes={match.indexes}
+                        />
+                      ) : (
+                        loraTitle(lora)
+                      )}
+                    </strong>
                     <small>
                       {lora.model_family.toUpperCase()} · {lora.relative_path}
                     </small>
-                    {(lora.defaults.keywords.length > 0 ||
+                    {match && match.field !== "Title" ? (
+                      <p className="lora-library__match">
+                        <span className="lora-library__match-field">
+                          {match.field}
+                        </span>
+                        <HighlightedText
+                          value={match.value}
+                          indexes={match.indexes}
+                        />
+                      </p>
+                    ) : (lora.defaults.keywords.length > 0 ||
                       lora.recommended_keywords.length > 0) && (
                       <p>
                         {(lora.defaults.keywords.map((keyword) => keyword.text)
@@ -395,6 +524,12 @@ export function PromptTools({
                 </article>
               );
             })}
+                </div>
+              </section>
+            ))}
+            {loraGroups.length === 0 && (
+              <p className="lora-library__empty">No LoRAs match “{query}”.</p>
+            )}
           </div>
         </section>
       )}

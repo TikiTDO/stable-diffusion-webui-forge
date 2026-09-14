@@ -16,6 +16,39 @@ function json(value: unknown, init?: ResponseInit): Response {
 }
 
 describe("ForgeClient", () => {
+  it("rescans LoRAs before returning the refreshed native catalog", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      return json([]);
+    };
+
+    expect(await new ForgeClient("", fetcher).refreshLoras()).toEqual([]);
+    expect(calls).toEqual([
+      ["/diffusatory/api/v1/loras/refresh", { method: "POST", signal: undefined }],
+    ]);
+  });
+
+  it("rescans checkpoints and returns the refreshed profiles together", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      if (input === "/sdapi/v1/refresh-checkpoints") return json(null);
+      return json([]);
+    };
+
+    expect(await new ForgeClient("", fetcher).refreshCheckpoints()).toEqual({
+      checkpoints: [],
+      modelProfiles: [],
+    });
+    expect(calls.map(([url]) => url)).toEqual([
+      "/sdapi/v1/refresh-checkpoints",
+      "/sdapi/v1/sd-models",
+      "/diffusatory/api/v1/model-profiles",
+    ]);
+    expect(calls[0]?.[1]?.method).toBe("POST");
+  });
+
   it("maps a Diffusatory draft onto the existing txt2img contract", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {

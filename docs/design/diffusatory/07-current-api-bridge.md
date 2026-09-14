@@ -89,7 +89,13 @@ surface:
 - the working LoRA library needs safe previews, normalized metadata, and
   editable Diffusatory-owned defaults without exposing arbitrary paths, so it
   exposes catalog, registered-preview, and atomic sidecar-update routes under
-  `/diffusatory/api/v1/loras`.
+  `/diffusatory/api/v1/loras`. `POST /diffusatory/api/v1/loras/refresh` first
+  invokes Forge's directory rescan and then returns that same rich catalog.
+
+Checkpoint discovery continues to use Forge's existing serialized
+`POST /sdapi/v1/refresh-checkpoints`; the client follows it by reading both the
+checkpoint list and Diffusatory model profiles before replacing those catalog
+sections in place.
 
 ## Rule for adding a backend seam
 

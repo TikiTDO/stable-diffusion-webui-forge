@@ -4,6 +4,7 @@ import type { Lora } from "../api/forge/types";
 import {
   activeLoraFromCatalog,
   compilePromptWithLoras,
+  loraSearchMatch,
   loraSearchScore,
   promptContainsTerm,
 } from "./loras";
@@ -73,8 +74,56 @@ describe("LoRA prompt composition", () => {
   });
 
   it("finds fuzzy names, paths, tags, and recommended vocabulary", () => {
-    expect(loraSearchScore(catalogLora, "qturn")).not.toBeNull();
-    expect(loraSearchScore(catalogLora, "profile")).not.toBeNull();
+    expect(loraSearchMatch(catalogLora, "qturn")).toMatchObject({
+      group: "identity",
+      field: "Title",
+      value: "quiet-turn",
+      indexes: [0, 4, 7, 8, 9],
+    });
+    expect(loraSearchMatch(catalogLora, "profile")).toMatchObject({
+      group: "tags",
+      field: "Tag",
+      value: "profile",
+    });
     expect(loraSearchScore(catalogLora, "unrelated words")).toBeNull();
+  });
+
+  it("groups by the first matching surface rather than flattening metadata", () => {
+    const tagOnly = {
+      ...catalogLora,
+      name: "camera-angle",
+      alias: "camera-angle",
+      relative_path: "composition/camera-angle.safetensors",
+      tags: ["soft profile"],
+    };
+    expect(loraSearchMatch(tagOnly, "soft profile")).toMatchObject({
+      group: "tags",
+      field: "Tag",
+    });
+
+    const activationOnly = { ...tagOnly, tags: ["pose"] };
+    expect(loraSearchMatch(activationOnly, "soft profile")).toMatchObject({
+      group: "activation",
+      field: "Activation",
+    });
+  });
+
+  it("does not let tiny fuzzy queries match most of the catalog", () => {
+    expect(loraSearchMatch(catalogLora, "qt")).toBeNull();
+    expect(loraSearchMatch(catalogLora, "quiet")).not.toBeNull();
+  });
+
+  it("does not manufacture filename matches from the model extension", () => {
+    const sparse = {
+      ...catalogLora,
+      name: "breath_weapon",
+      alias: "breath_weapon",
+      relative_path: "Combat and Workout/breath_weapon.safetensors",
+      description: "",
+      tags: [],
+      recommended_keywords: [],
+      defaults: { ...catalogLora.defaults, description: "", keywords: [], notes: "" },
+    };
+    expect(loraSearchMatch(sparse, "pose")).toBeNull();
   });
 });

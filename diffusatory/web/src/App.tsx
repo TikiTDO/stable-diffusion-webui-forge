@@ -292,8 +292,14 @@ export default function App() {
   } | null>(null);
   const catalogApplied = useRef(false);
   const previewRuns = useRef(new Map<string, number>());
-  const { catalog, error: catalogError, loading: catalogLoading, reload } =
-    useForgeCatalog(client);
+  const {
+    catalog,
+    error: catalogError,
+    loading: catalogLoading,
+    reload,
+    refreshLoras,
+    refreshCheckpoints,
+  } = useForgeCatalog(client);
   const {
     catalog: controlNetCatalog,
     error: controlNetError,
@@ -1085,6 +1091,8 @@ export default function App() {
           onSaveModelDefault={saveCurrentModelDefault}
           onRestoreModelDefault={restoreCurrentModelDefault}
           onSaveLoraDefaults={saveCurrentLoraDefaults}
+          onRefreshLoras={refreshLoras}
+          onRefreshCheckpoints={refreshCheckpoints}
           onGenerate={(operation, inpaintOnlyMasked) =>
             void submit(operation, inpaintOnlyMasked)
           }
@@ -1327,6 +1335,8 @@ export default function App() {
           onSaveModelDefault={saveCurrentModelDefault}
           onRestoreModelDefault={restoreCurrentModelDefault}
           onSaveLoraDefaults={saveCurrentLoraDefaults}
+          onRefreshLoras={refreshLoras}
+          onRefreshCheckpoints={refreshCheckpoints}
           onEditSettingsChange={(patch) =>
             setEditSettings((current) => ({ ...current, ...patch }))
           }

@@ -13,6 +13,7 @@ import type {
 import { RegionComposer } from "../features/regions/RegionComposer";
 import type { RegionalComposition } from "../features/regions/types";
 import { PromptTools } from "./PromptTools";
+import { CatalogRefreshButton } from "./CatalogRefreshButton";
 import { PromptComposition } from "./PromptComposition";
 import { NumberInput } from "./NumberInput";
 import type { EditOperation, ImageEditSettings } from "../features/editor/model";
@@ -39,6 +40,8 @@ interface ComposerProps {
   onSaveModelDefault: () => void;
   onRestoreModelDefault: () => void;
   onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
+  onRefreshLoras: () => Promise<number>;
+  onRefreshCheckpoints: () => Promise<number>;
   onGenerate: (
     operation?: EditOperation,
     inpaintOnlyMasked?: boolean,
@@ -109,6 +112,8 @@ export function Composer({
   onSaveModelDefault,
   onRestoreModelDefault,
   onSaveLoraDefaults,
+  onRefreshLoras,
+  onRefreshCheckpoints,
   onGenerate,
   onInterrupt,
   onSkip,
@@ -194,7 +199,8 @@ export function Composer({
         </div>
 
         <div className="model-rack">
-        <label className="model-checkpoint">
+        <div className="model-checkpoint">
+          <label>
           <span>Checkpoint <kbd className="shortcut-chip" aria-hidden="true">Alt M</kbd></span>
           <select
             data-shortcut-target="model"
@@ -209,6 +215,7 @@ export function Composer({
               </option>
             ))}
           </select>
+          </label>
           {modelProfile && (
             <small className="model-profile">
               {modelProfile.family === "unknown"
@@ -224,7 +231,12 @@ export function Composer({
                   }`}
             </small>
           )}
-        </label>
+          <CatalogRefreshButton
+            label="Refresh checkpoints"
+            noun="checkpoint"
+            onRefresh={onRefreshCheckpoints}
+          />
+        </div>
         <details className="model-components">
           <summary>
             <span>Components</span>
@@ -636,6 +648,7 @@ export function Composer({
             onLorasChange={(loras) => onChange({ loras })}
             onInsert={insertPrompt}
             onSaveDefaults={onSaveLoraDefaults}
+            onRefreshLibrary={onRefreshLoras}
           />
         )}
       </section>

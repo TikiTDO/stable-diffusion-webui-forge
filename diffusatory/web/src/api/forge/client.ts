@@ -193,6 +193,30 @@ export class ForgeClient {
     return readJson<Lora>(response);
   }
 
+  async refreshLoras(signal?: AbortSignal): Promise<Lora[]> {
+    const response = await this.fetcher(
+      `${this.baseUrl}/diffusatory/api/v1/loras/refresh`,
+      { method: "POST", signal },
+    );
+    return readJson<Lora[]>(response);
+  }
+
+  async refreshCheckpoints(signal?: AbortSignal): Promise<{
+    checkpoints: Checkpoint[];
+    modelProfiles: ModelProfile[];
+  }> {
+    const response = await this.fetcher(
+      `${this.baseUrl}/sdapi/v1/refresh-checkpoints`,
+      { method: "POST", signal },
+    );
+    await readJson<null>(response);
+    const [checkpoints, modelProfiles] = await Promise.all([
+      this.get<Checkpoint[]>("/sdapi/v1/sd-models", signal),
+      this.get<ModelProfile[]>("/diffusatory/api/v1/model-profiles", signal),
+    ]);
+    return { checkpoints, modelProfiles };
+  }
+
   async controlNetCatalog(signal?: AbortSignal): Promise<ControlNetCatalog> {
     const response = await this.get<ControlNetTypesResponse>(
       "/controlnet/control_types",

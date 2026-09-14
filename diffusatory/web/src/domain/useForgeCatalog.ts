@@ -35,5 +35,24 @@ export function useForgeCatalog(client: ForgeClient) {
     return () => abort.abort();
   }, [load]);
 
-  return { catalog, error, loading, reload: () => void load() };
+  const refreshLoras = useCallback(async () => {
+    const loras = await client.refreshLoras();
+    setCatalog((current) => (current ? { ...current, loras } : current));
+    return loras.length;
+  }, [client]);
+
+  const refreshCheckpoints = useCallback(async () => {
+    const refreshed = await client.refreshCheckpoints();
+    setCatalog((current) => (current ? { ...current, ...refreshed } : current));
+    return refreshed.checkpoints.length;
+  }, [client]);
+
+  return {
+    catalog,
+    error,
+    loading,
+    reload: () => void load(),
+    refreshLoras,
+    refreshCheckpoints,
+  };
 }

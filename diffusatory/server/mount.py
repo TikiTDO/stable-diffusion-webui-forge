@@ -242,6 +242,14 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
         networks, root = current_loras()
         return build_lora_catalog(networks, root)
 
+    @router.post("/loras/refresh", response_model=list[LoraCatalogItem])
+    async def refresh_loras() -> list[LoraCatalogItem]:
+        import networks
+
+        networks.list_available_networks()
+        current, root = current_loras()
+        return build_lora_catalog(current, root)
+
     @router.get("/loras/{identifier}/preview", response_class=FileResponse)
     async def get_lora_preview(identifier: str) -> FileResponse:
         networks, _ = current_loras()

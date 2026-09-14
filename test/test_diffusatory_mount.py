@@ -1,8 +1,9 @@
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import modules
 from fastapi import FastAPI
@@ -27,6 +28,46 @@ def add_forge_routes(app: FastAPI) -> None:
 
 
 class DiffusatoryMountTests(unittest.TestCase):
+    def test_lora_refresh_rescans_forge_before_returning_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fresh.safetensors"
+            path.write_bytes(b"model")
+            network = SimpleNamespace(
+                filename=str(path),
+                metadata={},
+                name="fresh",
+                alias="fresh",
+                sd_version=SimpleNamespace(name="SDXL"),
+                get_alias=lambda: "fresh",
+            )
+            available = {}
+
+            def discover() -> None:
+                available["fresh"] = network
+
+            discover_mock = Mock(side_effect=discover)
+            fake_networks = SimpleNamespace(
+                available_networks=available,
+                list_available_networks=discover_mock,
+            )
+            fake_shared = SimpleNamespace(
+                cmd_opts=SimpleNamespace(lora_dir=directory),
+            )
+            app = FastAPI()
+            mount_diffusatory(app, dist=Path(directory) / "missing")
+
+            with (
+                patch.dict(sys.modules, {"networks": fake_networks}),
+                patch.object(modules, "shared", fake_shared, create=True),
+            ):
+                response = TestClient(app).post(
+                    "/diffusatory/api/v1/loras/refresh"
+                )
+
+            self.assertEqual(200, response.status_code)
+            self.assertEqual("fresh", response.json()[0]["name"])
+            discover_mock.assert_called_once_with()
+
     def test_instance_descriptor_reflects_available_routes(self) -> None:
         with (
             tempfile.TemporaryDirectory() as directory,
