@@ -93,6 +93,9 @@ simultaneous rewrite of every layer.
    and questions that should be answered by a focused implementation probe.
 7. [`07-current-api-bridge.md`](07-current-api-bridge.md) — the existing Forge
    seams that let the interface move first.
+8. [`08-iterative-inpainting.md`](08-iterative-inpainting.md) — measured
+   progressive refinement, prompt ordering, denoise staging, editable masks,
+   and the pass history the product should preserve.
 
 ## Related records
 
