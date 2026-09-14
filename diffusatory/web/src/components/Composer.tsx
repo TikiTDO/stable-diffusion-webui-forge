@@ -74,9 +74,9 @@ interface ComposerProps {
 }
 
 const ASPECTS = [
-  { label: "Square", ratio: "1:1", width: 1024, height: 1024 },
-  { label: "Portrait", ratio: "2:3", width: 832, height: 1216 },
-  { label: "Landscape", ratio: "3:2", width: 1216, height: 832 },
+  { label: "Square", ratio: "1:1", shape: "square", width: 1024, height: 1024 },
+  { label: "Portrait", ratio: "2:3", shape: "portrait", width: 832, height: 1216 },
+  { label: "Landscape", ratio: "3:2", shape: "landscape", width: 1216, height: 832 },
 ];
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -278,17 +278,19 @@ export function Composer({
                     : ""
                 }
                 disabled={editing}
-                aria-label={`${aspect.label} ${aspect.width} by ${aspect.height}`}
-                title={`${aspect.label} · ${aspect.width} × ${aspect.height}`}
+                aria-label={`${aspect.label} ${aspect.ratio}, ${aspect.width} by ${aspect.height}`}
+                title={`${aspect.label} · ${aspect.ratio} · ${aspect.width} × ${aspect.height}`}
                 onClick={() =>
                   onChange({ width: aspect.width, height: aspect.height })
                 }
               >
-                <span>
-                  <strong>{aspect.label}</strong>
-                  <small>{aspect.ratio}</small>
+                <span className="aspect-preset__preview" aria-hidden="true">
+                  <span className={`aspect-preset__shape aspect-preset__shape--${aspect.shape}`} />
                 </span>
-                <small>{aspect.width} × {aspect.height}</small>
+                <span className="aspect-preset__copy">
+                  <strong>{aspect.label}</strong>
+                  <small>{aspect.width}×{aspect.height}</small>
+                </span>
               </button>
             ))}
           </div>

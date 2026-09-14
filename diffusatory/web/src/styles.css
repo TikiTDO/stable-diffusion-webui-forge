@@ -3154,20 +3154,63 @@ h1 {
 
 .workbench-rack .aspect-presets button {
   display: grid;
-  min-height: 60px;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 84px;
+  align-items: center;
   align-content: center;
   gap: 3px;
   overflow: hidden;
-  padding: 5px 7px;
+  padding: 3px;
   text-align: left;
   text-overflow: clip;
   white-space: normal;
 }
 
-.aspect-presets button > span {
+.aspect-preset__preview {
+  display: grid;
+  width: 100%;
+  height: 28px;
+  place-items: center;
+}
+
+.aspect-preset__shape {
+  display: block;
+  border: 1px solid rgba(223, 216, 231, 0.56);
+  border-radius: 2px;
+  background:
+    linear-gradient(135deg, transparent 48.5%, rgba(223, 216, 231, 0.14) 49%, rgba(223, 216, 231, 0.14) 51%, transparent 51.5%),
+    rgba(223, 216, 231, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(10, 9, 14, 0.42);
+}
+
+.aspect-preset__shape--square {
+  width: 26px;
+  height: 26px;
+}
+
+.aspect-preset__shape--portrait {
+  width: 18px;
+  height: 27px;
+}
+
+.aspect-preset__shape--landscape {
+  width: 27px;
+  height: 18px;
+}
+
+.aspect-presets button:hover .aspect-preset__shape,
+.aspect-presets button.is-selected .aspect-preset__shape {
+  border-color: var(--amber-bright);
+  background:
+    linear-gradient(135deg, transparent 48.5%, rgba(244, 188, 112, 0.19) 49%, rgba(244, 188, 112, 0.19) 51%, transparent 51.5%),
+    rgba(232, 169, 88, 0.085);
+}
+
+.aspect-preset__copy {
   display: grid;
   min-width: 0;
   gap: 1px;
+  text-align: center;
 }
 
 .aspect-presets button strong {
@@ -3177,7 +3220,7 @@ h1 {
   white-space: nowrap;
 }
 
-.aspect-presets button small {
+.app-shell .aspect-presets button small {
   color: var(--quiet);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 14px;
