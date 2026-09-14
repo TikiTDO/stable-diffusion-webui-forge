@@ -125,3 +125,6 @@ The first live evaluation uses an otherwise clean Forge process:
 
 Policy unit tests precede this live sequence. A live service restart is a
 separate operator-visible effect and is not implied by landing the policy.
+
+The first Flux → SDXL → Flux run is recorded in
+[`../../development/2026-09-14-model-residency.md`](../../development/2026-09-14-model-residency.md).
