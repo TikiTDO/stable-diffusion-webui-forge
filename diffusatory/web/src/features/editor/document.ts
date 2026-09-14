@@ -48,6 +48,7 @@ export class EditorDocument {
   readonly maskTint: HTMLCanvasElement;
 
   private operations: StrokeOperation[] = [];
+  private maskHasContent: boolean | null = false;
 
   constructor(width: number, height: number) {
     this.width = width;
@@ -93,11 +94,16 @@ export class EditorDocument {
   }
 
   commit(operation: StrokeOperation): void {
-    if (operation.samples.length) this.operations.push(operation);
+    if (!operation.samples.length) return;
+    this.operations.push(operation);
+    if (operation.layer === "mask") {
+      this.maskHasContent = operation.erase ? null : true;
+    }
   }
 
   undo(): void {
-    this.operations.pop();
+    const operation = this.operations.pop();
+    if (operation?.layer === "mask") this.maskHasContent = null;
     this.rebuild();
   }
 
@@ -105,7 +111,28 @@ export class EditorDocument {
     this.operations = this.operations.filter(
       (operation) => operation.layer !== layer,
     );
+    if (layer === "mask") this.maskHasContent = false;
     this.rebuild();
+  }
+
+  hasMask(): boolean {
+    if (this.maskHasContent !== null) return this.maskHasContent;
+    const context = this.mask.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    const pixels = context.getImageData(
+      0,
+      0,
+      this.mask.width,
+      this.mask.height,
+    ).data;
+    this.maskHasContent = false;
+    for (let index = 3; index < pixels.length; index += 4) {
+      if (pixels[index] > 0) {
+        this.maskHasContent = true;
+        break;
+      }
+    }
+    return this.maskHasContent;
   }
 
   rebuild(): void {
@@ -197,6 +224,7 @@ export class EditorDocument {
     }
     stagingContext.drawImage(image, 0, 0, this.width, this.height);
     const pixels = stagingContext.getImageData(0, 0, this.width, this.height);
+    let hasContent = false;
     for (let index = 0; index < pixels.data.length; index += 4) {
       const luminance = Math.max(
         pixels.data[index],
@@ -209,30 +237,18 @@ export class EditorDocument {
       pixels.data[index + 3] = Math.round(
         (luminance * pixels.data[index + 3]) / 255,
       );
+      if (pixels.data[index + 3] > 0) hasContent = true;
     }
     maskContext.clearRect(0, 0, this.width, this.height);
     maskContext.putImageData(pixels, 0, 0);
+    this.maskHasContent = hasContent;
     this.refreshMaskTint();
   }
 
   private exportMask(): string | null {
+    if (!this.hasMask()) return null;
     const context = this.mask.getContext("2d", { willReadFrequently: true });
     if (!context) return null;
-    const pixels = context.getImageData(
-      0,
-      0,
-      this.mask.width,
-      this.mask.height,
-    ).data;
-    let hasContent = false;
-    for (let index = 3; index < pixels.length; index += 4) {
-      if (pixels[index] > 0) {
-        hasContent = true;
-        break;
-      }
-    }
-    if (!hasContent) return null;
-
     const output = createLayerCanvas(this.width, this.height);
     const outputContext = output.getContext("2d");
     if (!outputContext) return null;

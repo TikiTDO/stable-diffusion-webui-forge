@@ -5,7 +5,8 @@ import platform
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -186,6 +187,12 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
     dist = DEFAULT_DIST if dist is None else dist
     if not (dist / "index.html").is_file():
         return False
+
+    if "/" not in _route_paths(app):
+        @app.get("/", include_in_schema=False)
+        async def open_diffusatory(request: Request) -> RedirectResponse:
+            root_path = request.scope.get("root_path", "").rstrip("/")
+            return RedirectResponse(url=f"{root_path}{DIFFUSATORY_PREFIX}/")
 
     app.mount(
         DIFFUSATORY_PREFIX,

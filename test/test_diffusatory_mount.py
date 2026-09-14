@@ -84,6 +84,9 @@ class DiffusatoryMountTests(unittest.TestCase):
             self.assertTrue(mount_diffusatory(app, dist=dist))
 
             client = TestClient(app)
+            landing = client.get("/", follow_redirects=False)
+            self.assertEqual(307, landing.status_code)
+            self.assertEqual("/diffusatory/", landing.headers["location"])
             self.assertEqual(
                 200,
                 client.get("/diffusatory/api/v1/instance").status_code,

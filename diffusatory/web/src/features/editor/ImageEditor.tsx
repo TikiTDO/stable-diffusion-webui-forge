@@ -24,6 +24,7 @@ interface ImageEditorProps {
   shortcutsActive?: boolean;
   onReady?: (width: number, height: number) => void;
   onContentChange?: () => void;
+  onMaskChange?: (hasMask: boolean) => void;
 }
 
 const EDITOR_TOOLS: Array<{
@@ -47,6 +48,7 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
       shortcutsActive = true,
       onReady,
       onContentChange,
+      onMaskChange,
     },
     forwardedRef,
   ) {
@@ -58,6 +60,7 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
       shortcutsActive,
       onReady,
       onContentChange,
+      onMaskChange,
     });
 
     useImperativeHandle(

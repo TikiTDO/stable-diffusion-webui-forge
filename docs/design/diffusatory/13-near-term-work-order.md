@@ -186,6 +186,12 @@ document deliberately, not arrive as another hidden overlay inside it.
 
 ### 6. Cut over and remove Gradio
 
+**Product cutover completed 2026-09-14.** `/` now enters Diffusatory and the
+Gradio UI-exclusive launch branch was deleted rather than preserved at a legacy
+route. The remaining work in this section is engine decoupling: remove inherited
+Gradio dependencies only after each still-used API or processing behavior has a
+native owner.
+
 Use Diffusatory for a real image-making session. Repair what interrupts the
 operator's attention before adding uncommon engine controls. Once every
 operator-used Gradio workflow—SDXL, Flux, LoRAs, dynamic and regional prompts,

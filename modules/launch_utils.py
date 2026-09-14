@@ -555,12 +555,9 @@ def configure_forge_reference_checkout(a1111_home: Path):
 
 
 def start():
-    print(f"Launching {'API server' if '--nowebui' in sys.argv else 'Web UI'} with arguments: {shlex.join(sys.argv[1:])}")
+    print(f"Launching Diffusatory with arguments: {shlex.join(sys.argv[1:])}")
     import webui
-    if '--nowebui' in sys.argv:
-        webui.api_only()
-    else:
-        webui.webui()
+    webui.diffusatory()
 
     from modules_forge import main_thread
 

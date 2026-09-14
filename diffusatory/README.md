@@ -27,11 +27,11 @@ cd diffusatory/web
 pnpm build
 ```
 
-On its next start, Forge mounts the build at `/diffusatory/`. The existing
-Gradio root remains unchanged only while it is still useful for hands-on
-comparison. Diffusatory is intended to replace it, not preserve it at a legacy
-route; once cutover is accepted, the replaced UI and its exclusive launch paths
-are removed and Git retains the prior implementation.
+On its next start, Forge mounts the build at `/diffusatory/`, and `/` redirects
+there. The operator cut over on 2026-09-14: the Gradio UI and its exclusive
+launcher branch are no longer served, and there is no legacy route. The
+inherited engine still contains Gradio-coupled internals to unwind only when
+their surviving API behavior has a native owner; Git retains the prior UI.
 
 Configure a human-readable instance label and, when needed, an externally
 managed stable identifier with:

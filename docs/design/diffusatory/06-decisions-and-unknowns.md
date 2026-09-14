@@ -11,9 +11,10 @@
 - The first React client uses Forge's existing HTTP API and generation paths.
 - A fresh interface does not require a fresh generation backend.
 - Backend endpoints are added only for measured missing contracts.
-- Gradio is temporary comparison scaffolding, not a supported legacy surface.
-  When the new UI has proven the workflows for which Gradio is still useful,
-  remove the replaced UI; Git history is its archive.
+- The operator cut over to Diffusatory on 2026-09-14. Gradio is not a product
+  surface, has no legacy route, and its UI-exclusive launcher branch is gone.
+  Gradio-coupled engine internals remain only until their surviving API behavior
+  has a native owner; Git history is the old interface's archive.
 - React/TypeScript owns the new interface; FastAPI owns the local application
   API and serves it.
 - Projects use stable identifiers and transactional ordering.
@@ -24,8 +25,7 @@
   fragments without creating a parallel prompt representation.
 - ControlNet inputs are native condition cards.
 - SDXL and Flux are the supported model families.
-- The new UI becomes the default after required generation parity and a hands-on
-  operator cutover decision; projects follow rather than gate that cutover.
+- The new UI is the default. Projects follow rather than gate that cutover.
 - Blocking Forge inference never runs on the API/event loop.
 - Regional composition begins as a transformable split grid with an explicit
   background complement; common prompt and background prompt remain distinct.

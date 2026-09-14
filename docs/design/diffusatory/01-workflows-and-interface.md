@@ -74,6 +74,19 @@ reachable from the interface and keyboard.
 
 ## What deserves primary attention
 
+Persistent interface copy must earn its space. The workbench assumes a person
+knows the instrument or can use a tutorial and contextual tooltip. A permanent
+label should therefore identify a control or report something the person needs
+now: selected state, intended effect, constraint, consequence, or a decision.
+It should not narrate the obvious operation. For example, the prompt surface is
+labelled **Prompt** once; “Describe the shot,” another “Prompt,” and a “live”
+badge do not each convey distinct information.
+
+This is not minimalism for its own sake. Diffusatory is a dense workbench. Space
+removed from explanatory prose is available for the image, the sequence, and
+the controls used in the current posture. Rare controls retain explicit names
+inside a drawer whose closed summary reports the active values.
+
 Always or almost always visible:
 
 - current project and anchor;

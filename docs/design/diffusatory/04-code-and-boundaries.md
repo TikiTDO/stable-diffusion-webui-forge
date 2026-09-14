@@ -45,23 +45,18 @@ extraction must be driven by an interaction the current contract cannot express.
 
 ## Application runtime
 
-FastAPI already exists in the Forge process. During parity, the new application
-should:
+FastAPI already exists in the Forge process. The cut-over application:
 
 - serve the built frontend;
-- leave the inherited Gradio root alone only while it is still being used as a
-  comparison instrument;
+- redirect the product root to the built frontend;
 - use the existing launcher's device and model initialization;
 - call existing `/sdapi/v1`, `/internal/progress`, and ControlNet routes through
   the compatibility adapter;
 - avoid importing Gradio from new frontend, project, or prompt modules.
 
-The default route moves only after the required existing generation workflows
-pass hands-on comparison. Durable projects are a subsequent product feature,
-not a hostage gate for replacing the settings form. Before cutover React is an
-explicit preview route and the current root may still host Gradio. Cutover makes
-React the product root and removes the replaced Gradio UI in the same workstream;
-there is no permanent `/legacy` route or legacy-first launch flag. Git preserves
+The operator moved the default route on 2026-09-14. Durable projects remain a
+subsequent product feature, not a hostage gate for replacing the settings form.
+There is no permanent `/legacy` route or legacy-first launch flag. Git preserves
 the old implementation if a later investigation genuinely needs it.
 
 ## Frontend state

@@ -86,6 +86,7 @@ interface EditorSurfaceOptions {
   shortcutsActive?: boolean;
   onReady?: (width: number, height: number) => void;
   onContentChange?: () => void;
+  onMaskChange?: (hasMask: boolean) => void;
 }
 
 function touchGeometry(points: TouchPoint[]): {
@@ -129,6 +130,7 @@ export function useEditorSurface({
   shortcutsActive = true,
   onReady,
   onContentChange,
+  onMaskChange,
 }: EditorSurfaceOptions) {
   const [profile, setProfile] = useState<TabletProfile>(loadTabletProfile);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -277,6 +279,7 @@ export function useEditorSurface({
     resetViewport();
     setReady(false);
     setSourceError(null);
+    onMaskChange?.(false);
     let disposed = false;
 
     void nextDocument
@@ -284,6 +287,7 @@ export function useEditorSurface({
       .then(() => {
         if (disposed || editorDocumentRef.current !== nextDocument) return;
         setReady(true);
+        onMaskChange?.(nextDocument.hasMask());
         onReady?.(width, height);
         requestRender();
       })
@@ -299,7 +303,12 @@ export function useEditorSurface({
     return () => {
       disposed = true;
     };
-  }, [height, maskSource, onReady, requestRender, resetViewport, source, width]);
+  }, [height, maskSource, onMaskChange, onReady, requestRender, resetViewport, source, width]);
+
+  const notifyContentChange = useCallback(() => {
+    onMaskChange?.(editorDocumentRef.current?.hasMask() ?? false);
+    onContentChange?.();
+  }, [onContentChange, onMaskChange]);
 
   const rebuildDocument = useCallback(() => {
     editorDocumentRef.current?.rebuild();
@@ -336,16 +345,16 @@ export function useEditorSurface({
     (layer: EditorLayer) => {
       editorDocumentRef.current?.clear(layer);
       requestRender();
-      onContentChange?.();
+      notifyContentChange();
     },
-    [onContentChange, requestRender],
+    [notifyContentChange, requestRender],
   );
 
   const undo = useCallback(() => {
     editorDocumentRef.current?.undo();
     requestRender();
-    onContentChange?.();
-  }, [onContentChange, requestRender]);
+    notifyContentChange();
+  }, [notifyContentChange, requestRender]);
 
   const saveCurrentImage = useCallback(() => {
     if (!ready) return;
@@ -662,7 +671,7 @@ export function useEditorSurface({
           pointerSamples(event.nativeEvent, "up", clientToImage),
         );
         editorDocumentRef.current?.commit(interaction.operation);
-        onContentChange?.();
+        notifyContentChange();
       } else if (cancelled && interaction.kind === "stroke") {
         rebuildDocument();
       }
@@ -679,7 +688,7 @@ export function useEditorSurface({
       applyStrokeSamples,
       clientToImage,
       rebuildDocument,
-      onContentChange,
+      notifyContentChange,
       requestRender,
       restoreInteractionState,
       setCalibrationTarget,

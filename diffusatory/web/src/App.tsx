@@ -154,6 +154,7 @@ export default function App() {
     height: 1024,
   });
   const [editorReady, setEditorReady] = useState(false);
+  const [editorHasMask, setEditorHasMask] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorVariations, setEditorVariations] = useState<EditorVariation[]>([]);
@@ -638,6 +639,7 @@ export default function App() {
         dimensions,
       );
       setEditorReady(false);
+      setEditorHasMask(false);
       setEditorError(null);
       setActiveEditOperation(null);
       setActiveInpaintScope(null);
@@ -697,6 +699,7 @@ export default function App() {
         ]);
       }
       setEditorReady(false);
+      setEditorHasMask(false);
       setEditorError(null);
       setEditorSource(variation.image);
       setEditorMaskSource(variation.mask);
@@ -724,6 +727,7 @@ export default function App() {
     setEditorSource(null);
     setEditorMaskSource(null);
     setEditorReady(false);
+    setEditorHasMask(false);
     setEditorDirty(false);
     setEditorVariations([]);
     setActiveEditorVariationId(null);
@@ -907,8 +911,8 @@ export default function App() {
           generating={generating}
           canGenerate={canGenerate}
           sourceActive={sourceActive}
-          editorVisible={canvasView === "editor"}
           hasEditorDocument={editorSession > 0}
+          hasMask={editorHasMask}
           editSettings={editSettings}
           editDimensions={editorDimensions}
           onChange={(patch) =>
@@ -1076,6 +1080,7 @@ export default function App() {
                 height={editorDimensions.height}
                 shortcutsActive={canvasView === "editor"}
                 onReady={handleEditorReady}
+                onMaskChange={setEditorHasMask}
                 onContentChange={() => {
                   setEditorDirty(true);
                   setConditions((current) =>
@@ -1122,6 +1127,7 @@ export default function App() {
           generation={state}
           generating={generating}
           canGenerate={canGenerate}
+          hasMask={editorHasMask}
           activeOperation={activeEditOperation}
           activeInpaintScope={activeInpaintScope}
           variations={editorVariations}
@@ -1133,6 +1139,7 @@ export default function App() {
           promptExpansionError={promptExpansion.error}
           promptActionError={promptActionError}
           onReady={handleEditorReady}
+          onMaskChange={setEditorHasMask}
           onContentChange={() => {
             setEditorDirty(true);
             setConditions((current) =>

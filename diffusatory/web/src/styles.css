@@ -21,6 +21,16 @@
   --danger: #ff8f89;
 }
 
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
 
 * {
   box-sizing: border-box;
@@ -2654,23 +2664,23 @@ h1 {
 }
 
 .workbench-rack > .render-character {
-  display: grid;
-  align-content: center;
+  display: block;
   border-radius: 9px;
-  padding: 6px 8px;
+  padding: 0;
 }
 
-.render-character > header {
+.workbench-rack .render-character > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 5px;
+  min-height: 54px;
+  padding: 6px 10px;
   color: var(--muted);
   font-size: 14px;
 }
 
-.render-character > header small {
+.workbench-rack .render-character > summary small {
   color: var(--quiet);
   font-size: 14px;
 }
@@ -2678,8 +2688,8 @@ h1 {
 .workbench-rack .render-character__grid {
   grid-template-columns: minmax(105px, 1.35fr) minmax(92px, 1fr) repeat(3, minmax(52px, 0.58fr));
   gap: 5px;
-  border: 0;
-  padding: 0;
+  border-top: 1px solid var(--line);
+  padding: 8px;
 }
 
 .workbench-rack > .composer__actions {

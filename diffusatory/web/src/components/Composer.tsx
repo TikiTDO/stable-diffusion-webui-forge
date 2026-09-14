@@ -28,8 +28,8 @@ interface ComposerProps {
   generating: boolean;
   canGenerate: boolean;
   sourceActive: boolean;
-  editorVisible: boolean;
   hasEditorDocument: boolean;
+  hasMask: boolean;
   editSettings: ImageEditSettings;
   editDimensions: { width: number; height: number };
   onChange: (patch: Partial<GenerationDraft>) => void;
@@ -97,8 +97,8 @@ export function Composer({
   generating,
   canGenerate,
   sourceActive,
-  editorVisible,
   hasEditorDocument,
+  hasMask,
   editSettings,
   editDimensions,
   onChange,
@@ -155,15 +155,23 @@ export function Composer({
     <>
       <section className="workbench-rack" aria-label="Generation controls">
         <div className="source-context" aria-label="Generation source">
-          <span className="source-context__active" aria-current="true">
-            {editing ? "Image" : "Prompt"}
-          </span>
-          {editing && <button type="button" onClick={onUsePromptOnly}>Prompt</button>}
-          {editing && !editorVisible && (
-            <button type="button" onClick={onResumeEditor}>Show image</button>
-          )}
-          {!editing && hasEditorDocument && (
-            <button type="button" onClick={onResumeEditor}>Image</button>
+          <button
+            type="button"
+            className={!editing ? "source-context__active" : ""}
+            aria-pressed={!editing}
+            onClick={onUsePromptOnly}
+          >
+            Prompt
+          </button>
+          {hasEditorDocument && (
+            <button
+              type="button"
+              className={editing ? "source-context__active" : ""}
+              aria-pressed={editing}
+              onClick={onResumeEditor}
+            >
+              Image
+            </button>
           )}
           <button type="button" data-shortcut-target="draw" onClick={onNewDrawing}>Draw</button>
           <label className="open-image-button">
@@ -361,16 +369,15 @@ export function Composer({
         </label>
         </div>
 
-        <section className="render-character" aria-label="Render character">
-          <header>
+        <details className="render-character">
+          <summary data-shortcut-target="render">
             <strong>Render <kbd className="shortcut-chip" aria-hidden="true">Alt R</kbd></strong>
             <small>{draft.sampler} · {draft.steps} steps</small>
-          </header>
+          </summary>
         <div className="render-character__grid">
           <label>
             <span>Sampler</span>
             <select
-              data-shortcut-target="render"
               value={draft.sampler}
               onChange={(event) => onChange({ sampler: event.target.value })}
             >
@@ -434,7 +441,7 @@ export function Composer({
             </label>
           )}
           </div>
-        </section>
+        </details>
 
       {catalogError && (
         <div className="connection-error" role="alert">
@@ -465,7 +472,8 @@ export function Composer({
             <button
               className="generate generate--inpaint"
               type="button"
-              disabled={!canGenerate}
+              disabled={!canGenerate || !hasMask}
+              title={!hasMask ? "No mask" : "Regenerate only the masked area"}
               onClick={() => onGenerate("inpaint", true)}
             >
               <span>{generating ? "Forge is working" : "Inpaint masked"}</span>
@@ -474,7 +482,8 @@ export function Composer({
             <button
               className="generate generate--inpaint generate--inpaint-whole"
               type="button"
-              disabled={!canGenerate}
+              disabled={!canGenerate || !hasMask}
+              title={!hasMask ? "No mask" : "Regenerate using the whole frame as context"}
               onClick={() => onGenerate("inpaint", false)}
             >
               <span>{generating ? "Forge is working" : "Inpaint whole"}</span>
@@ -529,15 +538,11 @@ export function Composer({
 
       <section className="composer prompt-dock" aria-label="Prompt composer">
         <div className="composer__heading">
-          <div>
-            <p className="eyebrow">Prompt</p>
-            <h2>Describe the shot <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h2>
-          </div>
-          <span className="draft-label">live</span>
+          <h2>Prompt <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h2>
         </div>
 
         <label className="prompt-field">
-          <span>Prompt</span>
+          <span className="sr-only">Prompt</span>
           <textarea
             data-shortcut-target="prompt"
             value={draft.prompt}
@@ -564,7 +569,6 @@ export function Composer({
             value={draft.negativePrompt}
             onChange={(event) => onChange({ negativePrompt: event.target.value })}
             rows={3}
-            placeholder="What should stay out of the frame?"
           />
         </label>
 

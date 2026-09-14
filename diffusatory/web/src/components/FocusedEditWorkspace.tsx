@@ -37,6 +37,7 @@ interface FocusedEditWorkspaceProps {
   generation: GenerationState;
   generating: boolean;
   canGenerate: boolean;
+  hasMask: boolean;
   activeOperation: EditOperation | null;
   activeInpaintScope: "masked" | "whole" | null;
   variations: EditorVariation[];
@@ -49,6 +50,7 @@ interface FocusedEditWorkspaceProps {
   promptActionError: string | null;
   onReady: (width: number, height: number) => void;
   onContentChange: () => void;
+  onMaskChange: (hasMask: boolean) => void;
   onDraftChange: (patch: Partial<GenerationDraft>) => void;
   onCheckpointChange: (checkpoint: string) => void;
   onSaveModelDefault: () => void;
@@ -101,6 +103,7 @@ export const FocusedEditWorkspace = forwardRef<
     generation,
     generating,
     canGenerate,
+    hasMask,
     activeOperation,
     activeInpaintScope,
     variations,
@@ -113,6 +116,7 @@ export const FocusedEditWorkspace = forwardRef<
     promptActionError,
     onReady,
     onContentChange,
+    onMaskChange,
     onDraftChange,
     onCheckpointChange,
     onSaveModelDefault,
@@ -187,6 +191,7 @@ export const FocusedEditWorkspace = forwardRef<
               shortcutsActive={!showingLiveEdit}
               onReady={onReady}
               onContentChange={onContentChange}
+              onMaskChange={onMaskChange}
             />
           </div>
           {showingLiveEdit && (
@@ -472,14 +477,11 @@ export const FocusedEditWorkspace = forwardRef<
 
           <section className="focused-edit__prompt">
             <div className="focused-edit__section-heading">
-              <div>
-                <p className="eyebrow">Prompt</p>
-                <h3>Describe the change <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h3>
-              </div>
+              <h3>Prompt <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h3>
               <span>{draft.outputs} candidate{draft.outputs === 1 ? "" : "s"}</span>
             </div>
             <label>
-              <span>Prompt</span>
+              <span className="sr-only">Prompt</span>
               <textarea
                 data-shortcut-target="prompt"
                 rows={6}
@@ -556,7 +558,8 @@ export const FocusedEditWorkspace = forwardRef<
             <button
               type="button"
               className="generate generate--inpaint"
-              disabled={!canGenerate}
+              disabled={!canGenerate || !hasMask}
+              title={!hasMask ? "No mask" : "Regenerate only the masked area"}
               onClick={() => onGenerate("inpaint", true)}
             >
               {generating &&
@@ -569,7 +572,8 @@ export const FocusedEditWorkspace = forwardRef<
             <button
               type="button"
               className="generate generate--inpaint generate--inpaint-whole"
-              disabled={!canGenerate}
+              disabled={!canGenerate || !hasMask}
+              title={!hasMask ? "No mask" : "Regenerate using the whole frame as context"}
               onClick={() => onGenerate("inpaint", false)}
             >
               {generating &&
