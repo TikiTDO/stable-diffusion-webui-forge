@@ -141,6 +141,20 @@ right instrument for precise action choreography. A pose, edge, sketch, or
 other explicit condition may be needed when the relationship between body and
 object is the pass objective.
 
+![Pencil-contact falsifier](evidence/iterative-inpaint-terra/05-pencil-contact-falsifier.png)
+
+A follow-up separated object placement from contact. Text-only inpainting
+improved hand anatomy but omitted the requested pencil. Drawing a crude pencil
+directly onto the source made the next pass retain its location and angle.
+However, another focused pass still rendered the pencil floating across the
+fingers instead of being grasped. The paint-over successfully carried object
+geometry but did not carry the required occlusion and contact relation.
+
+This narrows the next experiment. Either the constructed input must visibly
+layer the fingers over the pencil, or a stronger condition must encode the
+hand/object relation. Repeating increasingly emphatic prose after the same
+failure would not test a new mechanism.
+
 ## Product representation
 
 `Refine` should create a visible, branchable pass relation rather than silently
