@@ -939,11 +939,19 @@ export default function App() {
             <Stage
               generation={state}
               candidates={candidates}
+              frameWidth={activeDimensions.width}
+              frameHeight={activeDimensions.height}
+              candidateCount={draft.outputs}
               onEdit={(source, presentation) => {
                 replaceEditor(source, presentation);
               }}
               onDismissCandidate={(id) =>
                 setCandidates((current) => current.filter((candidate) => candidate.id !== id))
+              }
+              onDismissBatch={(taskId) =>
+                setCandidates((current) =>
+                  current.filter((candidate) => candidate.taskId !== taskId),
+                )
               }
               onClearCandidates={() => setCandidates([])}
             />

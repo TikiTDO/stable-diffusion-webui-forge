@@ -6,7 +6,18 @@ export interface Candidate {
   resultIndex: number;
   createdAt: number;
   sourceKind: "txt2img" | "img2img";
+  width: number;
+  height: number;
   result: GenerationResult;
+}
+
+export interface CandidateBatch {
+  taskId: string;
+  createdAt: number;
+  sourceKind: "txt2img" | "img2img";
+  width: number;
+  height: number;
+  candidates: Candidate[];
 }
 
 export function candidatesFromGeneration(
@@ -29,6 +40,8 @@ export function candidatesFromGeneration(
             resultIndex,
             createdAt,
             sourceKind: generation.kind!,
+            width: generation.job?.width ?? 1024,
+            height: generation.job?.height ?? 1024,
             result,
           },
         ]
@@ -42,4 +55,26 @@ export function appendCandidates(
 ): Candidate[] {
   const known = new Set(current.map((candidate) => candidate.id));
   return [...current, ...incoming.filter((candidate) => !known.has(candidate.id))];
+}
+
+export function groupCandidateBatches(
+  candidates: Candidate[],
+): CandidateBatch[] {
+  const batches = new Map<string, CandidateBatch>();
+  for (const candidate of candidates) {
+    const batch = batches.get(candidate.taskId);
+    if (batch) {
+      batch.candidates.push(candidate);
+      continue;
+    }
+    batches.set(candidate.taskId, {
+      taskId: candidate.taskId,
+      createdAt: candidate.createdAt,
+      sourceKind: candidate.sourceKind,
+      width: candidate.width,
+      height: candidate.height,
+      candidates: [candidate],
+    });
+  }
+  return [...batches.values()];
 }
