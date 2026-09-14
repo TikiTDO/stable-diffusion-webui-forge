@@ -8,6 +8,7 @@ import type {
 } from "./api/forge/types";
 import { Composer } from "./components/Composer";
 import { FocusedEditWorkspace } from "./components/FocusedEditWorkspace";
+import { KeyboardGuide } from "./components/KeyboardGuide";
 import { Stage } from "./components/Stage";
 import {
   StageSwitcher,
@@ -65,6 +66,7 @@ import {
   type EditorVariation,
 } from "./domain/editorVariations";
 import { EditorVariationTray } from "./components/EditorVariationTray";
+import { workbenchShortcutFor } from "./domain/workbenchShortcuts";
 
 interface EditorOpenOptions {
   dimensions?: { width: number; height: number };
@@ -107,6 +109,31 @@ function newExpansionSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
 }
 
+function visibleShortcutTarget(name: string): HTMLElement | null {
+  const matches = document.querySelectorAll<HTMLElement>(
+    `[data-shortcut-target="${name}"]`,
+  );
+  const focusedWorkspace = document.querySelector<HTMLElement>(".focused-edit");
+  return [...matches].reverse().find(
+    (element) =>
+      (!focusedWorkspace || focusedWorkspace.contains(element)) &&
+      element.getClientRects().length > 0 &&
+      !element.closest("[hidden]") &&
+      window.getComputedStyle(element).visibility !== "hidden",
+  ) ?? null;
+}
+
+function focusShortcutTarget(name: string): boolean {
+  const target = visibleShortcutTarget(name);
+  if (!target) return false;
+  target.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+  target.focus({ preventScroll: true });
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+    target.select();
+  }
+  return true;
+}
+
 export default function App() {
   const client = useMemo(() => new ForgeClient(), []);
   const [instance, setInstance] = useState<InstanceDescriptor | null>(null);
@@ -141,6 +168,7 @@ export default function App() {
   const [imageImportNotice, setImageImportNotice] =
     useState<ImageImportNotice | null>(null);
   const [imageDragActive, setImageDragActive] = useState(false);
+  const [keyboardGuideOpen, setKeyboardGuideOpen] = useState(false);
   const [savedModelDefaults, setSavedModelDefaults] = useState(
     loadSavedModelDefaults,
   );
@@ -545,6 +573,54 @@ export default function App() {
     });
   };
 
+  const submitShortcutRef = useRef(submit);
+  submitShortcutRef.current = submit;
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat) return;
+      const shortcut = workbenchShortcutFor(event);
+      if (!shortcut) return;
+      if (shortcut.kind === "close") {
+        if (!keyboardGuideOpen) return;
+        event.preventDefault();
+        setKeyboardGuideOpen(false);
+        return;
+      }
+      if (shortcut.kind === "help") {
+        event.preventDefault();
+        setKeyboardGuideOpen((open) => !open);
+        return;
+      }
+      if (keyboardGuideOpen) setKeyboardGuideOpen(false);
+      if (shortcut.kind === "generate") {
+        event.preventDefault();
+        void submitShortcutRef.current(
+          sourceActive
+            ? shortcut.operation === "masked" || shortcut.operation === "whole"
+              ? "inpaint"
+              : "img2img"
+            : undefined,
+          sourceActive && shortcut.operation !== "default"
+            ? shortcut.operation === "masked"
+            : undefined,
+        );
+        return;
+      }
+      if (shortcut.kind === "focus") {
+        if (focusShortcutTarget(shortcut.target)) event.preventDefault();
+        return;
+      }
+      const target = visibleShortcutTarget(shortcut.target);
+      if (target && !(target instanceof HTMLButtonElement && target.disabled)) {
+        event.preventDefault();
+        target.click();
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [keyboardGuideOpen, sourceActive]);
+
   const openEditor = useCallback(
     (
       source: string | null,
@@ -860,6 +936,7 @@ export default function App() {
           }}
           onNewDrawing={() => replaceEditor(null)}
           onOpenImage={(file) => void openImageFile(file)}
+          onShowShortcuts={() => setKeyboardGuideOpen(true)}
           onEditSettingsChange={(patch) =>
             setEditSettings((current) => ({ ...current, ...patch }))
           }
@@ -1090,8 +1167,14 @@ export default function App() {
           onInterrupt={() => void interrupt()}
           onSelectVariation={selectEditorVariation}
           onClose={closeEditor}
+          onShowShortcuts={() => setKeyboardGuideOpen(true)}
         />
       )}
+
+      <KeyboardGuide
+        open={keyboardGuideOpen}
+        onClose={() => setKeyboardGuideOpen(false)}
+      />
 
       {imageDragActive && (
         <div className="image-drop-overlay" role="status" aria-live="polite">

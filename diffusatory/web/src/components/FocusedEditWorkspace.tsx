@@ -65,6 +65,7 @@ interface FocusedEditWorkspaceProps {
   onInterrupt: () => void;
   onSelectVariation: (variation: EditorVariation) => void;
   onClose: () => void;
+  onShowShortcuts: () => void;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -125,6 +126,7 @@ export const FocusedEditWorkspace = forwardRef<
     onInterrupt,
     onSelectVariation,
     onClose,
+    onShowShortcuts,
   },
   ref,
 ) {
@@ -158,6 +160,9 @@ export const FocusedEditWorkspace = forwardRef<
         </div>
         <button type="button" className="close-editor" onClick={onClose}>
           Close editor
+        </button>
+        <button type="button" className="shortcut-map-button" onClick={onShowShortcuts}>
+          Keys <kbd>Alt /</kbd>
         </button>
       </header>
 
@@ -264,8 +269,9 @@ export const FocusedEditWorkspace = forwardRef<
               )}
             </div>
             <label className="focused-edit__checkpoint">
-              <span>Checkpoint</span>
+              <span>Checkpoint <kbd className="shortcut-chip" aria-hidden="true">Alt M</kbd></span>
               <select
+                data-shortcut-target="model"
                 value={draft.checkpoint}
                 disabled={!catalog?.checkpoints.length}
                 onChange={(event) => onCheckpointChange(event.target.value)}
@@ -326,8 +332,9 @@ export const FocusedEditWorkspace = forwardRef<
             )}
             <div className="focused-edit__render-grid">
               <label>
-                <span>Sampler</span>
-                <select
+                  <span>Sampler <kbd className="shortcut-chip" aria-hidden="true">Alt R</kbd></span>
+                  <select
+                    data-shortcut-target="render"
                   value={draft.sampler}
                   onChange={(event) => onDraftChange({ sampler: event.target.value })}
                 >
@@ -337,8 +344,9 @@ export const FocusedEditWorkspace = forwardRef<
                 </select>
               </label>
               <label>
-                <span>Scheduler</span>
-                <select
+                  <span>Scheduler <kbd className="shortcut-chip" aria-hidden="true">Alt Shift R</kbd></span>
+                  <select
+                    data-shortcut-target="scheduler"
                   value={draft.scheduler}
                   onChange={(event) => onDraftChange({ scheduler: event.target.value })}
                 >
@@ -384,13 +392,23 @@ export const FocusedEditWorkspace = forwardRef<
                 </label>
               )}
               <label>
-                <span>Candidates</span>
-                <NumberInput
+                  <span>Candidates <kbd className="shortcut-chip" aria-hidden="true">Alt N</kbd></span>
+                  <NumberInput
+                    data-shortcut-target="candidates"
                   min="1"
                   max="8"
                   value={draft.outputs}
                   clamp={(value) => clamp(value, 1, 8)}
                   onValueChange={(outputs) => onDraftChange({ outputs })}
+                  />
+              </label>
+              <label>
+                <span>Seed <kbd className="shortcut-chip" aria-hidden="true">Alt S</kbd></span>
+                <NumberInput
+                  data-shortcut-target="seed"
+                  min="-1"
+                  value={draft.seed}
+                  onValueChange={(seed) => onDraftChange({ seed })}
                 />
               </label>
               <div className="focused-edit__preview-cadence">
@@ -410,8 +428,9 @@ export const FocusedEditWorkspace = forwardRef<
               <span>Choose when you generate</span>
             </header>
             <label>
-              <span>Denoise <strong>{editSettings.denoisingStrength.toFixed(2)}</strong></span>
+              <span>Denoise <strong>{editSettings.denoisingStrength.toFixed(2)}</strong> <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></span>
               <input
+                data-shortcut-target="tools"
                 type="range"
                 min="0"
                 max="1"
@@ -455,13 +474,14 @@ export const FocusedEditWorkspace = forwardRef<
             <div className="focused-edit__section-heading">
               <div>
                 <p className="eyebrow">Prompt</p>
-                <h3>Describe the change</h3>
+                <h3>Describe the change <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h3>
               </div>
               <span>{draft.outputs} candidate{draft.outputs === 1 ? "" : "s"}</span>
             </div>
             <label>
               <span>Prompt</span>
               <textarea
+                data-shortcut-target="prompt"
                 rows={6}
                 value={draft.prompt}
                 onChange={(event) => onDraftChange({ prompt: event.target.value })}
@@ -477,8 +497,9 @@ export const FocusedEditWorkspace = forwardRef<
               />
             </label>
             <label>
-              <span>Negative prompt</span>
+              <span>Negative prompt <kbd className="shortcut-chip" aria-hidden="true">Alt Shift P</kbd></span>
               <textarea
+                data-shortcut-target="negative-prompt"
                 rows={3}
                 value={draft.negativePrompt}
                 onChange={(event) =>
@@ -557,10 +578,10 @@ export const FocusedEditWorkspace = forwardRef<
                 ? "Inpainting whole…"
                 : "Inpaint whole"}
             </button>
-            <button type="button" disabled={!generating} onClick={onSkip}>
+            <button type="button" data-shortcut-target="skip" disabled={!generating} onClick={onSkip}>
               Skip
             </button>
-            <button type="button" disabled={!generating} onClick={onInterrupt}>
+            <button type="button" data-shortcut-target="cancel" disabled={!generating} onClick={onInterrupt}>
               Cancel
             </button>
           </div>

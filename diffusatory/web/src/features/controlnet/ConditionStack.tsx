@@ -59,6 +59,7 @@ export function ConditionStack({
         <button
           type="button"
           className="add-condition"
+          data-shortcut-target="tools"
           disabled={!catalog || conditions.length >= 3}
           onClick={onAdd}
         >
@@ -75,7 +76,7 @@ export function ConditionStack({
       )}
 
       {conditions.length === 0 && !loading && !error && (
-        <button type="button" className="condition-empty" onClick={onAdd}>
+        <button type="button" className="condition-empty" data-shortcut-target="tools" onClick={onAdd}>
           <strong>Add a guide when words are not enough.</strong>
           <span>Pose, depth, line art, reference image, edges, and more.</span>
         </button>

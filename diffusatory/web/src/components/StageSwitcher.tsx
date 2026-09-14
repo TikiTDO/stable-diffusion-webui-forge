@@ -28,9 +28,10 @@ export function StageSwitcher({
   return (
     <nav className="stage-switcher" aria-label="Stage surface">
       <div className="stage-switcher__surfaces">
-        <span>Stage</span>
+        <span>Stage <kbd className="shortcut-chip" aria-hidden="true">Alt V</kbd></span>
         <button
           type="button"
+          data-shortcut-target="variants"
           className={surface === "variants" ? "is-selected" : ""}
           aria-pressed={surface === "variants"}
           onClick={onShowVariants}
@@ -39,6 +40,7 @@ export function StageSwitcher({
         </button>
         <button
           type="button"
+          data-shortcut-target="editor"
           className={surface === "editor" ? "is-selected" : ""}
           aria-pressed={surface === "editor"}
           onClick={onShowEditor}
@@ -47,6 +49,7 @@ export function StageSwitcher({
         </button>
         <button
           type="button"
+          data-shortcut-target="regions"
           className={surface === "regions" ? "is-selected" : ""}
           aria-pressed={surface === "regions"}
           onClick={onShowRegions}

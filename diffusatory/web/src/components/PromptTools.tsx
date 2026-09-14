@@ -45,7 +45,7 @@ export function PromptTools({
   return (
     <details className="prompt-tools" open>
       <summary>
-        <span>Prompt ingredients</span>
+        <span>Prompt ingredients <kbd className="shortcut-chip" aria-hidden="true">Alt I</kbd></span>
         <small>
           {selectedStyles.length
             ? `${selectedStyles.length} style${selectedStyles.length === 1 ? "" : "s"}`
@@ -57,6 +57,7 @@ export function PromptTools({
           <span>Find an ingredient</span>
           <input
             type="search"
+            data-shortcut-target="ingredients"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search this instance…"

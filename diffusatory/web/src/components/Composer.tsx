@@ -47,6 +47,7 @@ interface ComposerProps {
   onResumeEditor: () => void;
   onNewDrawing: () => void;
   onOpenImage: (file: File) => void;
+  onShowShortcuts: () => void;
   onEditSettingsChange: (
     patch: Partial<ComposerProps["editSettings"]>,
   ) => void;
@@ -112,6 +113,7 @@ export function Composer({
   onResumeEditor,
   onNewDrawing,
   onOpenImage,
+  onShowShortcuts,
   onEditSettingsChange,
   controlNetCatalog,
   controlNetError,
@@ -163,11 +165,12 @@ export function Composer({
           {!editing && hasEditorDocument && (
             <button type="button" onClick={onResumeEditor}>Image</button>
           )}
-          <button type="button" onClick={onNewDrawing}>Draw</button>
+          <button type="button" data-shortcut-target="draw" onClick={onNewDrawing}>Draw</button>
           <label className="open-image-button">
             Open
             <input
               type="file"
+              data-shortcut-target="open-image"
               accept="image/png,image/jpeg,image/webp"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -180,8 +183,9 @@ export function Composer({
 
         <div className="model-rack">
         <label className="model-checkpoint">
-          <span>Checkpoint</span>
+          <span>Checkpoint <kbd className="shortcut-chip" aria-hidden="true">Alt M</kbd></span>
           <select
+            data-shortcut-target="model"
             value={draft.checkpoint}
             disabled={!catalog?.checkpoints.length}
             onChange={(event) => onCheckpointChange(event.target.value)}
@@ -260,7 +264,7 @@ export function Composer({
 
         <div className="draft-controls">
         <fieldset className="dimensions">
-          <legend>Frame</legend>
+          <legend>Frame <kbd className="shortcut-chip" aria-hidden="true">Alt F</kbd></legend>
           {editing && (
             <small className="dimensions__truth">
               Source size · resizing is not implemented yet
@@ -297,6 +301,7 @@ export function Composer({
             <label>
               <span>Width</span>
               <NumberInput
+                data-shortcut-target="frame"
                 min="64"
                 max="2048"
                 step="64"
@@ -318,8 +323,9 @@ export function Composer({
               ⇄
             </button>
             <label>
-              <span>Height</span>
+              <span>Height <kbd className="shortcut-chip" aria-hidden="true">Alt Shift F</kbd></span>
               <NumberInput
+                data-shortcut-target="frame-height"
                 min="64"
                 max="2048"
                 step="64"
@@ -333,8 +339,9 @@ export function Composer({
         </fieldset>
 
         <label className="compact-control candidates-control">
-          <span>{promptMode === "exhaustive" ? "Candidate cap" : "Candidates"}</span>
+          <span>{promptMode === "exhaustive" ? "Candidate cap" : "Candidates"} <kbd className="shortcut-chip" aria-hidden="true">Alt N</kbd></span>
           <NumberInput
+            data-shortcut-target="candidates"
             min="1"
             max="8"
             value={draft.outputs}
@@ -344,8 +351,9 @@ export function Composer({
         </label>
 
         <label className="compact-control seed-control">
-          <span>Seed</span>
+          <span>Seed <kbd className="shortcut-chip" aria-hidden="true">Alt S</kbd></span>
           <NumberInput
+            data-shortcut-target="seed"
             min="-1"
             value={draft.seed}
             onValueChange={(seed) => onChange({ seed })}
@@ -355,13 +363,14 @@ export function Composer({
 
         <section className="render-character" aria-label="Render character">
           <header>
-            <strong>Render</strong>
+            <strong>Render <kbd className="shortcut-chip" aria-hidden="true">Alt R</kbd></strong>
             <small>{draft.sampler} · {draft.steps} steps</small>
           </header>
         <div className="render-character__grid">
           <label>
             <span>Sampler</span>
             <select
+              data-shortcut-target="render"
               value={draft.sampler}
               onChange={(event) => onChange({ sampler: event.target.value })}
             >
@@ -373,8 +382,9 @@ export function Composer({
             </select>
           </label>
           <label>
-            <span>Scheduler</span>
+            <span>Scheduler <kbd className="shortcut-chip" aria-hidden="true">Alt Shift R</kbd></span>
             <select
+              data-shortcut-target="scheduler"
               value={draft.scheduler}
               onChange={(event) => onChange({ scheduler: event.target.value })}
             >
@@ -474,6 +484,7 @@ export function Composer({
           <button
             className="generate"
             type="button"
+            aria-keyshortcuts="Control+Enter Meta+Enter Alt+G"
             disabled={!canGenerate}
             onClick={() => onGenerate()}
           >
@@ -485,6 +496,7 @@ export function Composer({
           className="interrupt"
           type="button"
           disabled={!generating}
+          data-shortcut-target="skip"
           onClick={onSkip}
         >
           Skip current
@@ -493,6 +505,7 @@ export function Composer({
           className="interrupt"
           type="button"
           disabled={!generating}
+          data-shortcut-target="cancel"
           onClick={onInterrupt}
         >
           Cancel render
@@ -501,6 +514,9 @@ export function Composer({
 
         <div className="catalog-status">
         <span>{catalogLoading ? "Reading this instrument…" : "Current instrument"}</span>
+        <button type="button" className="shortcut-map-button" onClick={onShowShortcuts}>
+          Keys <kbd>Alt /</kbd>
+        </button>
         {catalog && (
           <small>
             {catalog.checkpoints.length} checkpoint
@@ -515,7 +531,7 @@ export function Composer({
         <div className="composer__heading">
           <div>
             <p className="eyebrow">Prompt</p>
-            <h2>Describe the shot</h2>
+            <h2>Describe the shot <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h2>
           </div>
           <span className="draft-label">live</span>
         </div>
@@ -523,6 +539,7 @@ export function Composer({
         <label className="prompt-field">
           <span>Prompt</span>
           <textarea
+            data-shortcut-target="prompt"
             value={draft.prompt}
             onChange={(event) => onChange({ prompt: event.target.value })}
             onKeyDown={(event) => {
@@ -541,8 +558,9 @@ export function Composer({
         </label>
 
         <label className="negative-field">
-          <span>Negative prompt</span>
+          <span>Negative prompt <kbd className="shortcut-chip" aria-hidden="true">Alt Shift P</kbd></span>
           <textarea
+            data-shortcut-target="negative-prompt"
             value={draft.negativePrompt}
             onChange={(event) => onChange({ negativePrompt: event.target.value })}
             rows={3}
@@ -576,7 +594,7 @@ export function Composer({
         <header className="tool-dock__heading">
           <div>
             <p className="eyebrow">Image tools</p>
-            <h2>Shape the frame</h2>
+            <h2>Shape the frame <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></h2>
           </div>
           <span>{conditions.length} condition{conditions.length === 1 ? "" : "s"}</span>
         </header>
