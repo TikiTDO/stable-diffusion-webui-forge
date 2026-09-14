@@ -36,7 +36,10 @@ interface ComposerProps {
   onCheckpointChange: (checkpoint: string) => void;
   onSaveModelDefault: () => void;
   onRestoreModelDefault: () => void;
-  onGenerate: (operation?: EditOperation) => void;
+  onGenerate: (
+    operation?: EditOperation,
+    inpaintOnlyMasked?: boolean,
+  ) => void;
   onInterrupt: () => void;
   onSkip: () => void;
   onReloadCatalog: () => void;
@@ -407,16 +410,23 @@ export function Composer({
               onValueChange={(cfgScale) => onChange({ cfgScale })}
             />
           </label>
-          <label>
-            <span>Preview every</span>
-            <NumberInput
-              min="1"
-              max="50"
-              value={draft.previewEvery}
-              clamp={(value) => clamp(value, 1, 50)}
-              onValueChange={(previewEvery) => onChange({ previewEvery })}
-            />
-          </label>
+          {editing ? (
+            <div className="edit-preview-cadence">
+              <span>Live preview</span>
+              <strong>Every 3 steps</strong>
+            </div>
+          ) : (
+            <label>
+              <span>Preview every</span>
+              <NumberInput
+                min="1"
+                max="50"
+                value={draft.previewEvery}
+                clamp={(value) => clamp(value, 1, 50)}
+                onValueChange={(previewEvery) => onChange({ previewEvery })}
+              />
+            </label>
+          )}
           </div>
         </section>
 
@@ -450,10 +460,18 @@ export function Composer({
               className="generate generate--inpaint"
               type="button"
               disabled={!canGenerate}
-              onClick={() => onGenerate("inpaint")}
+              onClick={() => onGenerate("inpaint", true)}
             >
-              <span>{generating ? "Forge is working" : "Generate inpaint"}</span>
+              <span>{generating ? "Forge is working" : "Inpaint masked"}</span>
               <kbd>Ctrl Shift ↵</kbd>
+            </button>
+            <button
+              className="generate generate--inpaint generate--inpaint-whole"
+              type="button"
+              disabled={!canGenerate}
+              onClick={() => onGenerate("inpaint", false)}
+            >
+              <span>{generating ? "Forge is working" : "Inpaint whole"}</span>
             </button>
           </>
         ) : (
@@ -514,7 +532,10 @@ export function Composer({
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                 event.preventDefault();
-                onGenerate(editing ? (event.shiftKey ? "inpaint" : "img2img") : undefined);
+                onGenerate(
+                  editing ? (event.shiftKey ? "inpaint" : "img2img") : undefined,
+                  event.shiftKey ? true : undefined,
+                );
               }
             }}
             rows={9}
@@ -593,20 +614,6 @@ export function Composer({
                     clamp={(value) => clamp(value, 0, 64)}
                     onValueChange={(maskBlur) => onEditSettingsChange({ maskBlur })}
                   />
-                </label>
-                <label>
-                  <span>Inpaint area</span>
-                  <select
-                    value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
-                    onChange={(event) =>
-                      onEditSettingsChange({
-                        inpaintOnlyMasked: event.target.value === "masked",
-                      })
-                    }
-                  >
-                    <option value="masked">Only masked</option>
-                    <option value="whole">Whole image</option>
-                  </select>
                 </label>
                 <label>
                   <span>Padding</span>

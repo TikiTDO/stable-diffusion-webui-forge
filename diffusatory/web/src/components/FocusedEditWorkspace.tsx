@@ -38,6 +38,7 @@ interface FocusedEditWorkspaceProps {
   generating: boolean;
   canGenerate: boolean;
   activeOperation: EditOperation | null;
+  activeInpaintScope: "masked" | "whole" | null;
   variations: EditorVariation[];
   activeVariationId: string | null;
   promptMode: PromptExpansionMode;
@@ -56,7 +57,10 @@ interface FocusedEditWorkspaceProps {
   onPromptModeChange: (mode: PromptExpansionMode) => void;
   onExpansionSeedChange: (seed: number) => void;
   onShufflePromptSet: () => void;
-  onGenerate: (operation: EditOperation) => void;
+  onGenerate: (
+    operation: EditOperation,
+    inpaintOnlyMasked?: boolean,
+  ) => void;
   onSkip: () => void;
   onInterrupt: () => void;
   onSelectVariation: (variation: EditorVariation) => void;
@@ -97,6 +101,7 @@ export const FocusedEditWorkspace = forwardRef<
     generating,
     canGenerate,
     activeOperation,
+    activeInpaintScope,
     variations,
     activeVariationId,
     promptMode,
@@ -130,6 +135,9 @@ export const FocusedEditWorkspace = forwardRef<
   const modelProfile = catalog
     ? profileForCheckpoint(catalog, draft.checkpoint)
     : null;
+  const showingLiveEdit = generating && generation.kind === "img2img";
+  const liveOutputs = generation.job?.outputs ?? draft.outputs;
+  const liveProgress = Math.round(generation.progress * 100);
 
   return (
     <section
@@ -158,16 +166,83 @@ export const FocusedEditWorkspace = forwardRef<
           {editorError && (
             <p className="stage__error" role="alert">{editorError}</p>
           )}
-          <ImageEditor
-            key={documentKey}
-            ref={ref}
-            source={source}
-            maskSource={maskSource}
-            width={dimensions.width}
-            height={dimensions.height}
-            onReady={onReady}
-            onContentChange={onContentChange}
-          />
+          <div
+            className={`focused-edit__editor-plane ${
+              showingLiveEdit ? "is-obscured" : ""
+            }`}
+            aria-hidden={showingLiveEdit}
+          >
+            <ImageEditor
+              key={documentKey}
+              ref={ref}
+              source={source}
+              maskSource={maskSource}
+              width={dimensions.width}
+              height={dimensions.height}
+              shortcutsActive={!showingLiveEdit}
+              onReady={onReady}
+              onContentChange={onContentChange}
+            />
+          </div>
+          {showingLiveEdit && (
+            <section
+              className="focused-edit__live-render"
+              aria-label="Live edit render"
+              aria-live="polite"
+            >
+              <header>
+                <div>
+                  <p className="eyebrow">Live edit</p>
+                  <h3>
+                    {activeOperation === "inpaint"
+                      ? activeInpaintScope === "masked"
+                        ? "Regenerating the masked crop"
+                        : "Regenerating with whole-frame context"
+                      : "Building image variations"}
+                  </h3>
+                </div>
+                <span>
+                  {liveOutputs} candidate{liveOutputs === 1 ? "" : "s"} · every
+                  3 steps
+                </span>
+              </header>
+              <div className="focused-edit__live-plate">
+                {generation.preview ? (
+                  <img
+                    key={generation.previewId}
+                    src={generation.preview}
+                    alt={
+                      liveOutputs > 1
+                        ? `Live contact sheet for ${liveOutputs} image variations`
+                        : "Live image variation preview"
+                    }
+                  />
+                ) : (
+                  <div
+                    className="focused-edit__live-placeholders"
+                    data-count={Math.min(liveOutputs, 8)}
+                    aria-label="Waiting for the first three-step preview"
+                  >
+                    {Array.from({ length: Math.min(liveOutputs, 8) }, (_, index) => (
+                      <span key={index}>{index + 1}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <footer>
+                <div className="progress-track" aria-hidden="true">
+                  <span style={{ width: `${liveProgress}%` }} />
+                </div>
+                <div>
+                  <strong>{liveProgress}%</strong>
+                  <span>{generation.text}</span>
+                  {generation.eta !== null && (
+                    <span>{Math.max(0, generation.eta).toFixed(1)}s ETA</span>
+                  )}
+                </div>
+              </footer>
+            </section>
+          )}
           <EditorVariationTray
             variations={variations}
             activeId={activeVariationId}
@@ -318,16 +393,10 @@ export const FocusedEditWorkspace = forwardRef<
                   onValueChange={(outputs) => onDraftChange({ outputs })}
                 />
               </label>
-              <label>
-                <span>Preview every</span>
-                <NumberInput
-                  min="1"
-                  max="50"
-                  value={draft.previewEvery}
-                  clamp={(value) => clamp(value, 1, 50)}
-                  onValueChange={(previewEvery) => onDraftChange({ previewEvery })}
-                />
-              </label>
+              <div className="focused-edit__preview-cadence">
+                <span>Live preview</span>
+                <strong>Every 3 steps</strong>
+              </div>
             </div>
             {modelIssue && <p className="stage__error" role="alert">{modelIssue}</p>}
           </section>
@@ -367,20 +436,6 @@ export const FocusedEditWorkspace = forwardRef<
                   />
                 </label>
                 <label>
-                  <span>Area</span>
-                  <select
-                    value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
-                    onChange={(event) =>
-                      onEditSettingsChange({
-                        inpaintOnlyMasked: event.target.value === "masked",
-                      })
-                    }
-                  >
-                    <option value="masked">Only masked</option>
-                    <option value="whole">Whole image</option>
-                  </select>
-                </label>
-                <label>
                   <span>Padding</span>
                   <NumberInput
                     min="0"
@@ -413,7 +468,10 @@ export const FocusedEditWorkspace = forwardRef<
                 onKeyDown={(event) => {
                   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                     event.preventDefault();
-                    onGenerate(event.shiftKey ? "inpaint" : "img2img");
+                    onGenerate(
+                      event.shiftKey ? "inpaint" : "img2img",
+                      event.shiftKey ? true : undefined,
+                    );
                   }
                 }}
               />
@@ -456,13 +514,6 @@ export const FocusedEditWorkspace = forwardRef<
                 <strong>{generating ? "Forge is editing" : "Recent edited outputs"}</strong>
                 <span>{generation.text}</span>
               </header>
-              {generation.preview && generating && (
-                <img
-                  className="focused-edit__preview"
-                  src={generation.preview}
-                  alt="Current generation preview"
-                />
-              )}
               {generation.error && (
                 <p className="stage__error" role="alert">{generation.error}</p>
               )}
@@ -485,12 +536,26 @@ export const FocusedEditWorkspace = forwardRef<
               type="button"
               className="generate generate--inpaint"
               disabled={!canGenerate}
-              onClick={() => onGenerate("inpaint")}
+              onClick={() => onGenerate("inpaint", true)}
             >
-              {generating && activeOperation === "inpaint"
-                ? "Inpainting…"
-                : "Generate inpaint"}
+              {generating &&
+              activeOperation === "inpaint" &&
+              activeInpaintScope === "masked"
+                ? "Inpainting mask…"
+                : "Inpaint masked"}
               <kbd>Ctrl Shift ↵</kbd>
+            </button>
+            <button
+              type="button"
+              className="generate generate--inpaint generate--inpaint-whole"
+              disabled={!canGenerate}
+              onClick={() => onGenerate("inpaint", false)}
+            >
+              {generating &&
+              activeOperation === "inpaint" &&
+              activeInpaintScope === "whole"
+                ? "Inpainting whole…"
+                : "Inpaint whole"}
             </button>
             <button type="button" disabled={!generating} onClick={onSkip}>
               Skip

@@ -4,7 +4,6 @@ import {
   useRef,
   useState,
   type RefObject,
-  type WheelEvent as ReactWheelEvent,
 } from "react";
 
 import type { ClientToImage, PointerSample } from "../../input/pointer";
@@ -213,7 +212,7 @@ export function useCanvasViewport({
   );
 
   const handleWheel = useCallback(
-    (event: ReactWheelEvent<HTMLCanvasElement>) => {
+    (event: WheelEvent) => {
       event.preventDefault();
       zoomAt(
         viewportRef.current.zoom * (event.deltaY < 0 ? 1.12 : 1 / 1.12),

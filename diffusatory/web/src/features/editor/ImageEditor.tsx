@@ -21,6 +21,7 @@ interface ImageEditorProps {
   maskSource?: string | null;
   width: number;
   height: number;
+  shortcutsActive?: boolean;
   onReady?: (width: number, height: number) => void;
   onContentChange?: () => void;
 }
@@ -30,15 +31,23 @@ const EDITOR_TOOLS: Array<{
   label: string;
   shortcut: string;
 }> = [
-  { value: "brush", label: "Brush", shortcut: "B" },
-  { value: "eyedropper", label: "Dropper", shortcut: "I" },
-  { value: "pan", label: "Pan", shortcut: "H" },
-  { value: "erase", label: "Erase", shortcut: "E" },
+  { value: "brush", label: "Brush", shortcut: "A" },
+  { value: "erase", label: "Erase", shortcut: "S" },
+  { value: "eyedropper", label: "Dropper", shortcut: "D" },
+  { value: "pan", label: "Pan", shortcut: "F" },
 ];
 
 export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
   function ImageEditor(
-    { source, maskSource = null, width, height, onReady, onContentChange },
+    {
+      source,
+      maskSource = null,
+      width,
+      height,
+      shortcutsActive = true,
+      onReady,
+      onContentChange,
+    },
     forwardedRef,
   ) {
     const editor = useEditorSurface({
@@ -46,6 +55,7 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
       maskSource,
       width,
       height,
+      shortcutsActive,
       onReady,
       onContentChange,
     });
@@ -65,25 +75,28 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
         aria-label="Image editor"
         ref={editor.rootRef}
         tabIndex={0}
-        onKeyDown={editor.handleKeyDown}
-        onKeyUp={editor.handleKeyUp}
-        onPointerDownCapture={editor.capturePendingBinding}
+        onPointerDownCapture={(event) => {
+          editor.focus();
+          editor.capturePendingBinding(event);
+        }}
       >
         <header className="editor-toolbar">
           <div className="layer-switch" aria-label="Drawing layer">
             <button
               type="button"
               className={editor.activeLayer === "paint" ? "is-selected" : ""}
+              aria-keyshortcuts="Q"
               onClick={() => editor.setActiveLayer("paint")}
             >
-              Paint <kbd>P</kbd>
+              Paint <kbd>Q</kbd>
             </button>
             <button
               type="button"
               className={editor.activeLayer === "mask" ? "is-selected" : ""}
+              aria-keyshortcuts="W"
               onClick={() => editor.setActiveLayer("mask")}
             >
-              Inpaint mask <kbd>M</kbd>
+              Inpaint mask <kbd>W</kbd>
             </button>
           </div>
           <div className="tool-switch" aria-label="Editor tool">
@@ -105,6 +118,22 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
               ),
             )}
           </div>
+          <button
+            type="button"
+            className={`editor-wheel-mode ${
+              editor.wheelTarget === "brush-size" ? "is-selected" : ""
+            }`}
+            aria-keyshortcuts="Shift+B"
+            aria-pressed={editor.wheelTarget === "brush-size"}
+            title="Choose whether the wheel changes brush size or canvas zoom"
+            onClick={() => {
+              editor.toggleBrushWheel();
+              editor.focus();
+            }}
+          >
+            Wheel: {editor.wheelTarget === "brush-size" ? "brush" : "zoom"}{" "}
+            <kbd>Shift+B</kbd>
+          </button>
           <button
             type="button"
             className="editor-save"
@@ -157,8 +186,8 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
             />
           </label>
           <div className="editor-button-row">
-            <button type="button" onClick={editor.undo}>
-              Undo
+            <button type="button" aria-keyshortcuts="Z" onClick={editor.undo}>
+              Undo <kbd>Z</kbd>
             </button>
             <button type="button" onClick={() => editor.clearLayer("paint")}>
               Clear paint
@@ -195,13 +224,15 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
             }
             onPointerLeave={editor.clearCursor}
             onContextMenu={(event) => event.preventDefault()}
-            onWheel={editor.handleWheel}
           />
           <div className="editor-canvas-status">
             <strong>
               {editor.activeLayer === "mask" ? "INPAINT MASK" : "PAINT"}
             </strong>
             <span>{Math.round(editor.zoom * 100)}%</span>
+            {editor.wheelTarget === "brush-size" && (
+              <span>WHEEL · BRUSH {editor.brushSize}px</span>
+            )}
             {!editor.ready && !editor.sourceError && (
               <span>Loading source…</span>
             )}

@@ -181,8 +181,9 @@ export function PenControls({
           </label>
         </div>
         <p>
-          ExpressKeys can send P, M, E, I, Space, [ and ]. Shortcuts only act
-          while this canvas has focus.
+          Left hand: Q/W choose paint or mask; A/S/D/F choose brush, erase,
+          dropper, or pan; C/V resize; Z undoes; hold Space to pan. Prompt
+          fields keep ordinary typing.
         </p>
       </div>
     </details>

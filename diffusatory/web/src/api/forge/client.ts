@@ -296,6 +296,7 @@ export class ForgeClient {
     if (input.previewEvery !== undefined) {
       overrideSettings.show_progress_every_n_steps = input.previewEvery;
     }
+    overrideSettings.show_progress_grid = true;
 
     const response = await this.fetcher(`${this.baseUrl}/sdapi/v1/img2img`, {
       method: "POST",

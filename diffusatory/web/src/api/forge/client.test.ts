@@ -182,6 +182,8 @@ describe("ForgeClient", () => {
       inpaintPadding: 48,
       width: 832,
       height: 1216,
+      outputs: 3,
+      previewEvery: 3,
     });
 
     expect(calls).toHaveLength(1);
@@ -200,6 +202,11 @@ describe("ForgeClient", () => {
       height: 1216,
       force_task_id: "task(diffusatory-edit)",
       include_init_images: false,
+      batch_size: 3,
+      override_settings: {
+        show_progress_every_n_steps: 3,
+        show_progress_grid: true,
+      },
     });
   });
 

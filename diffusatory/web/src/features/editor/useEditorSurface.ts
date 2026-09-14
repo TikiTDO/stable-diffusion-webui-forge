@@ -3,7 +3,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -34,6 +33,7 @@ import {
   saveTabletProfile,
   type PendingBinding,
 } from "./tabletProfile";
+import { editorShortcutFor } from "./shortcuts";
 
 interface InteractionBase {
   pointerId: number;
@@ -83,6 +83,7 @@ interface EditorSurfaceOptions {
   maskSource?: string | null;
   width: number;
   height: number;
+  shortcutsActive?: boolean;
   onReady?: (width: number, height: number) => void;
   onContentChange?: () => void;
 }
@@ -109,11 +110,23 @@ function boundedBrushSize(size: number): number {
   return Math.min(256, Math.max(1, Math.round(size)));
 }
 
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tagName = target.tagName.toLowerCase();
+  return (
+    target.isContentEditable ||
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select"
+  );
+}
+
 export function useEditorSurface({
   source,
   maskSource = null,
   width,
   height,
+  shortcutsActive = true,
   onReady,
   onContentChange,
 }: EditorSurfaceOptions) {
@@ -143,6 +156,9 @@ export function useEditorSurface({
   const [color, setColorState] = useState("#312338");
   const [brushSize, setBrushSizeState] = useState(16);
   const [opacity, setOpacityState] = useState(1);
+  const [wheelTarget, setWheelTarget] = useState<"zoom" | "brush-size">(
+    "zoom",
+  );
   const [recording, setRecording] = useState<BindingRecording | null>(null);
   const [pendingBinding, setPendingBinding] = useState<PendingBinding | null>(
     null,
@@ -214,7 +230,7 @@ export function useEditorSurface({
     resetViewport,
     panBy,
     pinch,
-    handleWheel,
+    handleWheel: handleViewportWheel,
     setCursor,
   } = useCanvasViewport({
     editorDocumentRef,
@@ -222,6 +238,37 @@ export function useEditorSurface({
     toolRef,
     brushSizeRef,
   });
+
+  useEffect(() => requestRender(), [brushSize, requestRender]);
+
+  const toggleBrushWheel = useCallback(() => {
+    setWheelTarget((current) =>
+      current === "brush-size" ? "zoom" : "brush-size",
+    );
+  }, []);
+
+  const handleWheel = useCallback(
+    (event: WheelEvent) => {
+      if (wheelTarget === "zoom") {
+        handleViewportWheel(event);
+        return;
+      }
+      event.preventDefault();
+      setBrushSize(
+        event.deltaY < 0
+          ? brushSizeRef.current * 1.12
+          : brushSizeRef.current / 1.12,
+      );
+    },
+    [handleViewportWheel, setBrushSize, wheelTarget],
+  );
+
+  useEffect(() => {
+    const canvas = displayRef.current;
+    if (!canvas) return;
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheel);
+  }, [displayRef, handleWheel]);
 
   useEffect(() => {
     const nextDocument = new EditorDocument(width, height);
@@ -641,81 +688,61 @@ export function useEditorSurface({
   );
 
   const handleKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName?.toLowerCase();
-      if (
-        target?.isContentEditable ||
-        tagName === "input" ||
-        tagName === "textarea" ||
-        tagName === "select"
-      ) {
-        return;
-      }
-      if (event.metaKey || event.ctrlKey) {
-        if (event.key.toLowerCase() === "z") {
-          event.preventDefault();
-          undo();
-        } else if (event.key.toLowerCase() === "s") {
-          event.preventDefault();
-          saveCurrentImage();
-        }
-        return;
-      }
-      if (event.repeat && event.key !== "[") return;
-      switch (event.key.toLowerCase()) {
-        case "b":
+    (event: KeyboardEvent) => {
+      if (isTextEntryTarget(event.target)) return;
+      const shortcut = editorShortcutFor(event);
+      if (!shortcut) return;
+      if (event.repeat && shortcut.kind !== "brush-size") return;
+      event.preventDefault();
+
+      switch (shortcut.kind) {
+        case "tool":
+          setTool(shortcut.tool);
+          break;
+        case "layer":
+          setActiveLayer(shortcut.layer);
           setTool("brush");
           break;
-        case "p":
-          setActiveLayer("paint");
-          setTool("brush");
+        case "brush-size":
+          setBrushSize(
+            shortcut.direction < 0
+              ? brushSizeRef.current / 1.25
+              : brushSizeRef.current * 1.25,
+          );
           break;
-        case "m":
-          setActiveLayer("mask");
-          setTool("brush");
+        case "wheel-target":
+          toggleBrushWheel();
           break;
-        case "e":
-          setTool("erase");
-          break;
-        case "i":
-          setTool("eyedropper");
-          break;
-        case "h":
-          setTool("pan");
-          break;
-        case " ":
-          event.preventDefault();
+        case "temporary-pan":
           if (keyboardPanPriorRef.current === null) {
             keyboardPanPriorRef.current = toolRef.current;
             setTool("pan");
           }
           break;
-        case "[":
-          setBrushSize(brushSizeRef.current / 1.25);
+        case "save":
+          saveCurrentImage();
           break;
-        case "]":
-          setBrushSize(brushSizeRef.current * 1.25);
+        case "undo":
+          undo();
           break;
       }
     },
-    [saveCurrentImage, setActiveLayer, setBrushSize, setTool, undo],
+    [
+      saveCurrentImage,
+      setActiveLayer,
+      setBrushSize,
+      setTool,
+      toggleBrushWheel,
+      undo,
+    ],
   );
 
   const handleKeyUp = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName?.toLowerCase();
+    (event: KeyboardEvent) => {
       if (
-        keyboardPanPriorRef.current === null &&
-        (target?.isContentEditable ||
-          tagName === "input" ||
-          tagName === "textarea" ||
-          tagName === "select")
+        (event.code === "Space" || event.key === " ") &&
+        keyboardPanPriorRef.current !== null
       ) {
-        return;
-      }
-      if (event.key === " " && keyboardPanPriorRef.current !== null) {
         event.preventDefault();
         const prior = keyboardPanPriorRef.current;
         keyboardPanPriorRef.current = null;
@@ -724,6 +751,21 @@ export function useEditorSurface({
     },
     [setTool],
   );
+
+  useEffect(() => {
+    if (!shortcutsActive) {
+      const prior = keyboardPanPriorRef.current;
+      keyboardPanPriorRef.current = null;
+      if (prior !== null) setTool(prior);
+      return;
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [handleKeyDown, handleKeyUp, setTool, shortcutsActive]);
 
   const clearCursor = useCallback(() => {
     if (!interactionRef.current) setCursor(null);
@@ -742,6 +784,8 @@ export function useEditorSurface({
     setColor,
     brushSize,
     setBrushSize,
+    wheelTarget,
+    toggleBrushWheel,
     opacity,
     setOpacity,
     zoom,
@@ -759,9 +803,6 @@ export function useEditorSurface({
     beginInteraction,
     moveInteraction,
     endInteraction,
-    handleKeyDown,
-    handleKeyUp,
-    handleWheel,
     clearCursor,
     clearLayer,
     undo,

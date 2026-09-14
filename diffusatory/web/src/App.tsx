@@ -132,6 +132,9 @@ export default function App() {
   const [editorVariations, setEditorVariations] = useState<EditorVariation[]>([]);
   const [activeEditorVariationId, setActiveEditorVariationId] = useState<string | null>(null);
   const [activeEditOperation, setActiveEditOperation] = useState<EditOperation | null>(null);
+  const [activeInpaintScope, setActiveInpaintScope] = useState<
+    "masked" | "whole" | null
+  >(null);
   const [editorPresentation, setEditorPresentation] = useState<
     "workspace" | "focused"
   >("workspace");
@@ -193,6 +196,7 @@ export default function App() {
     if (state.phase === "failed") {
       pendingEditorRun.current = null;
       setActiveEditOperation(null);
+      setActiveInpaintScope(null);
       return;
     }
     if (state.phase !== "completed" || !state.taskId) return;
@@ -209,6 +213,7 @@ export default function App() {
     }
     pendingEditorRun.current = null;
     setActiveEditOperation(null);
+    setActiveInpaintScope(null);
   }, [editorSession, state.kind, state.phase, state.results, state.taskId]);
   const promptExpansionInput = useMemo<PromptExpansionInput>(
     () => ({
@@ -428,7 +433,10 @@ export default function App() {
     [changeCondition, client, currentEditorImage],
   );
 
-  const submit = async (requestedOperation?: EditOperation) => {
+  const submit = async (
+    requestedOperation?: EditOperation,
+    inpaintOnlyMasked?: boolean,
+  ) => {
     if (!canGenerate) return;
     setEditorError(null);
     setPromptActionError(null);
@@ -483,6 +491,10 @@ export default function App() {
       return;
     }
     const operation = requestedOperation ?? "img2img";
+    const effectiveEditSettings =
+      operation === "inpaint" && inpaintOnlyMasked !== undefined
+        ? { ...editSettings, inpaintOnlyMasked }
+        : editSettings;
     if (!editor) {
       setEditorError("The visible editor source is not ready yet.");
       return;
@@ -512,6 +524,13 @@ export default function App() {
       dimensions: { width: editor.width, height: editor.height },
     };
     setActiveEditOperation(operation);
+    setActiveInpaintScope(
+      operation === "inpaint"
+        ? effectiveEditSettings.inpaintOnlyMasked
+          ? "masked"
+          : "whole"
+        : null,
+    );
     await generate({
       kind: "img2img",
       input: {
@@ -520,7 +539,8 @@ export default function App() {
         mask: operation === "inpaint" ? editor.mask ?? undefined : undefined,
         width: editor.width,
         height: editor.height,
-        ...editSettings,
+        previewEvery: 3,
+        ...effectiveEditSettings,
       },
     });
   };
@@ -543,6 +563,8 @@ export default function App() {
       );
       setEditorReady(false);
       setEditorError(null);
+      setActiveEditOperation(null);
+      setActiveInpaintScope(null);
       setEditorSource(source);
       setEditorMaskSource(null);
       setEditorDirty(false);
@@ -629,6 +651,8 @@ export default function App() {
     setEditorDirty(false);
     setEditorVariations([]);
     setActiveEditorVariationId(null);
+    setActiveEditOperation(null);
+    setActiveInpaintScope(null);
     setGenerationSource("prompt");
     setCanvasView("variants");
   }, [editorDirty]);
@@ -817,7 +841,9 @@ export default function App() {
           onCheckpointChange={changeCheckpoint}
           onSaveModelDefault={saveCurrentModelDefault}
           onRestoreModelDefault={restoreCurrentModelDefault}
-          onGenerate={(operation) => void submit(operation)}
+          onGenerate={(operation, inpaintOnlyMasked) =>
+            void submit(operation, inpaintOnlyMasked)
+          }
           onInterrupt={() => void interrupt()}
           onSkip={() => void skip()}
           onReloadCatalog={() => {
@@ -963,6 +989,7 @@ export default function App() {
                 maskSource={editorMaskSource}
                 width={editorDimensions.width}
                 height={editorDimensions.height}
+                shortcutsActive={canvasView === "editor"}
                 onReady={handleEditorReady}
                 onContentChange={() => {
                   setEditorDirty(true);
@@ -1011,6 +1038,7 @@ export default function App() {
           generating={generating}
           canGenerate={canGenerate}
           activeOperation={activeEditOperation}
+          activeInpaintScope={activeInpaintScope}
           variations={editorVariations}
           activeVariationId={activeEditorVariationId}
           promptMode={promptMode}
@@ -1047,7 +1075,9 @@ export default function App() {
           onPromptModeChange={setPromptMode}
           onExpansionSeedChange={setExpansionSeed}
           onShufflePromptSet={() => setExpansionSeed(newExpansionSeed())}
-          onGenerate={(operation) => void submit(operation)}
+          onGenerate={(operation, inpaintOnlyMasked) =>
+            void submit(operation, inpaintOnlyMasked)
+          }
           onSkip={() => void skip()}
           onInterrupt={() => void interrupt()}
           onSelectVariation={selectEditorVariation}
