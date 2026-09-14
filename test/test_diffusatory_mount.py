@@ -1,12 +1,20 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
+import modules
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from diffusatory.server.forge_residency import forge_model_key
 from diffusatory.server.mount import mount_diffusatory
+from diffusatory.server.residency import ResidencyEntrySnapshot, ResidencySnapshot
+
+
+def empty_response() -> dict:
+    return {}
 
 
 def add_forge_routes(app: FastAPI) -> None:
@@ -15,24 +23,25 @@ def add_forge_routes(app: FastAPI) -> None:
         ("/internal/progress", "POST"),
         ("/sdapi/v1/interrupt", "POST"),
     ):
-        app.add_api_route(path, lambda: {}, methods=[method])
+        app.add_api_route(path, empty_response, methods=[method])
 
 
 class DiffusatoryMountTests(unittest.TestCase):
     def test_instance_descriptor_reflects_available_routes(self) -> None:
-        with tempfile.TemporaryDirectory() as directory, patch.dict(
-            "os.environ",
-            {
-                "DIFFUSATORY_INSTANCE_ID": "test-instance",
-                "DIFFUSATORY_INSTANCE_NAME": "Test studio",
-            },
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(
+                "os.environ",
+                {
+                    "DIFFUSATORY_INSTANCE_ID": "test-instance",
+                    "DIFFUSATORY_INSTANCE_NAME": "Test studio",
+                },
+            ),
         ):
             app = FastAPI()
             add_forge_routes(app)
 
-            self.assertFalse(
-                mount_diffusatory(app, dist=Path(directory) / "missing")
-            )
+            self.assertFalse(mount_diffusatory(app, dist=Path(directory) / "missing"))
 
             response = TestClient(app).get("/diffusatory/api/v1/instance")
             self.assertEqual(200, response.status_code)
@@ -48,6 +57,7 @@ class DiffusatoryMountTests(unittest.TestCase):
                     "interrupt",
                     "prompt-expansion",
                     "spatial-conditioning",
+                    "model-residency",
                 ],
                 body["capabilities"],
             )
@@ -81,6 +91,51 @@ class DiffusatoryMountTests(unittest.TestCase):
             page = client.get("/diffusatory/")
             self.assertEqual(200, page.status_code)
             self.assertIn("Diffusatory", page.text)
+
+    def test_residency_route_separates_logical_bytes_from_process_rss(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "model.safetensors"
+            checkpoint.write_bytes(b"model")
+            key = forge_model_key(checkpoint, (), None)
+            snapshot = ResidencySnapshot(
+                capacity_bytes=64,
+                resident_bytes=5,
+                active_bytes=5,
+                warm_bytes=0,
+                loading_bytes=0,
+                over_budget_bytes=0,
+                hits=2,
+                misses=1,
+                evictions=0,
+                load_failures=0,
+                disposal_failures=0,
+                entries=(
+                    ResidencyEntrySnapshot(
+                        key=key,
+                        state="active",
+                        size_bytes=5,
+                        leases=1,
+                        last_used_order=3,
+                        load_seconds=1.25,
+                    ),
+                ),
+            )
+            fake_sd_models = SimpleNamespace(
+                model_data=SimpleNamespace(
+                    model_residency=SimpleNamespace(snapshot=lambda: snapshot)
+                )
+            )
+            app = FastAPI()
+            mount_diffusatory(app, dist=Path(directory) / "missing")
+
+            with patch.object(modules, "sd_models", fake_sd_models, create=True):
+                body = TestClient(app).get("/diffusatory/api/v1/residency").json()
+
+            self.assertEqual(64, body["capacity_bytes"])
+            self.assertEqual(5, body["resident_bytes"])
+            self.assertIsInstance(body["process_rss_bytes"], int)
+            self.assertEqual(str(checkpoint), body["entries"][0]["checkpoint"])
+            self.assertEqual("active", body["entries"][0]["state"])
 
 
 if __name__ == "__main__":

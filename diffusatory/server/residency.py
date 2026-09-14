@@ -92,11 +92,14 @@ class ResidencyLease(Generic[K, V]):
         key: K,
         generation: int,
         value: V,
+        *,
+        cache_hit: bool,
     ) -> None:
         self._manager = manager
         self._key = key
         self._generation = generation
         self._value = value
+        self._cache_hit = cache_hit
         self._released = False
 
     @property
@@ -104,6 +107,10 @@ class ResidencyLease(Generic[K, V]):
         if self._released:
             raise RuntimeError("residency lease has been released")
         return self._value
+
+    @property
+    def cache_hit(self) -> bool:
+        return self._cache_hit
 
     def release(self) -> None:
         if self._released:
@@ -172,7 +179,13 @@ class ResidencyManager(Generic[K, V]):
                     self._hits += 1
                     entry.leases += 1
                     entry.last_used_order = self._next_order_locked()
-                    return ResidencyLease(self, key, entry.generation, entry.value)
+                    return ResidencyLease(
+                        self,
+                        key,
+                        entry.generation,
+                        entry.value,
+                        cache_hit=True,
+                    )
 
                 self._misses += 1
                 self._generation += 1
@@ -230,7 +243,13 @@ class ResidencyManager(Generic[K, V]):
         except ResidencyDisposalError:
             self._release(key, generation)
             raise
-        return ResidencyLease(self, key, generation, loaded.value)
+        return ResidencyLease(
+            self,
+            key,
+            generation,
+            loaded.value,
+            cache_hit=False,
+        )
 
     def evict(self, key: K) -> bool:
         """Evict one warm resource. Return false if absent, active, or loading."""

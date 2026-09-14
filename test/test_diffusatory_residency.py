@@ -32,9 +32,13 @@ class ResidencyManagerTests(unittest.TestCase):
         disposed: list[str] = []
         manager: ResidencyManager[str, str] = ResidencyManager(10)
 
-        self.acquire(manager, "a", 4, disposed).release()
+        first_a = self.acquire(manager, "a", 4, disposed)
+        self.assertFalse(first_a.cache_hit)
+        first_a.release()
         self.acquire(manager, "b", 4, disposed).release()
-        self.acquire(manager, "a", 4, disposed).release()
+        second_a = self.acquire(manager, "a", 4, disposed)
+        self.assertTrue(second_a.cache_hit)
+        second_a.release()
         lease_c = self.acquire(manager, "c", 5, disposed)
 
         snapshot = manager.snapshot()

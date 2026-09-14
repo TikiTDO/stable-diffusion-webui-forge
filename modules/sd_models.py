@@ -11,7 +11,6 @@ import re
 import safetensors.torch
 from omegaconf import OmegaConf, ListConfig
 from urllib import request
-import gc
 import contextlib
 
 from modules import paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_disable_initialization, errors, hashes, sd_models_config, sd_unet, sd_models_xl, cache, extra_networks, processing, lowvram, sd_hijack, patches
@@ -22,6 +21,11 @@ from backend.loader import forge_loader
 from backend import memory_management
 from backend.args import dynamic_args
 from backend.utils import load_torch_file
+from diffusatory.server.forge_residency import (
+    ForgeResidencyController,
+    estimate_model_bytes,
+    forge_model_key,
+)
 
 
 model_dir = "Stable-diffusion"
@@ -397,6 +401,10 @@ class SdModelData:
         self.sd_model = FakeInitialModel()
         self.forge_loading_parameters = {}
         self.forge_hash = ''
+        self.model_residency = ForgeResidencyController(
+            unload_devices=memory_management.unload_all_models,
+            empty_device_cache=memory_management.soft_empty_cache,
+        )
 
     def get_sd_model(self):
         return self.sd_model
@@ -471,38 +479,48 @@ def apply_token_merging(sd_model, token_merging_ratio):
 
 @torch.inference_mode()
 def forge_model_reload():
-    current_hash = str(model_data.forge_loading_parameters)
+    checkpoint_info = model_data.forge_loading_parameters['checkpoint_info']
 
-    if model_data.forge_hash == current_hash:
+    if checkpoint_info is None:
+        raise ValueError('You do not have any model! Please download at least one model in [models/Stable-diffusion].')
+
+    additional_state_dicts = model_data.forge_loading_parameters.get('additional_modules', []) or []
+    unet_storage_dtype = model_data.forge_loading_parameters.get('unet_storage_dtype', None)
+    residency_key = forge_model_key(
+        checkpoint_info.filename,
+        additional_state_dicts,
+        unet_storage_dtype,
+        runtime_signature=(cmd_opts.embeddings_dir, opts.emphasis),
+    )
+    current_hash = repr(residency_key)
+
+    if model_data.forge_hash == current_hash and model_data.sd_model is not None:
         return model_data.sd_model, False
 
     print('Loading Model: ' + str(model_data.forge_loading_parameters))
 
     timer = Timer()
 
-    if model_data.sd_model:
-        model_data.sd_model = None
-        memory_management.unload_all_models()
-        memory_management.soft_empty_cache()
-        gc.collect()
-
-    timer.record("unload existing model")
-
-    checkpoint_info = model_data.forge_loading_parameters['checkpoint_info']
-
-    if checkpoint_info is None:
-        raise ValueError('You do not have any model! Please download at least one model in [models/Stable-diffusion].')
-
     state_dict = checkpoint_info.filename
-    additional_state_dicts = model_data.forge_loading_parameters.get('additional_modules', [])
 
-    timer.record("cache state dict")
-
-    dynamic_args['forge_unet_storage_dtype'] = model_data.forge_loading_parameters.get('unet_storage_dtype', None)
+    dynamic_args['forge_unet_storage_dtype'] = unet_storage_dtype
     dynamic_args['embedding_dir'] = cmd_opts.embeddings_dir
     dynamic_args['emphasis_name'] = opts.emphasis
-    sd_model = forge_loader(state_dict, additional_state_dicts=additional_state_dicts)
-    timer.record("forge model load")
+    activation = model_data.model_residency.switch(
+        residency_key,
+        estimated_bytes=estimate_model_bytes(residency_key),
+        loader=lambda: forge_loader(
+            state_dict,
+            additional_state_dicts=additional_state_dicts,
+        ),
+        detach_current=lambda: model_data.set_sd_model(None),
+    )
+    sd_model = activation.model
+    timer.record(
+        "forge model warm activation"
+        if activation.cache_hit
+        else "forge model cold load"
+    )
 
     sd_model.extra_generation_params = {}
     sd_model.comments = []
@@ -519,6 +537,15 @@ def forge_model_reload():
 
     timer.record("scripts callbacks")
 
+    residency = model_data.model_residency.snapshot()
+    print(
+        '[Model Residency] '
+        f'{"warm hit" if activation.cache_hit else "cold load"}; '
+        f'active={residency.active_bytes / (1024 ** 3):.2f} GiB, '
+        f'warm={residency.warm_bytes / (1024 ** 3):.2f} GiB, '
+        f'budget={residency.capacity_bytes / (1024 ** 3):.2f} GiB, '
+        f'over={residency.over_budget_bytes / (1024 ** 3):.2f} GiB'
+    )
     print(f"Model loaded in {timer.summary()}.")
 
     model_data.forge_hash = current_hash

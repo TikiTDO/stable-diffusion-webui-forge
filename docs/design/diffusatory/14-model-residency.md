@@ -82,6 +82,12 @@ The inference scheduler owns admission order. A lease says “this work still
 uses this resource”; it is not a priority system and must not become a second
 job queue.
 
+The first read-only projection is `GET /diffusatory/api/v1/residency`. It
+reports the logical ledger, entry states and counters beside current process
+RSS. It deliberately does not collapse those measurements into one “memory
+used” number, and it does not expose cache mutation before the scheduler owns a
+safe command path.
+
 ## First integration seam
 
 `modules.sd_models.forge_model_reload()` is the current checkpoint-replacement

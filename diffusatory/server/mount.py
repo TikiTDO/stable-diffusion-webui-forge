@@ -32,6 +32,32 @@ class InstanceDescriptor(BaseModel):
     capabilities: list[str]
 
 
+class ResidencyEntryDescriptor(BaseModel):
+    checkpoint: str
+    additional_modules: list[str]
+    storage_dtype: str
+    state: str
+    size_bytes: int
+    leases: int
+    load_seconds: float | None
+
+
+class ResidencyDescriptor(BaseModel):
+    capacity_bytes: int
+    resident_bytes: int
+    active_bytes: int
+    warm_bytes: int
+    loading_bytes: int
+    over_budget_bytes: int
+    process_rss_bytes: int | None
+    hits: int
+    misses: int
+    evictions: int
+    load_failures: int
+    disposal_failures: int
+    entries: list[ResidencyEntryDescriptor]
+
+
 def _route_paths(app: FastAPI) -> set[str]:
     return {
         path
@@ -60,6 +86,7 @@ def _capabilities(app: FastAPI) -> list[str]:
     return [name for name, path in routes if path in paths] + [
         "prompt-expansion",
         "spatial-conditioning",
+        "model-residency",
     ]
 
 
@@ -84,6 +111,14 @@ def instance_descriptor(app: FastAPI) -> InstanceDescriptor:
     )
 
 
+def _process_rss_bytes() -> int | None:
+    try:
+        fields = Path("/proc/self/statm").read_text().split()
+        return int(fields[1]) * os.sysconf("SC_PAGE_SIZE")
+    except (IndexError, OSError, TypeError, ValueError):
+        return None
+
+
 def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
     """Register the instance contract and mount a built client when present.
 
@@ -105,6 +140,40 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
         from modules import sd_models
 
         return model_profiles(sd_models.checkpoints_list.values())
+
+    @router.get("/residency", response_model=ResidencyDescriptor)
+    async def get_residency() -> ResidencyDescriptor:
+        from modules import sd_models
+
+        snapshot = sd_models.model_data.model_residency.snapshot()
+        return ResidencyDescriptor(
+            capacity_bytes=snapshot.capacity_bytes,
+            resident_bytes=snapshot.resident_bytes,
+            active_bytes=snapshot.active_bytes,
+            warm_bytes=snapshot.warm_bytes,
+            loading_bytes=snapshot.loading_bytes,
+            over_budget_bytes=snapshot.over_budget_bytes,
+            process_rss_bytes=_process_rss_bytes(),
+            hits=snapshot.hits,
+            misses=snapshot.misses,
+            evictions=snapshot.evictions,
+            load_failures=snapshot.load_failures,
+            disposal_failures=snapshot.disposal_failures,
+            entries=[
+                ResidencyEntryDescriptor(
+                    checkpoint=entry.key.checkpoint.path,
+                    additional_modules=[
+                        module.path for module in entry.key.additional_modules
+                    ],
+                    storage_dtype=entry.key.unet_storage_dtype,
+                    state=entry.state,
+                    size_bytes=entry.size_bytes,
+                    leases=entry.leases,
+                    load_seconds=entry.load_seconds,
+                )
+                for entry in snapshot.entries
+            ],
+        )
 
     @router.post("/prompts/expand", response_model=PromptExpansionResponse)
     async def expand_prompts(
