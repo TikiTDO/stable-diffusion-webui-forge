@@ -1,6 +1,5 @@
-import type { ChangeEvent } from "react";
-
 import type { ControlNetCatalog } from "../../api/forge/types";
+import { NumberInput } from "../../components/NumberInput";
 import {
   conditionForIntent,
   conditionIssue,
@@ -32,15 +31,6 @@ function fileAsDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error("Image read failed."));
     reader.readAsDataURL(file);
   });
-}
-
-function numberValue(
-  event: ChangeEvent<HTMLInputElement>,
-  fallback: number,
-): number {
-  return Number.isFinite(event.target.valueAsNumber)
-    ? event.target.valueAsNumber
-    : fallback;
 }
 
 export function ConditionStack({
@@ -348,36 +338,36 @@ export function ConditionStack({
                   </label>
                   <label>
                     <span>Processor resolution</span>
-                    <input
-                      type="number"
+                    <NumberInput
                       min="-1"
                       max="2048"
                       step="64"
                       value={condition.processorResolution}
                       disabled={condition.pixelPerfect}
-                      onChange={(event) =>
-                        onChange(condition.id, {
-                          processorResolution: numberValue(event, condition.processorResolution),
-                        })
+                      clamp={(value) => Math.min(2048, Math.max(-1, value))}
+                      onValueChange={(processorResolution) =>
+                        onChange(condition.id, { processorResolution })
                       }
                     />
                   </label>
                   <label>
                     <span>Threshold A</span>
-                    <input
-                      type="number"
+                    <NumberInput
                       min="-1"
                       value={condition.thresholdA}
-                      onChange={(event) => onChange(condition.id, { thresholdA: numberValue(event, condition.thresholdA) })}
+                      onValueChange={(thresholdA) =>
+                        onChange(condition.id, { thresholdA })
+                      }
                     />
                   </label>
                   <label>
                     <span>Threshold B</span>
-                    <input
-                      type="number"
+                    <NumberInput
                       min="-1"
                       value={condition.thresholdB}
-                      onChange={(event) => onChange(condition.id, { thresholdB: numberValue(event, condition.thresholdB) })}
+                      onValueChange={(thresholdB) =>
+                        onChange(condition.id, { thresholdB })
+                      }
                     />
                   </label>
                 </div>

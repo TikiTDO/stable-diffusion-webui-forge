@@ -79,6 +79,7 @@ interface TouchPoint {
 
 interface EditorSurfaceOptions {
   source: string | null;
+  maskSource?: string | null;
   width: number;
   height: number;
   onReady?: (width: number, height: number) => void;
@@ -109,6 +110,7 @@ function boundedBrushSize(size: number): number {
 
 export function useEditorSurface({
   source,
+  maskSource = null,
   width,
   height,
   onReady,
@@ -230,7 +232,7 @@ export function useEditorSurface({
     let disposed = false;
 
     void nextDocument
-      .loadSource(source)
+      .loadSource(source, maskSource)
       .then(() => {
         if (disposed || editorDocumentRef.current !== nextDocument) return;
         setReady(true);
@@ -249,7 +251,7 @@ export function useEditorSurface({
     return () => {
       disposed = true;
     };
-  }, [height, onReady, requestRender, resetViewport, source, width]);
+  }, [height, maskSource, onReady, requestRender, resetViewport, source, width]);
 
   const rebuildDocument = useCallback(() => {
     editorDocumentRef.current?.rebuild();

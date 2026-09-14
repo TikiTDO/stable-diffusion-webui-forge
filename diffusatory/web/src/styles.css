@@ -9,7 +9,7 @@
   text-rendering: optimizeLegibility;
   --ink: #f5f0e8;
   --muted: #a8a1b3;
-  --quiet: #716a7e;
+  --quiet: #928b9e;
   --panel: rgba(24, 22, 31, 0.92);
   --panel-raised: rgba(32, 29, 40, 0.96);
   --line: rgba(232, 217, 193, 0.13);
@@ -20,6 +20,7 @@
   --green: #79d7ac;
   --danger: #ff8f89;
 }
+
 
 * {
   box-sizing: border-box;
@@ -124,7 +125,7 @@ h2 {
 
 .eyebrow {
   color: var(--amber);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -143,14 +144,14 @@ h2 {
 
 .instance strong {
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .instance small {
   margin-top: 3px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .instance__light {
@@ -236,7 +237,7 @@ h2 {
   padding: 7px 9px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .workspace-mode button.is-selected,
@@ -270,13 +271,13 @@ h2 {
 
 .source-context strong {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .source-context small {
   margin-top: 2px;
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .source-context button {
@@ -287,7 +288,7 @@ h2 {
   padding: 6px 8px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .draft-label,
@@ -295,7 +296,7 @@ h2 {
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 7px 10px;
@@ -332,7 +333,7 @@ h2 {
 .render-character label > span,
 .library-search > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
 }
 
@@ -362,7 +363,7 @@ h2 {
 .connection-error {
   margin-top: 14px;
   color: var(--quiet);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.55;
 }
 
@@ -445,7 +446,7 @@ h2 {
   border-radius: 7px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .prompt-composition__modes button.is-selected {
@@ -466,7 +467,7 @@ h2 {
   align-items: center;
   gap: 9px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .variation-seed input {
@@ -493,7 +494,7 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .prompt-preview header span {
@@ -509,7 +510,7 @@ h2 {
   margin: 8px 0 0;
   padding-left: 24px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .prompt-preview li span,
@@ -532,7 +533,7 @@ h2 {
 .prompt-preview__repeat {
   display: block;
   margin-top: 7px;
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.4;
 }
 
@@ -550,7 +551,7 @@ h2 {
 
 .prompt-syntax {
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .prompt-syntax summary {
@@ -608,14 +609,14 @@ h2 {
 .region-composer--off strong {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .region-composer--off small,
 .region-composer__header small {
   margin-top: 3px;
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -628,7 +629,7 @@ h2 {
   padding: 7px 10px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .region-composer button:hover:not(:disabled),
@@ -695,7 +696,7 @@ h2 {
 .region-stage__instruction {
   margin: -7px 5px 13px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -706,7 +707,7 @@ h2 {
   gap: 8px;
   margin-left: 4px;
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .region-tools input {
@@ -808,7 +809,7 @@ h2 {
   pointer-events: none;
   color: rgba(245, 240, 232, 0.26);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 8px;
+  font-size: 14px;
   letter-spacing: 0.12em;
 }
 
@@ -829,7 +830,7 @@ h2 {
 .region-cell-prompts label > span,
 .region-background-prompt > span {
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 14px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -839,7 +840,7 @@ h2 {
   margin-top: 4px;
   overflow: hidden;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -871,7 +872,7 @@ h2 {
   padding: 8px 9px;
   color: var(--ink);
   background: rgba(10, 9, 15, 0.76);
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.35;
 }
 
@@ -891,7 +892,7 @@ h2 {
 
 .region-plan {
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .region-plan summary {
@@ -925,7 +926,7 @@ h2 {
   border-left: 2px solid var(--green);
   padding-left: 9px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -935,7 +936,7 @@ h2 {
   gap: 16px;
   padding: 13px 5px 1px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .region-stage__legend span {
@@ -987,7 +988,7 @@ h2 {
   gap: 12px;
   padding: 12px 14px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
 }
 
@@ -999,7 +1000,7 @@ h2 {
 .prompt-tools summary small,
 .render-character summary small {
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -1022,7 +1023,14 @@ h2 {
 .edit-generation-controls legend {
   padding: 0 5px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
+}
+
+.edit-generation-controls > small {
+  grid-column: 1 / -1;
+  color: var(--quiet);
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .edit-generation-controls label {
@@ -1034,7 +1042,7 @@ h2 {
 .edit-generation-controls label > span,
 .editor-controls label > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 650;
 }
 
@@ -1059,7 +1067,7 @@ h2 {
 .ingredient-columns h3 {
   margin: 0 0 7px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -1081,7 +1089,7 @@ h2 {
   padding: 6px 7px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 10px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -1112,14 +1120,14 @@ h2 {
 .dimensions legend {
   padding: 0 5px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .dimensions__truth {
   display: block;
   margin: 0 0 7px;
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .dimensions :disabled {
@@ -1153,7 +1161,7 @@ h2 {
 
 .dimension-inputs span {
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .dimension-inputs input {
@@ -1210,7 +1218,7 @@ h2 {
   border-radius: 6px;
   padding: 3px 6px;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .interrupt {
@@ -1218,7 +1226,7 @@ h2 {
   padding: 0 15px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .generate:hover:not(:disabled),
@@ -1238,7 +1246,7 @@ h2 {
   gap: 12px;
   margin-top: 12px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .stage {
@@ -1303,7 +1311,7 @@ h2 {
   min-width: 48px;
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -1372,13 +1380,13 @@ h2 {
 .stage__status-copy {
   margin-top: 10px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .stage__error {
   margin-top: 10px;
   color: var(--danger);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .result-tray {
@@ -1406,7 +1414,7 @@ h2 {
   justify-content: space-between;
   gap: 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .candidate-shelf > header button {
@@ -1416,14 +1424,14 @@ h2 {
   padding: 5px 7px;
   color: var(--quiet);
   background: rgba(255, 255, 255, 0.03);
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .candidate-shelf > small {
   display: block;
   margin-top: 4px;
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .candidate-tile {
@@ -1448,7 +1456,7 @@ h2 {
   border-radius: 50%;
   color: var(--ink);
   background: rgba(4, 3, 7, 0.82);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 16px;
 }
 
@@ -1489,7 +1497,7 @@ h2 {
 .condition-stack__header small,
 .condition-card small {
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .add-condition,
@@ -1502,7 +1510,7 @@ h2 {
   border-radius: 8px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .add-condition,
@@ -1528,7 +1536,7 @@ h2 {
   padding: 9px 10px;
   color: var(--muted);
   background: rgba(9, 8, 14, 0.42);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .condition-stack__notice.is-error {
@@ -1554,7 +1562,7 @@ h2 {
 
 .condition-empty span {
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .condition-list {
@@ -1593,7 +1601,7 @@ h2 {
   border-radius: 50%;
   color: #b9aef5;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .condition-intent,
@@ -1608,7 +1616,7 @@ h2 {
 .condition-method label > span,
 .condition-tuning label > span {
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1625,7 +1633,7 @@ h2 {
   padding: 0 8px;
   color: var(--ink);
   background: rgba(16, 14, 22, 0.96);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .condition-enabled {
@@ -1634,7 +1642,7 @@ h2 {
   align-items: center;
   gap: 5px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .condition-enabled input,
@@ -1732,7 +1740,7 @@ h2 {
 
 .current-canvas-token strong {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .condition-method {
@@ -1764,7 +1772,7 @@ h2 {
 
 .condition-output p {
   color: var(--danger);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .condition-tuning {
@@ -1779,7 +1787,7 @@ h2 {
   justify-content: space-between;
   gap: 8px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .condition-tuning__grid {
@@ -1801,14 +1809,14 @@ h2 {
   gap: 6px;
   min-height: 31px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .condition-issue {
   border-top: 1px solid rgba(255, 143, 137, 0.16);
   padding: 7px 10px;
   color: var(--danger);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .stage--editor {
@@ -1836,7 +1844,7 @@ h2 {
   margin-left: 4px;
   color: var(--quiet);
   font-family: inherit;
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .tool-switch button {
@@ -1883,7 +1891,7 @@ h2 {
 .pen-controls summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .pen-controls__body {
@@ -1916,7 +1924,7 @@ h2 {
 .binding-row small,
 .pen-controls p {
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .pressure-calibration {
@@ -1937,13 +1945,13 @@ h2 {
 
 .pressure-calibration strong {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .pressure-calibration small,
 .pressure-calibration label span {
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .pressure-calibration button.is-recording {
@@ -1965,7 +1973,7 @@ h2 {
   border-radius: 7px;
   padding: 7px;
   color: var(--danger);
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .editor-canvas-wrap {
@@ -2005,79 +2013,18 @@ h2 {
   color: var(--muted);
   background: rgba(9, 8, 14, 0.78);
   backdrop-filter: blur(8px);
-  font-size: 9px;
+  font-size: 14px;
   pointer-events: none;
 }
 
 .editor-canvas-status strong {
   color: var(--amber-bright);
-  font-size: 8px;
+  font-size: 14px;
   letter-spacing: 0.08em;
 }
 
 .editor-source-error {
   color: var(--danger);
-}
-
-.edit-results {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  padding: 10px;
-  background: rgba(9, 8, 14, 0.5);
-}
-
-.edit-results > div:first-child {
-  display: grid;
-  gap: 3px;
-}
-
-.edit-results strong {
-  color: var(--ink);
-  font-size: 11px;
-}
-
-.edit-results small {
-  color: var(--quiet);
-  font-size: 9px;
-}
-
-.edit-results__tray {
-  display: flex;
-  min-width: 0;
-  gap: 7px;
-  overflow-x: auto;
-}
-
-.edit-results__tray button {
-  position: relative;
-  flex: 0 0 74px;
-  height: 74px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  padding: 0;
-  background: #09080e;
-}
-
-.edit-results__tray img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.edit-results__tray span {
-  position: absolute;
-  inset: auto 0 0;
-  padding: 4px 2px;
-  color: var(--ink);
-  background: rgba(4, 3, 7, 0.78);
-  font-size: 8px;
 }
 
 .result-tray button {
@@ -2129,7 +2076,7 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   color: #c9bfff;
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
@@ -2137,7 +2084,7 @@ h2 {
 .resolved-prompt header span {
   color: var(--quiet);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: 14px;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -2145,7 +2092,7 @@ h2 {
 .resolved-prompt p {
   margin-top: 6px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -2153,7 +2100,7 @@ h2 {
   display: block;
   margin-top: 5px;
   color: var(--quiet);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .spatial-provenance {
@@ -2165,7 +2112,7 @@ h2 {
 .spatial-provenance summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -2200,7 +2147,7 @@ h2 {
 .run-details {
   margin: 16px 4px 0;
   color: var(--quiet);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .run-details summary {
@@ -2266,7 +2213,7 @@ h2 {
   min-width: 46px;
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -2301,7 +2248,7 @@ h2 {
   border-top: 1px solid var(--line);
   padding-top: 14px;
   color: var(--quiet);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.04em;
 }
 
@@ -2405,6 +2352,35 @@ h1 {
   padding: 4px 6px;
 }
 
+.open-image-button {
+  display: grid;
+  min-height: 27px;
+  cursor: pointer;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 4px 6px;
+  color: var(--muted);
+  background: rgba(24, 22, 31, 0.72);
+  font-weight: 600;
+  text-align: center;
+}
+
+.open-image-button:hover {
+  border-color: rgba(232, 169, 88, 0.42);
+  color: var(--ink);
+}
+
+.open-image-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .workbench-rack > .model-rack {
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr);
   align-content: center;
@@ -2420,7 +2396,7 @@ h1 {
 .workbench-rack .model-rack label > span,
 .workbench-rack .compact-control > span,
 .workbench-rack .render-character label > span {
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .workbench-rack .model-rack select,
@@ -2429,7 +2405,7 @@ h1 {
 .workbench-rack .draft-controls input {
   height: 30px;
   padding: 0 7px;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .workbench-rack > .draft-controls {
@@ -2477,12 +2453,12 @@ h1 {
   gap: 8px;
   margin-bottom: 5px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .render-character > header small {
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .workbench-rack .render-character__grid {
@@ -2504,6 +2480,16 @@ h1 {
   padding: 0 10px;
 }
 
+.workbench-rack .composer__actions--editing {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workbench-rack .composer__actions--editing .generate,
+.workbench-rack .composer__actions--editing .interrupt {
+  grid-row: auto;
+  min-height: 34px;
+}
+
 .workbench-rack .generate kbd {
   display: none;
 }
@@ -2511,7 +2497,7 @@ h1 {
 .workbench-rack .interrupt {
   min-width: 62px;
   padding: 0 7px;
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .workbench-rack > .catalog-status,
@@ -2543,7 +2529,7 @@ h1 {
   border-radius: 999px;
   padding: 5px 7px;
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .tool-dock h2,
@@ -2563,13 +2549,13 @@ h1 {
 .prompt-dock .prompt-field textarea {
   min-height: 214px;
   padding: 12px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
 .prompt-dock .negative-field textarea {
   min-height: 78px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .tool-dock .region-composer,
@@ -2619,7 +2605,7 @@ h1 {
 .stage-switcher__request > span {
   padding: 0 5px;
   color: var(--quiet);
-  font-size: 8px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -2633,7 +2619,7 @@ h1 {
   padding: 5px 9px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.035);
-  font-size: 9px;
+  font-size: 14px;
 }
 
 .stage-switcher button:hover,
@@ -2649,7 +2635,7 @@ h1 {
   padding: 1px 5px;
   color: var(--ink);
   background: rgba(255, 255, 255, 0.08);
-  font-size: 8px;
+  font-size: 14px;
 }
 
 .stage-switcher__request {
@@ -2661,7 +2647,7 @@ h1 {
   padding-right: 6px;
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: 14px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2884,10 +2870,6 @@ h1 {
     grid-template-columns: 1fr 1fr;
   }
 
-  .edit-results {
-    grid-template-columns: 1fr;
-  }
-
   .condition-card__header,
   .condition-tuning__grid {
     grid-template-columns: 1fr;
@@ -2901,4 +2883,960 @@ h1 {
   .dimension-inputs {
     grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
   }
+}
+
+/* Readable density: compact controls stay compact, but no operational text is
+   set at the 7-10px sizes that disappear on a high-resolution workbench. */
+.app-shell :is(small, .eyebrow) {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.app-shell :is(button, input, select, textarea, summary) {
+  font-size: 14px;
+}
+
+.app-shell :is(
+  .stage-switcher__surfaces > span,
+  .stage-switcher__request > span,
+  .stage-switcher__request strong,
+  .source-context strong,
+  .dimension-inputs span,
+  .editor-canvas-status,
+  .candidate-tile span
+) {
+  font-size: 14px;
+}
+
+.app-shell label > span {
+  font-size: 14px;
+}
+
+.app-shell :is(
+  .model-components summary > span,
+  .model-components summary > strong,
+  .active-job span,
+  .active-job p,
+  .phase,
+  .draft-label,
+  .prompt-preview header,
+  .prompt-preview ol,
+  .prompt-preview__error,
+  .prompt-preview__note,
+  .prompt-preview__repeat,
+  .prompt-syntax,
+  .catalog-status,
+  .condition-number,
+  .condition-card__mode,
+  .condition-card__status,
+  .region-cell__number,
+  .region-cell__coverage,
+  .region-cell__state,
+  .candidate-shelf header,
+  .candidate-shelf > small,
+  .resolved-prompt,
+  .spatial-provenance,
+  .editor-hint,
+  .editor-pressure-state,
+  .footer
+) {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.instance {
+  min-width: 0;
+  max-width: min(58vw, 720px);
+}
+
+.instance > div {
+  min-width: 0;
+}
+
+.instance strong,
+.instance small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instance strong {
+  font-size: 14px;
+}
+
+.instance small {
+  font-size: 14px;
+}
+
+.model-profile {
+  overflow: hidden;
+  color: var(--quiet);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-components {
+  position: relative;
+  min-width: 0;
+  align-self: center;
+}
+
+.model-components summary {
+  display: grid;
+  min-height: 30px;
+  cursor: pointer;
+  align-content: center;
+  gap: 2px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 4px 24px 4px 8px;
+  color: var(--muted);
+  background: rgba(16, 14, 22, 0.96);
+  list-style: none;
+}
+
+.model-components summary::-webkit-details-marker {
+  display: none;
+}
+
+.model-components summary::after {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  content: "▾";
+  color: var(--quiet);
+}
+
+.model-components summary > span {
+  color: var(--quiet);
+}
+
+.model-components summary > strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-components > div {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  width: max(320px, 100%);
+  gap: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 9px;
+  background: rgba(16, 14, 22, 0.99);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+
+.model-components > div label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 5px;
+  color: var(--muted);
+}
+
+.model-components input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--amber);
+}
+
+.model-default-row {
+  grid-column: 1 / -1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+}
+
+.model-default-state {
+  overflow: hidden;
+  color: var(--quiet);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-default-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.model-default-actions button {
+  min-height: 28px;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 4px 7px;
+  color: var(--muted);
+  background: rgba(24, 22, 31, 0.88);
+  white-space: nowrap;
+}
+
+.model-default-actions button:hover {
+  border-color: rgba(232, 169, 88, 0.42);
+  color: var(--ink);
+}
+
+.active-job {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+  border: 1px solid rgba(232, 169, 88, 0.22);
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: rgba(232, 169, 88, 0.055);
+}
+
+.active-job > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px 12px;
+}
+
+.active-job strong {
+  color: var(--amber-bright);
+  font-size: 14px;
+}
+
+.active-job span,
+.active-job p {
+  color: var(--muted);
+}
+
+.model-readiness-error {
+  color: var(--amber-bright);
+}
+
+/* The frame is a primary creative control, not a row of mystery pills. Keep
+   its three useful targets self-describing and leave enough room to type a
+   four-digit custom dimension without scrolling inside the input. */
+.workbench-rack {
+  grid-template-columns:
+    minmax(220px, 0.62fr)
+    minmax(360px, 1fr)
+    minmax(510px, 1.35fr)
+    minmax(410px, 1.12fr)
+    minmax(220px, 0.62fr);
+}
+
+.workbench-rack > .draft-controls {
+  grid-template-columns: minmax(100px, 0.45fr) minmax(180px, 1fr);
+  gap: 8px;
+}
+
+.workbench-rack .dimensions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(290px, 1.35fr) minmax(190px, 0.85fr);
+  gap: 8px;
+  padding: 7px 9px 9px;
+}
+
+.workbench-rack .aspect-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.workbench-rack .aspect-presets button {
+  display: grid;
+  min-height: 60px;
+  align-content: center;
+  gap: 3px;
+  overflow: hidden;
+  padding: 5px 7px;
+  text-align: left;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.aspect-presets button > span {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.aspect-presets button strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.aspect-presets button small {
+  color: var(--quiet);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.aspect-presets button > small:last-child {
+  color: var(--muted);
+}
+
+.workbench-rack .dimension-inputs {
+  grid-template-columns: minmax(76px, 1fr) 32px minmax(76px, 1fr);
+  gap: 6px;
+}
+
+.workbench-rack .dimension-inputs label {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: center;
+  gap: 3px;
+}
+
+.workbench-rack .dimension-inputs span {
+  font-size: 14px;
+}
+
+.workbench-rack .dimension-inputs input {
+  min-width: 76px;
+  height: 36px;
+  padding: 0 9px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.workbench-rack .swap-dimensions {
+  min-width: 32px;
+  min-height: 36px;
+  align-self: end;
+  font-size: 16px;
+}
+
+@media (max-width: 1700px) {
+  .workbench-rack {
+    grid-template-columns:
+      minmax(210px, 0.64fr)
+      minmax(330px, 0.98fr)
+      minmax(490px, 1.35fr)
+      minmax(390px, 1.08fr);
+  }
+}
+
+@media (max-width: 1250px) {
+  .workbench-rack {
+    grid-template-columns: minmax(210px, 0.65fr) minmax(320px, 1fr) minmax(470px, 1.35fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .workbench-rack {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-rack > .source-context,
+  .workbench-rack > .model-rack,
+  .workbench-rack > .draft-controls,
+  .workbench-rack > .render-character,
+  .workbench-rack > .composer__actions {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .workbench-rack > .draft-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .workbench-rack .dimensions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+}
+
+.active-job p {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.close-editor {
+  cursor: pointer;
+  border: 1px solid rgba(255, 143, 137, 0.28);
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: var(--danger);
+  background: rgba(255, 143, 137, 0.055);
+}
+
+/* The viewer's Edit action opens a real second posture of the same document:
+   maximum image area with the live prompt and generation tools immediately
+   beside it. It is not a detached form and does not maintain shadow state. */
+.focused-edit {
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  color: var(--ink);
+  background: rgba(5, 4, 9, 0.98);
+  backdrop-filter: blur(18px);
+}
+
+.focused-edit__header {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 8px 12px;
+  background: var(--panel);
+}
+
+.focused-edit__header h2,
+.focused-edit__operation h3,
+.focused-edit__prompt h3 {
+  margin: 2px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+.focused-edit__header h2 {
+  font-size: 20px;
+}
+
+.focused-edit__truth {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px 12px;
+  color: var(--muted);
+}
+
+.focused-edit__truth span,
+.focused-edit__truth strong {
+  overflow: hidden;
+  max-width: 340px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focused-edit__truth strong {
+  color: var(--amber-bright);
+  font-weight: 600;
+}
+
+.focused-edit__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(390px, 460px);
+  min-height: 0;
+  gap: 10px;
+}
+
+.focused-edit__canvas {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.focused-edit__canvas > .stage__error {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 50%;
+  max-width: min(720px, calc(100% - 40px));
+  transform: translateX(-50%);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.55);
+}
+
+.focused-edit__canvas .image-editor {
+  display: grid;
+  min-height: 0;
+  height: auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.editor-variations {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(9, 8, 14, 0.62);
+}
+
+.editor-variations > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.editor-variations > header span {
+  color: var(--quiet);
+  font-size: 14px;
+}
+
+.editor-variations__tray {
+  display: flex;
+  min-width: 0;
+  gap: 7px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.editor-variations__tray button {
+  position: relative;
+  flex: 0 0 92px;
+  height: 82px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0;
+  color: var(--ink);
+  background: #08070c;
+}
+
+.editor-variations__tray button.is-selected {
+  border-color: var(--amber-bright);
+  box-shadow: 0 0 0 1px rgba(232, 169, 88, 0.35);
+}
+
+.editor-variations__tray img,
+.editor-variations__blank {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.editor-variations__blank {
+  background:
+    linear-gradient(45deg, #eee 25%, transparent 25%),
+    linear-gradient(-45deg, #eee 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #eee 75%),
+    linear-gradient(-45deg, transparent 75%, #eee 75%),
+    #fff;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+  background-size: 12px 12px;
+}
+
+.editor-variations__tray button > span:last-child {
+  position: absolute;
+  inset: auto 0 0;
+  overflow: hidden;
+  padding: 5px 4px;
+  background: rgba(4, 3, 7, 0.84);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focused-edit__canvas .editor-canvas-wrap {
+  min-height: 0;
+  height: auto;
+}
+
+.focused-edit__canvas .editor-canvas {
+  height: 100%;
+  min-height: 300px;
+}
+
+.focused-edit__rail {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
+}
+
+.focused-edit__operation,
+.focused-edit__model,
+.focused-edit__prompt,
+.focused-edit__results,
+.focused-edit__rail > .prompt-tools,
+.focused-edit__actions {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+}
+
+.focused-edit__operation,
+.focused-edit__model,
+.focused-edit__prompt,
+.focused-edit__results {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.focused-edit__model {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+}
+
+.focused-edit__checkpoint,
+.focused-edit__render-grid label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.focused-edit__checkpoint > span,
+.focused-edit__render-grid label > span {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.focused-edit__checkpoint select,
+.focused-edit__render-grid select,
+.focused-edit__render-grid input {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: rgba(16, 14, 22, 0.96);
+}
+
+.focused-edit__model-default {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  color: var(--quiet);
+}
+
+.focused-edit__model-default > span {
+  margin-right: auto;
+}
+
+.focused-edit__model-default button,
+.focused-edit__components summary {
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 5px 8px;
+  color: var(--muted);
+  background: rgba(24, 22, 31, 0.88);
+}
+
+.focused-edit__components summary {
+  list-style: none;
+}
+
+.focused-edit__components summary::-webkit-details-marker {
+  display: none;
+}
+
+.focused-edit__components > div {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px;
+}
+
+.focused-edit__components label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.focused-edit__components input {
+  accent-color: var(--amber);
+}
+
+.focused-edit__render-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.focused-edit__operation > header,
+.focused-edit__section-heading,
+.focused-edit__results > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focused-edit__operation h3,
+.focused-edit__prompt h3 {
+  font-size: 18px;
+}
+
+.focused-edit__operation > label,
+.focused-edit__prompt > label,
+.focused-edit__inpaint-settings label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.focused-edit__operation label > span,
+.focused-edit__prompt label > span,
+.focused-edit__inpaint-settings label > span {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.focused-edit__operation input[type="range"] {
+  width: 100%;
+  accent-color: var(--amber);
+}
+
+.focused-edit__inpaint-settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.focused-edit__inpaint-settings input,
+.focused-edit__inpaint-settings select {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 0 7px;
+  color: var(--ink);
+  background: rgba(16, 14, 22, 0.96);
+}
+
+.focused-edit__section-heading > span {
+  color: var(--quiet);
+}
+
+.focused-edit__prompt textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: var(--ink);
+  background: rgba(9, 8, 14, 0.92);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.focused-edit__rail .prompt-tools {
+  margin: 0;
+}
+
+.focused-edit__rail .ingredient-columns {
+  grid-template-columns: 1fr;
+}
+
+.focused-edit__rail .ingredient-list {
+  max-height: 150px;
+}
+
+.focused-edit__results > header {
+  align-items: baseline;
+}
+
+.focused-edit__results > header span {
+  color: var(--quiet);
+}
+
+.focused-edit__preview {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #08070c;
+}
+
+.focused-edit__actions {
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto;
+  gap: 6px;
+  padding: 8px;
+  box-shadow: 0 -12px 28px rgba(5, 4, 9, 0.7);
+}
+
+.focused-edit__actions button {
+  min-height: 42px;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: var(--ink);
+  background: rgba(24, 22, 31, 0.92);
+}
+
+.focused-edit__actions button:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.focused-edit__actions .generate {
+  border-color: rgba(232, 169, 88, 0.52);
+  color: #17100a;
+  background: var(--amber-bright);
+  font-weight: 750;
+}
+
+.focused-edit__actions .generate--inpaint {
+  border-color: rgba(207, 95, 232, 0.58);
+  color: var(--ink);
+  background: rgba(207, 95, 232, 0.19);
+}
+
+.focused-edit__actions .generate kbd {
+  display: block;
+  margin-top: 2px;
+  color: inherit;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+@media (max-width: 1050px) {
+  .focused-edit__body {
+    grid-template-columns: minmax(0, 1fr) minmax(330px, 390px);
+  }
+
+  .focused-edit__canvas .editor-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .focused-edit {
+    position: absolute;
+    min-height: 100vh;
+    grid-template-rows: auto auto;
+    overflow: auto;
+  }
+
+  .focused-edit__header,
+  .focused-edit__body {
+    grid-template-columns: 1fr;
+  }
+
+  .focused-edit__truth {
+    justify-content: flex-start;
+  }
+
+  .focused-edit__canvas {
+    min-height: 680px;
+  }
+
+  .focused-edit__rail {
+    overflow: visible;
+  }
+}
+
+.image-drop-overlay {
+  position: fixed;
+  z-index: 180;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  pointer-events: none;
+  background: rgba(5, 4, 9, 0.78);
+  backdrop-filter: blur(9px);
+}
+
+.image-drop-overlay > div {
+  display: grid;
+  width: min(620px, 100%);
+  min-height: 230px;
+  place-content: center;
+  gap: 8px;
+  border: 2px dashed rgba(232, 169, 88, 0.65);
+  border-radius: 20px;
+  padding: 30px;
+  color: var(--muted);
+  background: rgba(20, 17, 27, 0.94);
+  text-align: center;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.62);
+}
+
+.image-drop-overlay strong {
+  color: var(--amber-bright);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  font-weight: 500;
+}
+
+.image-import-notice {
+  position: fixed;
+  z-index: 190;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  width: min(620px, calc(100vw - 36px));
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  padding: 12px 14px;
+  color: var(--ink);
+  background: rgba(21, 19, 28, 0.97);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.image-import-notice--success {
+  border-color: rgba(121, 215, 172, 0.42);
+}
+
+.image-import-notice--warning,
+.image-import-notice--loading {
+  border-color: rgba(232, 169, 88, 0.46);
+}
+
+.image-import-notice--error {
+  border-color: rgba(255, 143, 137, 0.5);
+}
+
+.image-import-notice button {
+  flex: 0 0 auto;
+  cursor: pointer;
+  border: 0;
+  padding: 0 2px;
+  color: var(--quiet);
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  pointer-events: auto;
 }

@@ -2,6 +2,7 @@ import type {
   PromptExpansionMode,
   PromptExpansionResponse,
 } from "../api/forge/types";
+import { NumberInput } from "./NumberInput";
 
 interface PromptCompositionProps {
   mode: PromptExpansionMode;
@@ -74,15 +75,12 @@ export function PromptComposition({
         <div className="variation-seed">
           <label>
             <span>Prompt-set seed</span>
-            <input
-              type="number"
+            <NumberInput
               min="0"
               max="2147483647"
               value={expansionSeed}
-              onChange={(event) => {
-                const value = event.target.valueAsNumber;
-                if (Number.isFinite(value)) onExpansionSeedChange(value);
-              }}
+              clamp={(value) => Math.min(2147483647, Math.max(0, value))}
+              onValueChange={onExpansionSeedChange}
             />
           </label>
           <button type="button" onClick={onShuffle}>

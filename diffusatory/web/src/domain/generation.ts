@@ -1,5 +1,9 @@
 import { imageSource } from "../api/forge/client";
-import type { ProgressResponse, Txt2ImgResponse } from "../api/forge/types";
+import type {
+  ForgeGenerationInput,
+  ProgressResponse,
+  Txt2ImgResponse,
+} from "../api/forge/types";
 import type { ResolvedSpatialPlan } from "../features/regions/types";
 
 export type GenerationPhase =
@@ -26,6 +30,7 @@ export interface GenerationState {
   kind: "txt2img" | "img2img" | null;
   phase: GenerationPhase;
   taskId: string | null;
+  job: GenerationJobSummary | null;
   progress: number;
   eta: number | null;
   preview: string | null;
@@ -38,10 +43,44 @@ export interface GenerationState {
   error: string | null;
 }
 
+export interface GenerationJobSummary {
+  kind: "txt2img" | "img2img";
+  prompt: string;
+  additionalPrompts: number;
+  checkpoint: string;
+  width: number;
+  height: number;
+  outputs: number;
+  steps: number;
+  sampler: string;
+  scheduler: string;
+}
+
+export function summarizeGeneration(
+  request: ForgeGenerationInput,
+): GenerationJobSummary {
+  const prompts = Array.isArray(request.input.prompt)
+    ? request.input.prompt
+    : [request.input.prompt];
+  return {
+    kind: request.kind,
+    prompt: prompts[0] ?? "",
+    additionalPrompts: Math.max(0, prompts.length - 1),
+    checkpoint: request.input.checkpoint ?? "current checkpoint",
+    width: request.input.width ?? 1024,
+    height: request.input.height ?? 1024,
+    outputs: request.input.outputs ?? prompts.length,
+    steps: request.input.steps ?? 20,
+    sampler: request.input.sampler ?? "Euler a",
+    scheduler: request.input.scheduler ?? "Karras",
+  };
+}
+
 export const initialGenerationState: GenerationState = {
   kind: null,
   phase: "idle",
   taskId: null,
+  job: null,
   progress: 0,
   eta: null,
   preview: null,
@@ -55,7 +94,12 @@ export const initialGenerationState: GenerationState = {
 };
 
 export type GenerationAction =
-  | { type: "started"; taskId: string; kind: "txt2img" | "img2img" }
+  | {
+      type: "started";
+      taskId: string;
+      kind: "txt2img" | "img2img";
+      job?: GenerationJobSummary;
+    }
   | { type: "progress"; value: ProgressResponse }
   | { type: "interrupt-requested" }
   | { type: "control-failed"; error: string }
@@ -208,6 +252,7 @@ export function generationReducer(
         kind: action.kind,
         phase: "submitting",
         taskId: action.taskId,
+        job: action.job ?? null,
         text: "Submitting to Forge…",
       };
     case "progress": {

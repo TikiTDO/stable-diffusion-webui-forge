@@ -54,9 +54,10 @@ that faithfully implements an unclear model.
 
 - Forge's SDXL/Flux inference, loading, memory, sampling, LoRA, VAE, ControlNet,
   and preprocessing machinery remains valuable.
-- Gradio stops being the product UI, but replacing it does **not** imply
-  replacing the working generation backend. It remains temporarily as an
-  opt-in legacy and comparison surface, then is deleted only after parity.
+- Gradio is temporary implementation scaffolding, not a legacy product surface.
+  Replacing it does **not** imply replacing the working generation backend, but
+  once it has answered the comparison questions needed for the new interface,
+  the replaced UI is deleted. Git history is the recovery path.
 - A React/TypeScript application owns the human interface.
 - The first React slices use Forge's existing FastAPI routes. New backend
   contracts are introduced only where a concrete workflow cannot be expressed
@@ -104,6 +105,9 @@ simultaneous rewrite of every layer.
 12. [`12-unified-shot-and-regional-stage.md`](12-unified-shot-and-regional-stage.md)
     — unified source semantics, the transient candidate shelf, and the first
     transformable spatial-plan editor.
+13. [`13-near-term-work-order.md`](13-near-term-work-order.md) — the bounded
+    SDXL, Flux, LoRA, regional, editing, project, and cutover sequence after the
+    first replacement-workbench implementation.
 
 ## Related records
 

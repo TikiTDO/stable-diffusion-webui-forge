@@ -31,6 +31,7 @@ describe("ForgeClient", () => {
       modules: ["/models/vae/story.safetensors"],
       styles: ["Cinematic"],
       previewEvery: 5,
+      distilledCfgScale: 3.5,
     });
 
     expect(calls).toHaveLength(1);
@@ -46,6 +47,7 @@ describe("ForgeClient", () => {
       sampler_name: "Euler a",
       scheduler: "Karras",
       cfg_scale: 5,
+      distilled_cfg_scale: 3.5,
       batch_size: 1,
       n_iter: 1,
       force_task_id: "task(diffusatory-test)",
@@ -270,6 +272,7 @@ describe("ForgeClient", () => {
         skipped: {},
       },
       "/sdapi/v1/options": { sd_model_checkpoint: "model" },
+      "/diffusatory/api/v1/model-profiles": [],
     };
     const fetcher: typeof fetch = async (input) => {
       const path = String(input);
@@ -331,6 +334,28 @@ describe("ForgeClient", () => {
     });
   });
 
+  it("asks Forge to read generation metadata from a dropped image", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      return json({
+        info: "a lighthouse\nSteps: 20",
+        items: {},
+        parameters: { Prompt: "a lighthouse", Steps: "20" },
+      });
+    };
+
+    const result = await new ForgeClient("", fetcher).imageMetadata(
+      "data:image/png;base64,source",
+    );
+
+    expect(result.parameters.Prompt).toBe("a lighthouse");
+    expect(calls[0]?.[0]).toBe("/sdapi/v1/png-info");
+    expect(JSON.parse(calls[0]?.[1]?.body as string)).toEqual({
+      image: "data:image/png;base64,source",
+    });
+  });
+
   it("polls the task-aware progress route with the preview revision", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {
@@ -367,6 +392,25 @@ describe("ForgeClient", () => {
     await expect(
       client.txt2img("task(diffusatory-test)", { prompt: "x" }),
     ).rejects.toEqual(new ForgeApiError(422, "Checkpoint unavailable"));
+  });
+
+  it("surfaces Forge's exception type and nested error text on a 500", async () => {
+    const fetcher: typeof fetch = async () =>
+      json(
+        {
+          error: "RuntimeError",
+          detail: "",
+          errors: "Flux text encoders are missing",
+        },
+        { status: 500 },
+      );
+    const client = new ForgeClient("", fetcher);
+
+    await expect(
+      client.txt2img("task(diffusatory-test)", { prompt: "x" }),
+    ).rejects.toEqual(
+      new ForgeApiError(500, "RuntimeError: Flux text encoders are missing"),
+    );
   });
 });
 

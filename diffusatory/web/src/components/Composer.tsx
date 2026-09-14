@@ -14,32 +14,36 @@ import { RegionComposer } from "../features/regions/RegionComposer";
 import type { RegionalComposition } from "../features/regions/types";
 import { PromptTools } from "./PromptTools";
 import { PromptComposition } from "./PromptComposition";
+import { NumberInput } from "./NumberInput";
+import type { EditOperation, ImageEditSettings } from "../features/editor/model";
+import { profileForCheckpoint } from "../domain/modelProfiles";
 
 interface ComposerProps {
   draft: GenerationDraft;
   catalog: ForgeCatalog | null;
   catalogError: string | null;
   catalogLoading: boolean;
+  modelIssue: string | null;
+  hasSavedModelDefault: boolean;
   generating: boolean;
   canGenerate: boolean;
   sourceActive: boolean;
   editorVisible: boolean;
   hasEditorDocument: boolean;
-  editSettings: {
-    denoisingStrength: number;
-    maskBlur: number;
-    inpaintOnlyMasked: boolean;
-    inpaintPadding: number;
-  };
+  editSettings: ImageEditSettings;
   editDimensions: { width: number; height: number };
   onChange: (patch: Partial<GenerationDraft>) => void;
-  onGenerate: () => void;
+  onCheckpointChange: (checkpoint: string) => void;
+  onSaveModelDefault: () => void;
+  onRestoreModelDefault: () => void;
+  onGenerate: (operation?: EditOperation) => void;
   onInterrupt: () => void;
   onSkip: () => void;
   onReloadCatalog: () => void;
   onUsePromptOnly: () => void;
   onResumeEditor: () => void;
   onNewDrawing: () => void;
+  onOpenImage: (file: File) => void;
   onEditSettingsChange: (
     patch: Partial<ComposerProps["editSettings"]>,
   ) => void;
@@ -70,22 +74,13 @@ interface ComposerProps {
 }
 
 const ASPECTS = [
-  { label: "Square", compactLabel: "1:1", width: 1024, height: 1024 },
-  { label: "Portrait", compactLabel: "2:3", width: 832, height: 1216 },
-  { label: "Landscape", compactLabel: "3:2", width: 1216, height: 832 },
+  { label: "Square", ratio: "1:1", width: 1024, height: 1024 },
+  { label: "Portrait", ratio: "2:3", width: 832, height: 1216 },
+  { label: "Landscape", ratio: "3:2", width: 1216, height: 832 },
 ];
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
-}
-
-function changedNumber(
-  value: number,
-  fallback: number,
-  minimum: number,
-  maximum: number,
-): number {
-  return Number.isFinite(value) ? clamp(value, minimum, maximum) : fallback;
 }
 
 export function Composer({
@@ -93,6 +88,8 @@ export function Composer({
   catalog,
   catalogError,
   catalogLoading,
+  modelIssue,
+  hasSavedModelDefault,
   generating,
   canGenerate,
   sourceActive,
@@ -101,6 +98,9 @@ export function Composer({
   editSettings,
   editDimensions,
   onChange,
+  onCheckpointChange,
+  onSaveModelDefault,
+  onRestoreModelDefault,
   onGenerate,
   onInterrupt,
   onSkip,
@@ -108,6 +108,7 @@ export function Composer({
   onUsePromptOnly,
   onResumeEditor,
   onNewDrawing,
+  onOpenImage,
   onEditSettingsChange,
   controlNetCatalog,
   controlNetError,
@@ -137,6 +138,9 @@ export function Composer({
   const editing = sourceActive;
   const frameWidth = editing ? editDimensions.width : draft.width;
   const frameHeight = editing ? editDimensions.height : draft.height;
+  const modelProfile = catalog
+    ? profileForCheckpoint(catalog, draft.checkpoint)
+    : null;
   const insertPrompt = (text: string) => {
     const separator = draft.prompt.trim() ? ", " : "";
     onChange({ prompt: `${draft.prompt.trimEnd()}${separator}${text}` });
@@ -161,15 +165,27 @@ export function Composer({
             <button type="button" onClick={onResumeEditor}>Active image</button>
           )}
           <button type="button" onClick={onNewDrawing}>Blank canvas</button>
+          <label className="open-image-button">
+            Open image
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onOpenImage(file);
+                event.target.value = "";
+              }}
+            />
+          </label>
         </div>
 
         <div className="model-rack">
-        <label>
+        <label className="model-checkpoint">
           <span>Checkpoint</span>
           <select
             value={draft.checkpoint}
             disabled={!catalog?.checkpoints.length}
-            onChange={(event) => onChange({ checkpoint: event.target.value })}
+            onChange={(event) => onCheckpointChange(event.target.value)}
           >
             {!catalog?.checkpoints.length && <option>Loading models…</option>}
             {catalog?.checkpoints.map((checkpoint) => (
@@ -178,24 +194,69 @@ export function Composer({
               </option>
             ))}
           </select>
+          {modelProfile && (
+            <small className="model-profile">
+              {modelProfile.family === "unknown"
+                ? "Unclassified model"
+                : `${modelProfile.family.toUpperCase()} · ${
+                    modelProfile.speed_profile === "four-step"
+                      ? "4-step"
+                      : `${modelProfile.defaults.steps}-step default`
+                  } · ${
+                    modelProfile.component_mode === "integrated"
+                      ? "integrated components"
+                      : `${modelProfile.recommended_modules.length} external components`
+                  }`}
+            </small>
+          )}
         </label>
-        <label>
-          <span>VAE / text encoder</span>
-          <select
-            value={draft.modules[0] ?? ""}
-            disabled={!catalog}
-            onChange={(event) =>
-              onChange({ modules: event.target.value ? [event.target.value] : [] })
-            }
-          >
-            <option value="">Automatic</option>
+        <details className="model-components">
+          <summary>
+            <span>Components</span>
+            <strong>
+              {draft.modules.length
+                ? `${draft.modules.length} selected`
+                : modelProfile?.component_mode === "integrated"
+                  ? "Built into checkpoint"
+                  : "Automatic"}
+            </strong>
+          </summary>
+          <div>
             {catalog?.modules.map((modelModule) => (
-              <option value={modelModule.filename} key={modelModule.filename}>
-                {modelModule.model_name}
-              </option>
+              <label key={modelModule.filename}>
+                <input
+                  type="checkbox"
+                  checked={draft.modules.includes(modelModule.filename)}
+                  onChange={(event) =>
+                    onChange({
+                      modules: event.target.checked
+                        ? [...draft.modules, modelModule.filename]
+                        : draft.modules.filter((item) => item !== modelModule.filename),
+                    })
+                  }
+                />
+                <span>{modelModule.model_name}</span>
+              </label>
             ))}
-          </select>
-        </label>
+          </div>
+        </details>
+        <div className="model-default-row">
+          <span className="model-default-state">
+            {hasSavedModelDefault
+              ? "Your saved recipe overrides the family default"
+              : "Using the built-in model recipe"}
+          </span>
+          <span className="model-default-actions">
+            <button type="button" onClick={onSaveModelDefault}>
+              {hasSavedModelDefault ? "Update default" : "Save current as default"}
+            </button>
+            {hasSavedModelDefault && (
+              <button type="button" onClick={onRestoreModelDefault}>
+                Restore built-in
+              </button>
+            )}
+          </span>
+        </div>
         </div>
 
         <div className="draft-controls">
@@ -223,30 +284,25 @@ export function Composer({
                   onChange({ width: aspect.width, height: aspect.height })
                 }
               >
-                {aspect.compactLabel}
+                <span>
+                  <strong>{aspect.label}</strong>
+                  <small>{aspect.ratio}</small>
+                </span>
+                <small>{aspect.width} × {aspect.height}</small>
               </button>
             ))}
           </div>
-          <div className="dimension-inputs">
+          <div className="dimension-inputs" aria-label="Custom frame dimensions">
             <label>
-              <span>W</span>
-              <input
-                type="number"
+              <span>Width</span>
+              <NumberInput
                 min="64"
                 max="2048"
                 step="64"
                 value={frameWidth}
                 disabled={editing}
-                onChange={(event) =>
-                  onChange({
-                    width: changedNumber(
-                      event.target.valueAsNumber,
-                      draft.width,
-                      64,
-                      2048,
-                    ),
-                  })
-                }
+                clamp={(value) => clamp(value, 64, 2048)}
+                onValueChange={(width) => onChange({ width })}
               />
             </label>
             <button
@@ -261,24 +317,15 @@ export function Composer({
               ⇄
             </button>
             <label>
-              <span>H</span>
-              <input
-                type="number"
+              <span>Height</span>
+              <NumberInput
                 min="64"
                 max="2048"
                 step="64"
                 value={frameHeight}
                 disabled={editing}
-                onChange={(event) =>
-                  onChange({
-                    height: changedNumber(
-                      event.target.valueAsNumber,
-                      draft.height,
-                      64,
-                      2048,
-                    ),
-                  })
-                }
+                clamp={(value) => clamp(value, 64, 2048)}
+                onValueChange={(height) => onChange({ height })}
               />
             </label>
           </div>
@@ -286,32 +333,21 @@ export function Composer({
 
         <label className="compact-control candidates-control">
           <span>{promptMode === "exhaustive" ? "Candidate cap" : "Candidates"}</span>
-          <input
-            type="number"
+          <NumberInput
             min="1"
             max="8"
             value={draft.outputs}
-            onChange={(event) =>
-              onChange({
-                outputs: changedNumber(event.target.valueAsNumber, draft.outputs, 1, 8),
-              })
-            }
+            clamp={(value) => clamp(value, 1, 8)}
+            onValueChange={(outputs) => onChange({ outputs })}
           />
         </label>
 
         <label className="compact-control seed-control">
           <span>Seed</span>
-          <input
-            type="number"
+          <NumberInput
             min="-1"
             value={draft.seed}
-            onChange={(event) =>
-              onChange({
-                seed: Number.isFinite(event.target.valueAsNumber)
-                  ? event.target.valueAsNumber
-                  : draft.seed,
-              })
-            }
+            onValueChange={(seed) => onChange({ seed })}
           />
         </label>
         </div>
@@ -350,55 +386,33 @@ export function Composer({
           </label>
           <label>
             <span>Steps</span>
-            <input
-              type="number"
+            <NumberInput
               min="1"
               max="150"
               value={draft.steps}
-              onChange={(event) =>
-                onChange({
-                  steps: changedNumber(event.target.valueAsNumber, draft.steps, 1, 150),
-                })
-              }
+              clamp={(value) => clamp(value, 1, 150)}
+              onValueChange={(steps) => onChange({ steps })}
             />
           </label>
           <label>
             <span>CFG</span>
-            <input
-              type="number"
+            <NumberInput
               min="1"
               max="30"
               step="0.5"
               value={draft.cfgScale}
-              onChange={(event) =>
-                onChange({
-                  cfgScale: changedNumber(
-                    event.target.valueAsNumber,
-                    draft.cfgScale,
-                    1,
-                    30,
-                  ),
-                })
-              }
+              clamp={(value) => clamp(value, 1, 30)}
+              onValueChange={(cfgScale) => onChange({ cfgScale })}
             />
           </label>
           <label>
             <span>Preview every</span>
-            <input
-              type="number"
+            <NumberInput
               min="1"
               max="50"
               value={draft.previewEvery}
-              onChange={(event) =>
-                onChange({
-                  previewEvery: changedNumber(
-                    event.target.valueAsNumber,
-                    draft.previewEvery,
-                    1,
-                    50,
-                  ),
-                })
-              }
+              clamp={(value) => clamp(value, 1, 50)}
+              onValueChange={(previewEvery) => onChange({ previewEvery })}
             />
           </label>
           </div>
@@ -412,19 +426,45 @@ export function Composer({
           </button>
         </div>
       )}
+      {modelIssue && (
+        <div className="connection-error model-readiness-error" role="alert">
+          <span>{modelIssue}</span>
+        </div>
+      )}
 
-        <div className="composer__actions">
-        <button
-          className="generate"
-          type="button"
-          disabled={!canGenerate}
-          onClick={onGenerate}
-        >
-          <span>
-            {generating ? "Forge is working" : "Generate"}
-          </span>
-          <kbd>⌘/Ctrl ↵</kbd>
-        </button>
+        <div className={`composer__actions ${editing ? "composer__actions--editing" : ""}`}>
+        {editing ? (
+          <>
+            <button
+              className="generate"
+              type="button"
+              disabled={!canGenerate}
+              onClick={() => onGenerate("img2img")}
+            >
+              <span>{generating ? "Forge is working" : "Generate variation"}</span>
+              <kbd>Ctrl ↵</kbd>
+            </button>
+            <button
+              className="generate generate--inpaint"
+              type="button"
+              disabled={!canGenerate}
+              onClick={() => onGenerate("inpaint")}
+            >
+              <span>{generating ? "Forge is working" : "Generate inpaint"}</span>
+              <kbd>Ctrl Shift ↵</kbd>
+            </button>
+          </>
+        ) : (
+          <button
+            className="generate"
+            type="button"
+            disabled={!canGenerate}
+            onClick={() => onGenerate()}
+          >
+            <span>{generating ? "Forge is working" : "Generate"}</span>
+            <kbd>Ctrl ↵</kbd>
+          </button>
+        )}
         <button
           className="interrupt"
           type="button"
@@ -472,7 +512,7 @@ export function Composer({
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                 event.preventDefault();
-                onGenerate();
+                onGenerate(editing ? (event.shiftKey ? "inpaint" : "img2img") : undefined);
               }
             }}
             rows={9}
@@ -524,7 +564,8 @@ export function Composer({
 
         {editing && (
           <fieldset className="edit-generation-controls">
-            <legend>Image variation / inpaint</legend>
+            <legend>Edit image</legend>
+            <small>Paint and mask stay available; choose the operation when generating.</small>
             <label>
               <span>Denoise {editSettings.denoisingStrength.toFixed(2)}</span>
               <input
@@ -540,59 +581,45 @@ export function Composer({
                 }
               />
             </label>
-            <label>
-              <span>Mask blur</span>
-              <input
-                type="number"
-                min="0"
-                max="64"
-                value={editSettings.maskBlur}
-                onChange={(event) =>
-                  onEditSettingsChange({
-                    maskBlur: changedNumber(
-                      event.target.valueAsNumber,
-                      editSettings.maskBlur,
-                      0,
-                      64,
-                    ),
-                  })
-                }
-              />
-            </label>
-            <label>
-              <span>Inpaint area</span>
-              <select
-                value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
-                onChange={(event) =>
-                  onEditSettingsChange({
-                    inpaintOnlyMasked: event.target.value === "masked",
-                  })
-                }
-              >
-                <option value="masked">Only masked</option>
-                <option value="whole">Whole image</option>
-              </select>
-            </label>
-            <label>
-              <span>Padding</span>
-              <input
-                type="number"
-                min="0"
-                max="256"
-                step="4"
-                value={editSettings.inpaintPadding}
-                onChange={(event) =>
-                  onEditSettingsChange({
-                    inpaintPadding: changedNumber(
-                      event.target.valueAsNumber,
-                      editSettings.inpaintPadding,
-                      0,
-                      256,
-                    ),
-                  })
-                }
-              />
-            </label>
+            <>
+                <label>
+                  <span>Mask blur</span>
+                  <NumberInput
+                    min="0"
+                    max="64"
+                    value={editSettings.maskBlur}
+                    clamp={(value) => clamp(value, 0, 64)}
+                    onValueChange={(maskBlur) => onEditSettingsChange({ maskBlur })}
+                  />
+                </label>
+                <label>
+                  <span>Inpaint area</span>
+                  <select
+                    value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
+                    onChange={(event) =>
+                      onEditSettingsChange({
+                        inpaintOnlyMasked: event.target.value === "masked",
+                      })
+                    }
+                  >
+                    <option value="masked">Only masked</option>
+                    <option value="whole">Whole image</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Padding</span>
+                  <NumberInput
+                    min="0"
+                    max="256"
+                    step="4"
+                    value={editSettings.inpaintPadding}
+                    clamp={(value) => clamp(value, 0, 256)}
+                    onValueChange={(inpaintPadding) =>
+                      onEditSettingsChange({ inpaintPadding })
+                    }
+                  />
+                </label>
+            </>
           </fieldset>
         )}
 

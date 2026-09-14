@@ -6,6 +6,7 @@ import {
   generationReducer,
   initialGenerationState,
   isGenerating,
+  summarizeGeneration,
 } from "./generation";
 
 const POLL_INTERVAL_MS = 500;
@@ -58,7 +59,12 @@ export function useForgeGeneration(client: ForgeClient) {
       const taskId = createTaskId();
       const abort = new AbortController();
       currentAbort.current = abort;
-      dispatch({ type: "started", taskId, kind: request.kind });
+      dispatch({
+        type: "started",
+        taskId,
+        kind: request.kind,
+        job: summarizeGeneration(request),
+      });
 
       let polling = true;
       let previewId = -1;

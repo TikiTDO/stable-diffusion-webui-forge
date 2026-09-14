@@ -20,6 +20,7 @@ export interface Txt2ImgInput {
   sampler?: string;
   scheduler?: string;
   cfgScale?: number;
+  distilledCfgScale?: number;
   seed?: number;
   outputs?: number;
   previewEvery?: number;
@@ -46,6 +47,15 @@ export interface Txt2ImgResponse {
   images: string[] | null;
   parameters: Record<string, unknown>;
   info: string;
+}
+
+export interface ImageMetadataResponse {
+  /** The original Forge/A1111 generation infotext, empty when none was found. */
+  info: string;
+  /** Additional image metadata fields which are not the generation recipe. */
+  items: Record<string, unknown>;
+  /** Forge's parsed prompt and generation fields. */
+  parameters: Record<string, unknown>;
 }
 
 export type PromptExpansionMode = "off" | "random" | "exhaustive";
@@ -100,6 +110,25 @@ export interface Checkpoint {
   model_name: string;
   hash: string | null;
   sha256: string | null;
+  filename?: string;
+}
+
+export type ModelFamily = "flux" | "sdxl" | "unknown";
+
+export interface ModelProfile {
+  checkpoint: string;
+  family: ModelFamily;
+  component_mode: "integrated" | "external" | "unknown";
+  speed_profile: "four-step" | "standard";
+  recommended_modules: string[];
+  defaults: {
+    steps: number;
+    sampler: string;
+    scheduler: string;
+    cfg_scale: number;
+    distilled_cfg_scale: number | null;
+    preview_every: number;
+  };
 }
 
 export interface ModelModule {
@@ -149,6 +178,7 @@ export interface ForgeCatalog {
   styles: PromptStyle[];
   loras: Lora[];
   embeddings: string[];
+  modelProfiles: ModelProfile[];
   options: ForgeOptions;
 }
 

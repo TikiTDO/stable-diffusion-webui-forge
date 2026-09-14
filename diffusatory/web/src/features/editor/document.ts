@@ -63,15 +63,17 @@ export class EditorDocument {
     context.fillRect(0, 0, width, height);
   }
 
-  async loadSource(source: string | null): Promise<void> {
-    if (!source) return;
-    const image = await imageFromSource(source);
+  async loadSource(source: string | null, maskSource: string | null = null): Promise<void> {
+    const image = source ? await imageFromSource(source) : null;
     const context = this.source.getContext("2d");
     if (!context) throw new Error("Canvas 2D is unavailable in this browser.");
-    context.clearRect(0, 0, this.width, this.height);
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, this.width, this.height);
-    context.drawImage(image, 0, 0, this.width, this.height);
+    if (image) {
+      context.clearRect(0, 0, this.width, this.height);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, this.width, this.height);
+      context.drawImage(image, 0, 0, this.width, this.height);
+    }
+    if (maskSource) await this.loadMask(maskSource);
   }
 
   layer(name: EditorLayer): HTMLCanvasElement {
@@ -183,6 +185,34 @@ export class EditorDocument {
     context.fillStyle = "#cf5fe8";
     context.fillRect(0, 0, this.maskTint.width, this.maskTint.height);
     context.globalCompositeOperation = "source-over";
+  }
+
+  private async loadMask(source: string): Promise<void> {
+    const image = await imageFromSource(source);
+    const staging = createLayerCanvas(this.width, this.height);
+    const stagingContext = staging.getContext("2d", { willReadFrequently: true });
+    const maskContext = this.mask.getContext("2d");
+    if (!stagingContext || !maskContext) {
+      throw new Error("Canvas 2D is unavailable in this browser.");
+    }
+    stagingContext.drawImage(image, 0, 0, this.width, this.height);
+    const pixels = stagingContext.getImageData(0, 0, this.width, this.height);
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      const luminance = Math.max(
+        pixels.data[index],
+        pixels.data[index + 1],
+        pixels.data[index + 2],
+      );
+      pixels.data[index] = 255;
+      pixels.data[index + 1] = 255;
+      pixels.data[index + 2] = 255;
+      pixels.data[index + 3] = Math.round(
+        (luminance * pixels.data[index + 3]) / 255,
+      );
+    }
+    maskContext.clearRect(0, 0, this.width, this.height);
+    maskContext.putImageData(pixels, 0, 0);
+    this.refreshMaskTint();
   }
 
   private exportMask(): string | null {

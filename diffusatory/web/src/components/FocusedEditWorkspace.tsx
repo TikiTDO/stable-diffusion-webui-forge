@@ -1,0 +1,506 @@
+import { forwardRef } from "react";
+
+import type {
+  ForgeCatalog,
+  PromptExpansionMode,
+  PromptExpansionResponse,
+} from "../api/forge/types";
+import type { GenerationDraft } from "../domain/draft";
+import type { GenerationState } from "../domain/generation";
+import {
+  ImageEditor,
+  type ImageEditorHandle,
+} from "../features/editor/ImageEditor";
+import type {
+  EditOperation,
+  ImageEditSettings,
+} from "../features/editor/model";
+import type { EditorVariation } from "../domain/editorVariations";
+import { EditorVariationTray } from "./EditorVariationTray";
+import { NumberInput } from "./NumberInput";
+import { PromptComposition } from "./PromptComposition";
+import { PromptTools } from "./PromptTools";
+import { profileForCheckpoint } from "../domain/modelProfiles";
+
+interface FocusedEditWorkspaceProps {
+  documentKey: string;
+  source: string | null;
+  maskSource: string | null;
+  dimensions: { width: number; height: number };
+  dirty: boolean;
+  editorError: string | null;
+  editSettings: ImageEditSettings;
+  draft: GenerationDraft;
+  catalog: ForgeCatalog | null;
+  modelIssue: string | null;
+  hasSavedModelDefault: boolean;
+  generation: GenerationState;
+  generating: boolean;
+  canGenerate: boolean;
+  activeOperation: EditOperation | null;
+  variations: EditorVariation[];
+  activeVariationId: string | null;
+  promptMode: PromptExpansionMode;
+  expansionSeed: number;
+  promptExpansion: PromptExpansionResponse | null;
+  promptExpansionLoading: boolean;
+  promptExpansionError: string | null;
+  promptActionError: string | null;
+  onReady: (width: number, height: number) => void;
+  onContentChange: () => void;
+  onDraftChange: (patch: Partial<GenerationDraft>) => void;
+  onCheckpointChange: (checkpoint: string) => void;
+  onSaveModelDefault: () => void;
+  onRestoreModelDefault: () => void;
+  onEditSettingsChange: (patch: Partial<ImageEditSettings>) => void;
+  onPromptModeChange: (mode: PromptExpansionMode) => void;
+  onExpansionSeedChange: (seed: number) => void;
+  onShufflePromptSet: () => void;
+  onGenerate: (operation: EditOperation) => void;
+  onSkip: () => void;
+  onInterrupt: () => void;
+  onSelectVariation: (variation: EditorVariation) => void;
+  onClose: () => void;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function checkpointLabel(checkpoint: string): string {
+  return (
+    checkpoint
+      .replace(/\s*\[[^\]]+\]\s*$/, "")
+      .split(/[\\/]/)
+      .at(-1)
+      ?.replace(/\.safetensors$/i, "") ?? checkpoint
+  );
+}
+
+export const FocusedEditWorkspace = forwardRef<
+  ImageEditorHandle,
+  FocusedEditWorkspaceProps
+>(function FocusedEditWorkspace(
+  {
+    documentKey,
+    source,
+    maskSource,
+    dimensions,
+    dirty,
+    editorError,
+    editSettings,
+    draft,
+    catalog,
+    modelIssue,
+    hasSavedModelDefault,
+    generation,
+    generating,
+    canGenerate,
+    activeOperation,
+    variations,
+    activeVariationId,
+    promptMode,
+    expansionSeed,
+    promptExpansion,
+    promptExpansionLoading,
+    promptExpansionError,
+    promptActionError,
+    onReady,
+    onContentChange,
+    onDraftChange,
+    onCheckpointChange,
+    onSaveModelDefault,
+    onRestoreModelDefault,
+    onEditSettingsChange,
+    onPromptModeChange,
+    onExpansionSeedChange,
+    onShufflePromptSet,
+    onGenerate,
+    onSkip,
+    onInterrupt,
+    onSelectVariation,
+    onClose,
+  },
+  ref,
+) {
+  const insertPrompt = (text: string) => {
+    const separator = draft.prompt.trim() ? ", " : "";
+    onDraftChange({ prompt: `${draft.prompt.trimEnd()}${separator}${text}` });
+  };
+  const modelProfile = catalog
+    ? profileForCheckpoint(catalog, draft.checkpoint)
+    : null;
+
+  return (
+    <section
+      className="focused-edit"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Focused image editor"
+    >
+      <header className="focused-edit__header">
+        <div>
+          <p className="eyebrow">Focused edit</p>
+          <h2>{source ? "Work directly on this shot" : "Draw a new source"}</h2>
+        </div>
+        <div className="focused-edit__truth">
+          <span>{dimensions.width} × {dimensions.height}</span>
+          <span>{checkpointLabel(draft.checkpoint)}</span>
+          {dirty && <strong>Local paint not yet rendered</strong>}
+        </div>
+        <button type="button" className="close-editor" onClick={onClose}>
+          Close editor
+        </button>
+      </header>
+
+      <div className="focused-edit__body">
+        <div className="focused-edit__canvas">
+          {editorError && (
+            <p className="stage__error" role="alert">{editorError}</p>
+          )}
+          <ImageEditor
+            key={documentKey}
+            ref={ref}
+            source={source}
+            maskSource={maskSource}
+            width={dimensions.width}
+            height={dimensions.height}
+            onReady={onReady}
+            onContentChange={onContentChange}
+          />
+          <EditorVariationTray
+            variations={variations}
+            activeId={activeVariationId}
+            onSelect={onSelectVariation}
+          />
+        </div>
+
+        <aside className="focused-edit__rail" aria-label="Focused edit controls">
+          <section className="focused-edit__model">
+            <div className="focused-edit__section-heading">
+              <div>
+                <p className="eyebrow">Model and render</p>
+                <h3>Next pass</h3>
+              </div>
+              {modelProfile && (
+                <span>
+                  {modelProfile.family.toUpperCase()} · {modelProfile.defaults.steps}-step base
+                </span>
+              )}
+            </div>
+            <label className="focused-edit__checkpoint">
+              <span>Checkpoint</span>
+              <select
+                value={draft.checkpoint}
+                disabled={!catalog?.checkpoints.length}
+                onChange={(event) => onCheckpointChange(event.target.value)}
+              >
+                {!catalog?.checkpoints.length && <option>Loading models…</option>}
+                {catalog?.checkpoints.map((checkpoint) => (
+                  <option value={checkpoint.title} key={checkpoint.title}>
+                    {checkpoint.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="focused-edit__model-default">
+              <span>
+                {hasSavedModelDefault
+                  ? "Your saved recipe is active"
+                  : "Built-in family/model recipe"}
+              </span>
+              <button type="button" onClick={onSaveModelDefault}>
+                {hasSavedModelDefault ? "Update default" : "Save as default"}
+              </button>
+              {hasSavedModelDefault && (
+                <button type="button" onClick={onRestoreModelDefault}>
+                  Restore built-in
+                </button>
+              )}
+            </div>
+            {catalog && catalog.modules.length > 0 && (
+              <details className="focused-edit__components">
+                <summary>
+                  Components · {draft.modules.length
+                    ? `${draft.modules.length} selected`
+                    : modelProfile?.component_mode === "integrated"
+                      ? "built into checkpoint"
+                      : "automatic"}
+                </summary>
+                <div>
+                  {catalog.modules.map((modelModule) => (
+                    <label key={modelModule.filename}>
+                      <input
+                        type="checkbox"
+                        checked={draft.modules.includes(modelModule.filename)}
+                        onChange={(event) =>
+                          onDraftChange({
+                            modules: event.target.checked
+                              ? [...draft.modules, modelModule.filename]
+                              : draft.modules.filter(
+                                  (item) => item !== modelModule.filename,
+                                ),
+                          })
+                        }
+                      />
+                      <span>{modelModule.model_name}</span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            )}
+            <div className="focused-edit__render-grid">
+              <label>
+                <span>Sampler</span>
+                <select
+                  value={draft.sampler}
+                  onChange={(event) => onDraftChange({ sampler: event.target.value })}
+                >
+                  {catalog?.samplers.map((sampler) => (
+                    <option value={sampler.name} key={sampler.name}>{sampler.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Scheduler</span>
+                <select
+                  value={draft.scheduler}
+                  onChange={(event) => onDraftChange({ scheduler: event.target.value })}
+                >
+                  {catalog?.schedulers.map((scheduler) => (
+                    <option value={scheduler.name} key={scheduler.name}>{scheduler.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Steps</span>
+                <NumberInput
+                  min="1"
+                  max="150"
+                  value={draft.steps}
+                  clamp={(value) => clamp(value, 1, 150)}
+                  onValueChange={(steps) => onDraftChange({ steps })}
+                />
+              </label>
+              <label>
+                <span>CFG</span>
+                <NumberInput
+                  min="0"
+                  max="30"
+                  step="0.5"
+                  value={draft.cfgScale}
+                  clamp={(value) => clamp(value, 0, 30)}
+                  onValueChange={(cfgScale) => onDraftChange({ cfgScale })}
+                />
+              </label>
+              {modelProfile?.family === "flux" && (
+                <label>
+                  <span>Guidance</span>
+                  <NumberInput
+                    min="0"
+                    max="30"
+                    step="0.1"
+                    value={draft.distilledCfgScale}
+                    clamp={(value) => clamp(value, 0, 30)}
+                    onValueChange={(distilledCfgScale) =>
+                      onDraftChange({ distilledCfgScale })
+                    }
+                  />
+                </label>
+              )}
+              <label>
+                <span>Candidates</span>
+                <NumberInput
+                  min="1"
+                  max="8"
+                  value={draft.outputs}
+                  clamp={(value) => clamp(value, 1, 8)}
+                  onValueChange={(outputs) => onDraftChange({ outputs })}
+                />
+              </label>
+              <label>
+                <span>Preview every</span>
+                <NumberInput
+                  min="1"
+                  max="50"
+                  value={draft.previewEvery}
+                  clamp={(value) => clamp(value, 1, 50)}
+                  onValueChange={(previewEvery) => onDraftChange({ previewEvery })}
+                />
+              </label>
+            </div>
+            {modelIssue && <p className="stage__error" role="alert">{modelIssue}</p>}
+          </section>
+
+          <section className="focused-edit__operation">
+            <header>
+              <div>
+                <p className="eyebrow">Edit controls</p>
+                <h3>Prepare either pass</h3>
+              </div>
+              <span>Choose when you generate</span>
+            </header>
+            <label>
+              <span>Denoise <strong>{editSettings.denoisingStrength.toFixed(2)}</strong></span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={editSettings.denoisingStrength}
+                onChange={(event) =>
+                  onEditSettingsChange({
+                    denoisingStrength: event.target.valueAsNumber,
+                  })
+                }
+              />
+            </label>
+            <div className="focused-edit__inpaint-settings">
+                <label>
+                  <span>Mask blur</span>
+                  <NumberInput
+                    min="0"
+                    max="64"
+                    value={editSettings.maskBlur}
+                    clamp={(value) => clamp(value, 0, 64)}
+                    onValueChange={(maskBlur) => onEditSettingsChange({ maskBlur })}
+                  />
+                </label>
+                <label>
+                  <span>Area</span>
+                  <select
+                    value={editSettings.inpaintOnlyMasked ? "masked" : "whole"}
+                    onChange={(event) =>
+                      onEditSettingsChange({
+                        inpaintOnlyMasked: event.target.value === "masked",
+                      })
+                    }
+                  >
+                    <option value="masked">Only masked</option>
+                    <option value="whole">Whole image</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Padding</span>
+                  <NumberInput
+                    min="0"
+                    max="256"
+                    step="4"
+                    value={editSettings.inpaintPadding}
+                    clamp={(value) => clamp(value, 0, 256)}
+                    onValueChange={(inpaintPadding) =>
+                      onEditSettingsChange({ inpaintPadding })
+                    }
+                  />
+                </label>
+            </div>
+          </section>
+
+          <section className="focused-edit__prompt">
+            <div className="focused-edit__section-heading">
+              <div>
+                <p className="eyebrow">Prompt</p>
+                <h3>Describe the change</h3>
+              </div>
+              <span>{draft.outputs} candidate{draft.outputs === 1 ? "" : "s"}</span>
+            </div>
+            <label>
+              <span>Prompt</span>
+              <textarea
+                rows={6}
+                value={draft.prompt}
+                onChange={(event) => onDraftChange({ prompt: event.target.value })}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    onGenerate(event.shiftKey ? "inpaint" : "img2img");
+                  }
+                }}
+              />
+            </label>
+            <label>
+              <span>Negative prompt</span>
+              <textarea
+                rows={3}
+                value={draft.negativePrompt}
+                onChange={(event) =>
+                  onDraftChange({ negativePrompt: event.target.value })
+                }
+              />
+            </label>
+            <PromptComposition
+              mode={promptMode}
+              expansionSeed={expansionSeed}
+              response={promptExpansion}
+              loading={promptExpansionLoading}
+              error={promptExpansionError}
+              actionError={promptActionError}
+              onModeChange={onPromptModeChange}
+              onExpansionSeedChange={onExpansionSeedChange}
+              onShuffle={onShufflePromptSet}
+            />
+          </section>
+
+          {catalog && (
+            <PromptTools
+              catalog={catalog}
+              selectedStyles={draft.styles}
+              onStylesChange={(styles) => onDraftChange({ styles })}
+              onInsert={insertPrompt}
+            />
+          )}
+
+          {(generating || generation.error) && (
+            <section className="focused-edit__results" aria-live="polite">
+              <header>
+                <strong>{generating ? "Forge is editing" : "Recent edited outputs"}</strong>
+                <span>{generation.text}</span>
+              </header>
+              {generation.preview && generating && (
+                <img
+                  className="focused-edit__preview"
+                  src={generation.preview}
+                  alt="Current generation preview"
+                />
+              )}
+              {generation.error && (
+                <p className="stage__error" role="alert">{generation.error}</p>
+              )}
+            </section>
+          )}
+
+          <div className="focused-edit__actions">
+            <button
+              type="button"
+              className="generate"
+              disabled={!canGenerate}
+              onClick={() => onGenerate("img2img")}
+            >
+              {generating && activeOperation === "img2img"
+                ? "Making variation…"
+                : "Generate variation"}
+              <kbd>Ctrl ↵</kbd>
+            </button>
+            <button
+              type="button"
+              className="generate generate--inpaint"
+              disabled={!canGenerate}
+              onClick={() => onGenerate("inpaint")}
+            >
+              {generating && activeOperation === "inpaint"
+                ? "Inpainting…"
+                : "Generate inpaint"}
+              <kbd>Ctrl Shift ↵</kbd>
+            </button>
+            <button type="button" disabled={!generating} onClick={onSkip}>
+              Skip
+            </button>
+            <button type="button" disabled={!generating} onClick={onInterrupt}>
+              Cancel
+            </button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+});

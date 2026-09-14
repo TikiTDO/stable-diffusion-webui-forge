@@ -1,4 +1,5 @@
 import type { ForgeCatalog, Txt2ImgInput } from "../api/forge/types";
+import { applyCheckpointProfile } from "./modelProfiles";
 
 export interface GenerationDraft {
   prompt: string;
@@ -14,6 +15,7 @@ export interface GenerationDraft {
   scheduler: string;
   steps: number;
   cfgScale: number;
+  distilledCfgScale: number;
   previewEvery: number;
 }
 
@@ -31,6 +33,7 @@ export const starterDraft: GenerationDraft = {
   scheduler: "karras",
   steps: 20,
   cfgScale: 5,
+  distilledCfgScale: 3.5,
   previewEvery: 5,
 };
 
@@ -57,7 +60,7 @@ export function draftFromCatalog(
     catalog.schedulers[0]?.name ??
     draft.scheduler;
 
-  return {
+  const catalogDraft = {
     ...draft,
     checkpoint,
     modules: catalog.options.forge_additional_modules ?? draft.modules,
@@ -66,6 +69,7 @@ export function draftFromCatalog(
     previewEvery:
       catalog.options.show_progress_every_n_steps ?? draft.previewEvery,
   };
+  return applyCheckpointProfile(catalogDraft, catalog, checkpoint);
 }
 
 export function requestFromDraft(draft: GenerationDraft): Txt2ImgInput {
@@ -83,6 +87,7 @@ export function requestFromDraft(draft: GenerationDraft): Txt2ImgInput {
     scheduler: draft.scheduler,
     steps: draft.steps,
     cfgScale: draft.cfgScale,
+    distilledCfgScale: draft.distilledCfgScale,
     previewEvery: draft.previewEvery,
   };
 }

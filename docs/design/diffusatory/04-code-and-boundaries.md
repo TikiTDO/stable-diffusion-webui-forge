@@ -49,7 +49,8 @@ FastAPI already exists in the Forge process. During parity, the new application
 should:
 
 - serve the built frontend;
-- mount the inherited Gradio application at `/legacy` while needed;
+- leave the inherited Gradio root alone only while it is still being used as a
+  comparison instrument;
 - use the existing launcher's device and model initialization;
 - call existing `/sdapi/v1`, `/internal/progress`, and ControlNet routes through
   the compatibility adapter;
@@ -58,8 +59,10 @@ should:
 The default route moves only after the required existing generation workflows
 pass hands-on comparison. Durable projects are a subsequent product feature,
 not a hostage gate for replacing the settings form. Before cutover React is an
-explicit preview route and Gradio remains the default. A launch flag retains
-legacy-first behavior during and briefly after cutover.
+explicit preview route and the current root may still host Gradio. Cutover makes
+React the product root and removes the replaced Gradio UI in the same workstream;
+there is no permanent `/legacy` route or legacy-first launch flag. Git preserves
+the old implementation if a later investigation genuinely needs it.
 
 ## Frontend state
 
@@ -151,6 +154,13 @@ project-root/
 SQLite owns identifiers, order, operations, recipes, realizations, and versions.
 Normal files own image bytes. All stored paths are relative to the project root
 where possible, making project movement and backup unsurprising.
+
+The ordered current-frame directory is a maintained projection, not an opaque
+asset bucket. A successful UI move updates both the stable project relation and
+the on-disk sortable names or paths. Stage all collision-prone renames first,
+commit the intended order with a recovery record, then publish the final names;
+startup reconciliation must expose rather than silently choose between a
+partially applied database and filesystem order.
 
 Database mutations and corresponding asset writes need a small transaction
 protocol: stage bytes, commit the database record, then expose the asset. Clean

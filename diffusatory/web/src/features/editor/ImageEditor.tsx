@@ -18,6 +18,7 @@ export interface ImageEditorHandle {
 
 interface ImageEditorProps {
   source: string | null;
+  maskSource?: string | null;
   width: number;
   height: number;
   onReady?: (width: number, height: number) => void;
@@ -26,11 +27,12 @@ interface ImageEditorProps {
 
 export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
   function ImageEditor(
-    { source, width, height, onReady, onContentChange },
+    { source, maskSource = null, width, height, onReady, onContentChange },
     forwardedRef,
   ) {
     const editor = useEditorSurface({
       source,
+      maskSource,
       width,
       height,
       onReady,

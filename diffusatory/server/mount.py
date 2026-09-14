@@ -16,6 +16,7 @@ from diffusatory.server.prompt_composition import (
     PromptExpansionResponse,
     compile_prompt_expansion,
 )
+from diffusatory.server.model_profiles import ModelProfile, model_profiles
 
 
 DIFFUSATORY_PREFIX = "/diffusatory"
@@ -96,6 +97,14 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
     @router.get("/instance", response_model=InstanceDescriptor)
     async def get_instance() -> InstanceDescriptor:
         return instance_descriptor(app)
+
+    @router.get("/model-profiles", response_model=list[ModelProfile])
+    async def get_model_profiles() -> list[ModelProfile]:
+        # Import only in the running Forge process. Importing sd_models while a
+        # focused unittest owns argv activates Forge's global CLI parser.
+        from modules import sd_models
+
+        return model_profiles(sd_models.checkpoints_list.values())
 
     @router.post("/prompts/expand", response_model=PromptExpansionResponse)
     async def expand_prompts(

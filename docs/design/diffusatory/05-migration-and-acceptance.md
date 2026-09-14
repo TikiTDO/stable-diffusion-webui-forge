@@ -3,9 +3,10 @@
 ## Method
 
 Build vertical slices against the engine that already works. “Fresh UI” and
-“fresh backend” are independent decisions. Keep Gradio intact for comparison
-while React reproduces one real workflow at a time; add backend machinery only
-after the current API fails a named interaction.
+“fresh backend” are independent decisions. Use Gradio as a temporary comparison
+instrument only while React reproduces one real workflow at a time; add backend
+machinery only after the current API fails a named interaction. Once the old UI
+has answered those questions, delete it rather than preserving a legacy product.
 
 The first cutover target is the operator's existing practical image workflow,
 not the entire Diffusatory destination. Projects and story sequencing become the
@@ -23,7 +24,8 @@ Acceptance:
 - one read-only instance endpoint reports an operator-configured name, stable
   instance ID, build version, and supported capabilities;
 - one development proxy is sufficient; no new generation backend participates;
-- Gradio still runs unchanged and can produce a comparison image;
+- the still-temporary Gradio UI can produce one comparison image while this
+  walking-skeleton question remains open;
 - fake API fixtures exist for frontend tests, but there is no fake project or
   fake engine standing in for the walking skeleton.
 
@@ -148,8 +150,15 @@ Required evidence:
 - failures explain which request or capability failed without exposing a raw
   positional-script puzzle to the person;
 - the interface remains responsive through real generation;
-- Gradio remains reachable at `/legacy` for comparison and missing uncommon
-  operations.
+- every operator-used image workflow has a deliberate new-path result, so
+  Gradio no longer answers a current product question.
+
+Gradio removal is event-driven, not a late fixed migration phase. As soon as the
+last workflow for which the operator still uses it has a satisfactory new-path
+result—and after checking that no active caller relies on its UI-only
+surfaces—make the replacement the product entry point and delete the old UI.
+Git is the archive. New capabilities such as projects do not delay removal,
+because Gradio never supplied them.
 
 ## Slice 6 — Flux and render profiles
 
@@ -185,7 +194,7 @@ Acceptance:
 - the current story remains visible while generating and recent anchors return
   the person to the relevant frame.
 
-## Slice 8 — native contracts and legacy deletion
+## Slice 8 — native contracts and replaced-code deletion
 
 Replace compatibility seams only where accumulated use justifies it:
 
@@ -195,15 +204,18 @@ Replace compatibility seams only where accumulated use justifies it:
 - native project-aware img2img and provenance;
 - deletion of extension registration paths whose capabilities are now native.
 
-Gradio deletion gates:
+Deletion gates for any replaced surface:
 
 - every supported workflow has a new-path proof;
-- project and output migration/export are documented and exercised;
-- launch, API, and engine tests no longer require Gradio imports for the new
-  product;
-- no active route or subprocess calls removed UI/extension code;
-- `/legacy` has been unused through one normal work interval;
-- the operator accepts deletion.
+- stored output needed by the new path remains accessible;
+- launch, API, and engine tests no longer require the replaced surface;
+- no active route, subprocess, script, or extension registration calls the
+  removed code;
+- the hands-on cutover says the old UI has served its purpose.
+
+When those facts hold, remove the replaced UI, its launch branches, and
+UI-exclusive dependencies. Do not create or retain a `/legacy` route as an
+archive; Git already preserves the old implementation.
 
 ## Validation layers
 

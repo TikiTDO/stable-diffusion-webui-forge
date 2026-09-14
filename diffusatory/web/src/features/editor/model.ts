@@ -3,6 +3,14 @@ import type { PressureCalibration } from "../../input/calibration";
 
 export type EditorLayer = "paint" | "mask";
 export type EditorTool = "brush" | "erase" | "pan" | "eyedropper";
+export type EditOperation = "img2img" | "inpaint";
+
+export interface ImageEditSettings {
+  denoisingStrength: number;
+  maskBlur: number;
+  inpaintOnlyMasked: boolean;
+  inpaintPadding: number;
+}
 
 export interface StrokeOperation {
   layer: EditorLayer;

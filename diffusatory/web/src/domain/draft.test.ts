@@ -14,6 +14,7 @@ const catalog: ForgeCatalog = {
   styles: [],
   loras: [],
   embeddings: [],
+  modelProfiles: [],
   options: {
     sd_model_checkpoint: "selected",
     forge_additional_modules: ["/vae.safetensors"],

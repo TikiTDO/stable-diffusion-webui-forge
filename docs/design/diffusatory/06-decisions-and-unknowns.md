@@ -11,7 +11,9 @@
 - The first React client uses Forge's existing HTTP API and generation paths.
 - A fresh interface does not require a fresh generation backend.
 - Backend endpoints are added only for measured missing contracts.
-- Gradio is transitional and ultimately removed from the product.
+- Gradio is temporary comparison scaffolding, not a supported legacy surface.
+  When the new UI has proven the workflows for which Gradio is still useful,
+  remove the replaced UI; Git history is its archive.
 - React/TypeScript owns the new interface; FastAPI owns the local application
   API and serves it.
 - Projects use stable identifiers and transactional ordering.

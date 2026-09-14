@@ -39,8 +39,11 @@ Project
 ```
 
 A project owns ordering, recipes, history, and provenance. The root directory
-owns image files and a local project database. It is not safe to infer order or
-identity from filenames alone.
+owns image files and a local project database. It is not safe to infer stable
+identity or version history from filenames alone, but the directory is also a
+real human-facing projection of the story: successful UI reorder and placement
+operations must update its sortable file layout. Database order and visible
+directory order are not allowed to drift silently.
 
 ## Frame and version
 
@@ -248,3 +251,11 @@ Every durable project edit has an attributable operation record:
 This provides undo and history without reconstructing intention from filesystem
 timestamps. It is product history, not an event-sourcing religion: store the
 small set of operations needed to explain and reverse actual edits.
+
+Reorder, group move, Add, Replace, and restore operations also maintain the
+project directory projection. Use staged collision-free renames or moves and a
+recovery receipt so a partial filesystem failure cannot be reported as a
+successful reorder. `image_processor`'s timestamp-ordered physical renames are
+the established behavior to learn from; Diffusatory may improve their
+transaction boundary without replacing the visible filesystem effect with a
+database-only order.

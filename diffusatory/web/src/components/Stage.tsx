@@ -6,7 +6,7 @@ import type { Candidate } from "../domain/candidates";
 interface StageProps {
   generation: GenerationState;
   candidates: Candidate[];
-  onRefine?: (source: string) => void;
+  onEdit?: (source: string, presentation: "workspace" | "focused") => void;
   onDismissCandidate: (id: string) => void;
   onClearCandidates: () => void;
 }
@@ -17,10 +17,18 @@ function formatEta(eta: number | null): string | null {
   return `${Math.ceil(eta / 60)}m remaining`;
 }
 
+function checkpointLabel(checkpoint: string): string {
+  return checkpoint
+    .replace(/\s*\[[^\]]+\]\s*$/, "")
+    .split(/[\\/]/)
+    .at(-1)
+    ?.replace(/\.safetensors$/i, "") ?? checkpoint;
+}
+
 export const Stage = memo(function Stage({
   generation,
   candidates,
-  onRefine,
+  onEdit,
   onDismissCandidate,
   onClearCandidates,
 }: StageProps) {
@@ -208,13 +216,13 @@ export const Stage = memo(function Stage({
             </div>
             <small>Clear only hides these here; Forge’s raw output remains on disk.</small>
           </div>
-          {selectedImage && onRefine && selectedResult?.kind !== "contact-sheet" && (
+          {selectedImage && onEdit && selectedResult?.kind !== "contact-sheet" && (
             <button
               type="button"
               className="refine-result"
-              onClick={() => onRefine(selectedImage)}
+              onClick={() => onEdit(selectedImage, "workspace")}
             >
-              Draw / mask
+              Edit
             </button>
           )}
         </div>
@@ -228,6 +236,29 @@ export const Stage = memo(function Stage({
           <span>{generation.text}</span>
           {eta && <span>{eta}</span>}
         </div>
+        {isGenerating(generation.phase) && generation.job && (
+          <div className="active-job" aria-label="Active generation">
+            <div>
+              <strong>
+                {generation.job.kind === "img2img" ? "Editing" : "Generating"}{" "}
+                {generation.job.outputs} {generation.job.outputs === 1 ? "image" : "images"}
+              </strong>
+              <span>
+                {checkpointLabel(generation.job.checkpoint)} · {generation.job.width} ×{" "}
+                {generation.job.height} · {generation.job.steps} steps ·{" "}
+                {generation.job.sampler} / {generation.job.scheduler}
+              </span>
+            </div>
+            <p>
+              {generation.job.prompt || "(empty positive prompt)"}
+              {generation.job.additionalPrompts
+                ? ` · +${generation.job.additionalPrompts} resolved prompt${
+                    generation.job.additionalPrompts === 1 ? "" : "s"
+                  }`
+                : ""}
+            </p>
+          </div>
+        )}
         {generation.error && (
           <p className="stage__error" role="alert">
             {generation.error}
@@ -321,6 +352,9 @@ export const Stage = memo(function Stage({
           role="dialog"
           aria-modal="true"
           aria-label="Image viewer"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setViewer(null);
+          }}
         >
           <div className="viewer__toolbar">
             {viewer.index !== null && candidates.length > 1 && (
@@ -364,6 +398,18 @@ export const Stage = memo(function Stage({
             <button type="button" onClick={() => setViewerZoom(1)}>
               Fit
             </button>
+            {onEdit && (
+              <button
+                type="button"
+                className="viewer__edit"
+                onClick={() => {
+                  onEdit(viewer.image, "focused");
+                  setViewer(null);
+                }}
+              >
+                Edit
+              </button>
+            )}
             <button type="button" onClick={() => setViewer(null)}>
               Close
             </button>

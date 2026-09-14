@@ -13,28 +13,53 @@ generating. The person is rarely making an isolated image; they are asking what
 shot belongs beside other shots. Project-aware generation therefore starts from
 an anchor even when the new image has no img2img source.
 
-The ordinary workspace has four persistent regions:
+The ordinary workspace has five persistent regions:
 
 1. **Composer** — prompt, negative prompt, styles, dimensions, candidate count,
    seed, and composition inputs.
 2. **Stage** — live preview, candidate viewer, and resolved prompt.
 3. **Candidate tray** — quick comparison and Add, Replace, or Refine actions.
-4. **Project sequence** — the ordered storyboard and current insertion anchor.
+4. **Recent scratch** — recently opened, imported, generated, and edited images
+   that can become the active source again with one action.
+5. **Project sequence** — the ordered storyboard and current insertion anchor.
 
-A small recent-anchors rail connects img2img and composition work back to the
-project without making the person search the whole sequence again.
+A small recent-scratch rail connects img2img and composition work back to the
+project without making the person search the whole sequence again. It is a
+persistent working set of image references, not another copy of every image and
+not the same thing as the unaccepted-candidate shelf.
+
+### Every image can become the source
+
+A generated result, current project frame, prior frame version, recent scratch
+image, or newly opened local image exposes the same **Work on this image**
+action. That action makes the selected pixels the visible editor source and
+offers ordinary img2img, whole-image regeneration, and masked inpaint without a
+download/upload round trip or a separate endpoint-shaped room.
+
+The result returns to the unaccepted shelf and recent scratch. From there it can
+remain temporary, be added as another frame, replace the originating frame, or
+become the source of another edit. Source kind changes provenance and placement
+choices, not which editor the person receives.
 
 ### One shot, not endpoint tabs
 
 `txt2img`, `img2img`, and inpaint are backend request shapes, not separate
-creative rooms. The workbench keeps one active shot and derives the request:
+creative rooms. The workbench keeps one active shot and makes the operation an
+explicit generation action:
 
 - no source image means generate new variants from the prompt;
-- an active source image means refine that image;
-- a non-empty visible selection mask makes that refinement an inpaint request;
+- an active source image exposes **Generate variation** and **Generate inpaint**
+  side by side rather than a persistent mode picker;
+- paint and mask remain available together; Generate variation ignores the
+  mask, while Generate inpaint requires and submits it;
 - returning to the candidate shelf resumes prompt-only variants without
   destroying the editor document;
 - opening any candidate as a source returns to the same paint/mask surface.
+
+The editor owns a session-local variation tray. It begins with the original,
+preserves a flattened working input plus its mask before a render, and appends
+every returned variation or inpaint. Selecting any old or new member changes
+the source without leaving the editor or erasing the other branches.
 
 The interface may change which work surface occupies the Stage—candidate
 review, pen editing, spatial blocking, or project sequencing—but does not need
@@ -152,6 +177,13 @@ remembering whether the interface was secretly in Add or Replace mode.
 
 The sequence is an ordered set of stable frames, not filenames sorted by write
 time.
+
+That does not make the corresponding directory disposable. It is a
+human-facing interoperability surface: after a successful reorder, its visible
+filenames or paths must sort in the same order as the interface. Stable frame
+identity and version history survive those moves through project metadata. The
+database may explain the operation; it may not leave the file browser showing a
+different story.
 
 Required interactions:
 

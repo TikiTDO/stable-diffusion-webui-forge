@@ -5,6 +5,7 @@ import {
   initialGenerationState,
   isGenerating,
   resultsFromResponse,
+  summarizeGeneration,
 } from "./generation";
 
 const activeProgress = {
@@ -110,6 +111,37 @@ describe("isGenerating", () => {
     expect(isGenerating("finishing")).toBe(true);
     expect(isGenerating("completed")).toBe(false);
     expect(isGenerating("failed")).toBe(false);
+  });
+});
+
+describe("summarizeGeneration", () => {
+  it("freezes the useful job description shown while Forge is busy", () => {
+    expect(
+      summarizeGeneration({
+        kind: "txt2img",
+        input: {
+          prompt: ["first scene", "second scene"],
+          checkpoint: "flux-four-step.safetensors",
+          width: 1216,
+          height: 832,
+          outputs: 2,
+          steps: 4,
+          sampler: "Euler",
+          scheduler: "simple",
+        },
+      }),
+    ).toEqual({
+      kind: "txt2img",
+      prompt: "first scene",
+      additionalPrompts: 1,
+      checkpoint: "flux-four-step.safetensors",
+      width: 1216,
+      height: 832,
+      outputs: 2,
+      steps: 4,
+      sampler: "Euler",
+      scheduler: "simple",
+    });
   });
 });
 

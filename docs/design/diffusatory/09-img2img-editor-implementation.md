@@ -1,6 +1,6 @@
 # Img2img and pen-editor implementation record
 
-Status: implemented locally; synthetic/browser checked; live Forge and physical
+Status: implemented locally; synthetic/browser and live Forge checked; physical
 tablet acceptance still open.
 
 ## What exists
@@ -14,12 +14,17 @@ image behind it.
 
 The source, paint, and mask are separate image-sized canvases. The display
 canvas is only a view. Generation composites source plus paint into the exact
-`init_images` value and exports the mask as white selection on black. When the
-mask is empty the request omits the field, producing ordinary img2img rather
-than sending a fake all-black mask.
+`init_images` value and exports the mask as white selection on black. Paint and
+mask stay available together. **Generate variation** deliberately omits the
+mask; **Generate inpaint** requires and submits it, so request shape is chosen
+at the consequential action rather than through a mode picker.
 
-One generated edit returns beside the editor with **Use as source**; a person
-can continue the iteration without rebuilding the handoff. Returning to the
+Each editor opening creates a local branch tray containing the original. Before
+a dirty document renders, its flattened paint and serialised mask are retained
+as a working variation. Every image returned by each later img2img or inpaint
+run is appended rather than replacing prior results. The person can move among
+the original, working inputs, and every old or new result without leaving the
+editor; a preserved mask is restored with its working input. Returning to the
 full result stage does not destroy the current editor document.
 
 ## Pen input boundary
@@ -131,17 +136,24 @@ pointer-capture call because a script-created event is not an active browser
 pointer; that accommodation belongs only to the probe and is not evidence
 about physical pointer capture.
 
+A later live-Forge pass used the installed four-step Flux AIO to submit a real
+masked inpaint. The session tray retained **Original**, **Working edit 1**, and
+**Inpaint 1**; each could become current without clearing the others. Returning
+to the working edit restored its serialized mask well enough for a second
+inpaint request to start (that second run was deliberately cancelled). The
+representative engine output is
+`outputs/img2img-images/2026-09-14/00000-438867557.png`; the inspected browser
+artifact is `/agents/vesper/scratch/diffusatory-edit-variation-session.png`.
+
 ## What this does not prove
 
-- The running Forge process predates this client mount. No live GPU img2img or
-  inpaint request has run through the new interface yet.
 - Synthetic `PointerEvent` input does not establish Wacom or Huion driver
   behavior, hover alignment, pressure feel, eraser reporting, ExpressKey
   delivery, touch arbitration, or pen latency.
 - The current editor keeps source dimensions fixed. A resize-policy UI and a
   real non-square source pass remain open.
-- Inpaint whole-image and only-masked fields are mapped to Forge's existing
-  contract, but their image semantics still need a real engine comparison.
+- The live pass establishes one only-masked Flux path. Whole-image inpaint and
+  an ordinary img2img comparison still need deliberate image-semantic checks.
 - Canvas rotation is not implemented. Tilt/altitude, azimuth, and twist now
   shape and orient the brush footprint, but the mapping has not been felt or
   tuned on the physical tablet and tangential pressure remains recorded only.

@@ -8,9 +8,11 @@ import type {
   ForgeCatalog,
   ForgeOptions,
   Img2ImgInput,
+  ImageMetadataResponse,
   InstanceDescriptor,
   Lora,
   ModelModule,
+  ModelProfile,
   PromptExpansionInput,
   PromptExpansionResponse,
   ProgressResponse,
@@ -45,10 +47,17 @@ async function readJson<T>(response: Response): Promise<T> {
       detail?: unknown;
       message?: unknown;
       error?: unknown;
+      errors?: unknown;
     };
-    const detail = body.detail ?? body.message ?? body.error;
-    if (typeof detail === "string" && detail.trim()) {
-      message = detail;
+    const details = [body.detail, body.message, body.errors]
+      .filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+      .map((item) => item.trim());
+    const errorType =
+      typeof body.error === "string" && body.error.trim()
+        ? body.error.trim()
+        : null;
+    if (details.length || errorType) {
+      message = [errorType, ...details].filter(Boolean).join(": ").slice(0, 800);
     }
   } catch {
     // Preserve the status when Forge returned a non-JSON error page.
@@ -131,6 +140,7 @@ export class ForgeClient {
       loras,
       embeddings,
       options,
+      modelProfiles,
     ] = await Promise.all([
       this.get<Checkpoint[]>("/sdapi/v1/sd-models", signal),
       this.get<ModelModule[]>("/sdapi/v1/sd-modules", signal),
@@ -140,6 +150,9 @@ export class ForgeClient {
       this.get<Lora[]>("/sdapi/v1/loras", signal),
       this.get<EmbeddingInventory>("/sdapi/v1/embeddings", signal),
       this.get<ForgeOptions>("/sdapi/v1/options", signal),
+      this.get<ModelProfile[]>("/diffusatory/api/v1/model-profiles", signal).catch(
+        () => [] as ModelProfile[],
+      ),
     ]);
 
     return {
@@ -152,6 +165,7 @@ export class ForgeClient {
       embeddings: Object.keys(embeddings.loaded).sort((left, right) =>
         left.localeCompare(right),
       ),
+      modelProfiles,
       options,
     };
   }
@@ -203,6 +217,19 @@ export class ForgeClient {
     return { ...result, images: result.images.map(imageSource) };
   }
 
+  async imageMetadata(
+    image: string,
+    signal?: AbortSignal,
+  ): Promise<ImageMetadataResponse> {
+    const response = await this.fetcher(`${this.baseUrl}/sdapi/v1/png-info`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal,
+      body: JSON.stringify({ image }),
+    });
+    return readJson<ImageMetadataResponse>(response);
+  }
+
   async txt2img(
     taskId: string,
     input: Txt2ImgInput,
@@ -233,6 +260,9 @@ export class ForgeClient {
         sampler_name: input.sampler ?? "Euler a",
         scheduler: input.scheduler ?? "Karras",
         cfg_scale: input.cfgScale ?? 5,
+        ...(input.distilledCfgScale !== undefined
+          ? { distilled_cfg_scale: input.distilledCfgScale }
+          : {}),
         seed: input.seed ?? -1,
         batch_size:
           input.outputs ?? (Array.isArray(input.prompt) ? input.prompt.length : 1),
@@ -288,6 +318,9 @@ export class ForgeClient {
         sampler_name: input.sampler ?? "Euler a",
         scheduler: input.scheduler ?? "Karras",
         cfg_scale: input.cfgScale ?? 5,
+        ...(input.distilledCfgScale !== undefined
+          ? { distilled_cfg_scale: input.distilledCfgScale }
+          : {}),
         seed: input.seed ?? -1,
         batch_size:
           input.outputs ?? (Array.isArray(input.prompt) ? input.prompt.length : 1),
