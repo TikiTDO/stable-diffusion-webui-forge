@@ -227,6 +227,7 @@ h2 {
 .layer-switch button,
 .tool-switch button,
 .editor-button-row button,
+.editor-save,
 .return-to-results,
 .refine-result,
 .pen-controls button,
@@ -1273,6 +1274,27 @@ h2 {
   background-size: 32px 32px;
 }
 
+.stage__save-image {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 10px;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--ink);
+  background: rgba(9, 8, 14, 0.82);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+  font-size: 14px;
+}
+
+.stage__save-image:hover {
+  border-color: rgba(232, 169, 88, 0.42);
+  color: var(--amber-bright);
+}
+
 .stage__candidate-nav {
   position: absolute;
   z-index: 2;
@@ -1840,15 +1862,18 @@ h2 {
   margin-bottom: 9px;
 }
 
-.layer-switch kbd {
+.layer-switch kbd,
+.tool-switch kbd,
+.editor-save kbd {
   margin-left: 4px;
   color: var(--quiet);
   font-family: inherit;
   font-size: 14px;
 }
 
-.tool-switch button {
-  text-transform: capitalize;
+.editor-save:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 
 .editor-controls {

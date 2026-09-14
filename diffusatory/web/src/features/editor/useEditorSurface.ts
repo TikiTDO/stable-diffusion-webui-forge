@@ -19,6 +19,7 @@ import {
   type PressureCalibration,
 } from "../../input/calibration";
 import { pointerSamples, type PointerSample } from "../../input/pointer";
+import { saveImage } from "../../domain/imageDownload";
 import { EditorDocument } from "./document";
 import type { BindingRecording } from "./PenControls";
 import { useCanvasViewport } from "./useCanvasViewport";
@@ -298,6 +299,12 @@ export function useEditorSurface({
     requestRender();
     onContentChange?.();
   }, [onContentChange, requestRender]);
+
+  const saveCurrentImage = useCallback(() => {
+    if (!ready) return;
+    const exported = editorDocumentRef.current?.exportForGeneration() ?? null;
+    if (exported) saveImage(exported.initImage, "working-edit");
+  }, [ready]);
 
   const actionForEvent = useCallback(
     (event: ReactPointerEvent<HTMLCanvasElement>): TabletAction => {
@@ -641,8 +648,7 @@ export function useEditorSurface({
         target?.isContentEditable ||
         tagName === "input" ||
         tagName === "textarea" ||
-        tagName === "select" ||
-        tagName === "button"
+        tagName === "select"
       ) {
         return;
       }
@@ -650,11 +656,17 @@ export function useEditorSurface({
         if (event.key.toLowerCase() === "z") {
           event.preventDefault();
           undo();
+        } else if (event.key.toLowerCase() === "s") {
+          event.preventDefault();
+          saveCurrentImage();
         }
         return;
       }
       if (event.repeat && event.key !== "[") return;
       switch (event.key.toLowerCase()) {
+        case "b":
+          setTool("brush");
+          break;
         case "p":
           setActiveLayer("paint");
           setTool("brush");
@@ -668,6 +680,9 @@ export function useEditorSurface({
           break;
         case "i":
           setTool("eyedropper");
+          break;
+        case "h":
+          setTool("pan");
           break;
         case " ":
           event.preventDefault();
@@ -684,7 +699,7 @@ export function useEditorSurface({
           break;
       }
     },
-    [setActiveLayer, setBrushSize, setTool, undo],
+    [saveCurrentImage, setActiveLayer, setBrushSize, setTool, undo],
   );
 
   const handleKeyUp = useCallback(
@@ -696,8 +711,7 @@ export function useEditorSurface({
         (target?.isContentEditable ||
           tagName === "input" ||
           tagName === "textarea" ||
-          tagName === "select" ||
-          tagName === "button")
+          tagName === "select")
       ) {
         return;
       }
@@ -751,6 +765,7 @@ export function useEditorSurface({
     clearCursor,
     clearLayer,
     undo,
+    saveCurrentImage,
     exportForGeneration: () =>
       ready ? editorDocumentRef.current?.exportForGeneration() ?? null : null,
     focus: () => rootRef.current?.focus(),

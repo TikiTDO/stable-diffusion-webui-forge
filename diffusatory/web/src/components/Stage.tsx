@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 
 import { isGenerating, type GenerationState } from "../domain/generation";
 import type { Candidate } from "../domain/candidates";
+import { saveImage } from "../domain/imageDownload";
 
 interface StageProps {
   generation: GenerationState;
@@ -46,8 +47,9 @@ export const Stage = memo(function Stage({
   const selectedCandidate = candidates[selectedIndex] ?? candidates[0] ?? null;
   const selectedResult = selectedCandidate?.result ?? null;
   const selectedImage = selectedCandidate?.result.image ?? null;
+  const showingPreview = isGenerating(generation.phase) && Boolean(generation.preview);
   const activeImage =
-    isGenerating(generation.phase) && generation.preview
+    showingPreview && generation.preview
       ? generation.preview
       : selectedImage ?? generation.preview;
   const eta = formatEta(generation.eta);
@@ -152,6 +154,24 @@ export const Stage = memo(function Stage({
             <p>The first image has not arrived yet.</p>
             <small>Your prompt stays editable while Forge works.</small>
           </div>
+        )}
+        {activeImage && (
+          <button
+            type="button"
+            className="stage__save-image"
+            onClick={() =>
+              saveImage(
+                activeImage,
+                showingPreview
+                  ? "preview"
+                  : selectedResult?.seed === null || selectedResult?.seed === undefined
+                    ? "image"
+                  : `seed-${selectedResult.seed}`,
+              )
+            }
+          >
+            Save image
+          </button>
         )}
         {selectedCandidate && candidates.length > 1 && !isGenerating(generation.phase) && (
           <nav className="stage__candidate-nav" aria-label="Browse unaccepted variants">
@@ -410,6 +430,12 @@ export const Stage = memo(function Stage({
                 Edit
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => saveImage(viewer.image, "image")}
+            >
+              Save image
+            </button>
             <button type="button" onClick={() => setViewer(null)}>
               Close
             </button>

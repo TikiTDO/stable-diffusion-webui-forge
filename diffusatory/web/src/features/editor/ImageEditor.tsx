@@ -25,6 +25,17 @@ interface ImageEditorProps {
   onContentChange?: () => void;
 }
 
+const EDITOR_TOOLS: Array<{
+  value: EditorTool;
+  label: string;
+  shortcut: string;
+}> = [
+  { value: "brush", label: "Brush", shortcut: "B" },
+  { value: "eyedropper", label: "Dropper", shortcut: "I" },
+  { value: "pan", label: "Pan", shortcut: "H" },
+  { value: "erase", label: "Erase", shortcut: "E" },
+];
+
 export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
   function ImageEditor(
     { source, maskSource = null, width, height, onReady, onContentChange },
@@ -76,19 +87,37 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
             </button>
           </div>
           <div className="tool-switch" aria-label="Editor tool">
-            {(["brush", "erase", "pan", "eyedropper"] as EditorTool[]).map(
-              (candidate) => (
+            {EDITOR_TOOLS.map(
+              ({ value, label, shortcut }) => (
                 <button
                   type="button"
-                  key={candidate}
-                  className={editor.tool === candidate ? "is-selected" : ""}
-                  onClick={() => editor.setTool(candidate)}
+                  key={value}
+                  className={editor.tool === value ? "is-selected" : ""}
+                  aria-keyshortcuts={shortcut}
+                  title={`${label} · ${shortcut}`}
+                  onClick={() => {
+                    editor.setTool(value);
+                    editor.focus();
+                  }}
                 >
-                  {candidate}
+                  {label} <kbd>{shortcut}</kbd>
                 </button>
               ),
             )}
           </div>
+          <button
+            type="button"
+            className="editor-save"
+            disabled={!editor.ready}
+            aria-keyshortcuts="Control+S Meta+S"
+            title="Save the visible image with local paint applied"
+            onClick={() => {
+              editor.saveCurrentImage();
+              editor.focus();
+            }}
+          >
+            Save image <kbd>Ctrl+S</kbd>
+          </button>
         </header>
 
         <div className="editor-controls">
