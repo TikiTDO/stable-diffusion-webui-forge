@@ -1,5 +1,6 @@
 import type { ForgeCatalog, Txt2ImgInput } from "../api/forge/types";
 import { applyCheckpointProfile } from "./modelProfiles";
+import type { ActiveLora } from "./loras";
 
 export interface GenerationDraft {
   prompt: string;
@@ -7,6 +8,7 @@ export interface GenerationDraft {
   checkpoint: string;
   modules: string[];
   styles: string[];
+  loras: ActiveLora[];
   width: number;
   height: number;
   outputs: number;
@@ -25,6 +27,7 @@ export const starterDraft: GenerationDraft = {
   checkpoint: "",
   modules: [],
   styles: [],
+  loras: [],
   width: 1024,
   height: 1024,
   outputs: 1,

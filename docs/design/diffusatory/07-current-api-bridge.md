@@ -29,6 +29,14 @@ better initial progress seam. It is still polling, keeps only bounded task
 history, and observes one shared engine state; the client must preserve those
 limits rather than advertise the target native job semantics.
 
+Task-local progress cannot answer whether the server is idle or occupied by a
+different browser or API client. The bridge therefore also exposes
+`GET /diffusatory/api/v1/status`. It projects the shared queue and explicit
+server-owned phases—preparing, loading a model, rendering, and saving—plus
+sampling progress. The masthead polls this small route even while its own
+browser has no active request. This is truthful global status for the current
+single-renderer engine, not the eventual multi-worker event journal.
+
 ## Models and ordinary controls
 
 The existing API exposes options, samplers, schedulers, checkpoints,
@@ -63,7 +71,7 @@ These are known reasons to improve the backend later. They are not evidence that
 the existing engine must be replaced before React can generate, preview, edit,
 and compare images.
 
-## One justified early native endpoint
+## Justified early native endpoints
 
 The current API does not identify which Diffusatory/Forge instance answered or
 describe the product capabilities enabled there. The walking skeleton therefore
@@ -71,6 +79,17 @@ adds one read-only endpoint returning an operator-configured display name, a
 stable non-secret instance ID, build version, and capability list. This keeps a
 personal instance and an agent instance distinguishable without introducing a
 distributed scheduler or assuming that exactly one backend exists.
+
+Two more interactions could not be represented truthfully by the inherited
+surface:
+
+- global server activity needs a read independent of one caller's task ID, so
+  the bridge exposes the activity projection described above and instruments
+  coarse phases at their actual engine transitions;
+- the working LoRA library needs safe previews, normalized metadata, and
+  editable Diffusatory-owned defaults without exposing arbitrary paths, so it
+  exposes catalog, registered-preview, and atomic sidecar-update routes under
+  `/diffusatory/api/v1/loras`.
 
 ## Rule for adding a backend seam
 

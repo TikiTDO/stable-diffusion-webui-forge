@@ -5,8 +5,8 @@ import platform
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -18,6 +18,15 @@ from diffusatory.server.prompt_composition import (
     compile_prompt_expansion,
 )
 from diffusatory.server.model_profiles import ModelProfile, model_profiles
+from diffusatory.server.lora_catalog import (
+    LoraCatalogItem,
+    LoraDefaults,
+    build_lora_catalog,
+    build_lora_item,
+    find_registered_lora,
+    registered_lora_preview,
+    save_lora_defaults,
+)
 
 
 DIFFUSATORY_PREFIX = "/diffusatory"
@@ -59,6 +68,21 @@ class ResidencyDescriptor(BaseModel):
     entries: list[ResidencyEntryDescriptor]
 
 
+class ServerActivityDescriptor(BaseModel):
+    phase: str
+    busy: bool
+    task_id: str | None
+    queue_size: int
+    progress: float | None
+    sampling_step: int
+    sampling_steps: int
+    job_index: int
+    job_count: int
+    operation: str | None
+    checkpoint: str | None
+    detail: str | None
+
+
 def _route_paths(app: FastAPI) -> set[str]:
     return {
         path
@@ -88,6 +112,8 @@ def _capabilities(app: FastAPI) -> list[str]:
         "prompt-expansion",
         "spatial-conditioning",
         "model-residency",
+        "server-status",
+        "lora-library",
     ]
 
 
@@ -120,6 +146,63 @@ def _process_rss_bytes() -> int | None:
         return None
 
 
+def server_activity_descriptor() -> ServerActivityDescriptor:
+    from modules import progress as forge_progress
+    from modules import shared
+
+    activity = forge_progress.task_activity_snapshot()
+    state = shared.state
+
+    if activity.current_task is not None:
+        phase = activity.stage or "preparing"
+    elif activity.pending_count:
+        phase = "queued"
+    else:
+        phase = "idle"
+
+    job_count = max(0, int(state.job_count))
+    job_no = max(0, int(state.job_no))
+    sampling_steps = max(0, int(state.sampling_steps))
+    sampling_step = max(0, int(state.sampling_step))
+    progress_value = None
+    if activity.current_task is not None and job_count > 0:
+        progress_value = job_no / job_count
+        if sampling_steps > 0:
+            progress_value += sampling_step / sampling_steps / job_count
+        progress_value = min(1.0, max(0.0, progress_value))
+    if phase == "saving":
+        progress_value = 1.0
+
+    operation = None
+    if state.job == "scripts_txt2img":
+        operation = "txt2img"
+    elif state.job == "scripts_img2img":
+        operation = "img2img"
+
+    checkpoint = getattr(shared.opts, "sd_model_checkpoint", None)
+    if checkpoint is not None:
+        checkpoint = str(checkpoint)
+
+    detail = activity.detail
+    if detail is None and activity.current_task is not None and state.textinfo:
+        detail = str(state.textinfo)
+
+    return ServerActivityDescriptor(
+        phase=phase,
+        busy=phase != "idle",
+        task_id=activity.current_task,
+        queue_size=activity.pending_count,
+        progress=progress_value,
+        sampling_step=sampling_step,
+        sampling_steps=sampling_steps,
+        job_index=min(job_count, job_no + 1) if job_count else 0,
+        job_count=job_count,
+        operation=operation,
+        checkpoint=checkpoint,
+        detail=detail,
+    )
+
+
 def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
     """Register the instance contract and mount a built client when present.
 
@@ -134,6 +217,10 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
     async def get_instance() -> InstanceDescriptor:
         return instance_descriptor(app)
 
+    @router.get("/status", response_model=ServerActivityDescriptor)
+    async def get_status() -> ServerActivityDescriptor:
+        return server_activity_descriptor()
+
     @router.get("/model-profiles", response_model=list[ModelProfile])
     async def get_model_profiles() -> list[ModelProfile]:
         # Import only in the running Forge process. Importing sd_models while a
@@ -141,6 +228,39 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
         from modules import sd_models
 
         return model_profiles(sd_models.checkpoints_list.values())
+
+    def current_loras():
+        # Forge places built-in extension modules on sys.path during startup.
+        # Importing here keeps the small server modules independently testable.
+        import networks
+        from modules import shared
+
+        return list(networks.available_networks.values()), shared.cmd_opts.lora_dir
+
+    @router.get("/loras", response_model=list[LoraCatalogItem])
+    async def get_loras() -> list[LoraCatalogItem]:
+        networks, root = current_loras()
+        return build_lora_catalog(networks, root)
+
+    @router.get("/loras/{identifier}/preview", response_class=FileResponse)
+    async def get_lora_preview(identifier: str) -> FileResponse:
+        networks, _ = current_loras()
+        network = find_registered_lora(networks, identifier)
+        preview = registered_lora_preview(network) if network else None
+        if preview is None:
+            raise HTTPException(status_code=404, detail="LoRA preview not found")
+        return FileResponse(preview, headers={"Accept-Ranges": "bytes"})
+
+    @router.put("/loras/{identifier}/defaults", response_model=LoraCatalogItem)
+    async def put_lora_defaults(
+        identifier: str, defaults: LoraDefaults
+    ) -> LoraCatalogItem:
+        networks, root = current_loras()
+        network = find_registered_lora(networks, identifier)
+        if network is None:
+            raise HTTPException(status_code=404, detail="LoRA not found")
+        save_lora_defaults(network, defaults)
+        return build_lora_item(network, root)
 
     @router.get("/residency", response_model=ResidencyDescriptor)
     async def get_residency() -> ResidencyDescriptor:
@@ -189,7 +309,7 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
         return False
 
     if "/" not in _route_paths(app):
-        @app.get("/", include_in_schema=False)
+        @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
         async def open_diffusatory(request: Request) -> RedirectResponse:
             root_path = request.scope.get("root_path", "").rstrip("/")
             return RedirectResponse(url=f"{root_path}{DIFFUSATORY_PREFIX}/")

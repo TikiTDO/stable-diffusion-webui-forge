@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
 import io
+import threading
 import time
 
 import gradio as gr
@@ -15,28 +16,66 @@ import random
 from typing import List
 
 current_task = None
+current_task_stage = None
+current_task_stage_detail = None
 pending_tasks = OrderedDict()
 finished_tasks = []
 recorded_results = []
 recorded_results_limit = 2
+task_state_lock = threading.RLock()
+
+
+class TaskActivitySnapshot(BaseModel):
+    current_task: str | None
+    stage: str | None
+    detail: str | None
+    pending_count: int
 
 
 def start_task(id_task):
-    global current_task
+    global current_task, current_task_stage, current_task_stage_detail
 
-    current_task = id_task
-    pending_tasks.pop(id_task, None)
+    with task_state_lock:
+        current_task = id_task
+        current_task_stage = "preparing"
+        current_task_stage_detail = None
+        pending_tasks.pop(id_task, None)
 
 
 def finish_task(id_task):
-    global current_task
+    global current_task, current_task_stage, current_task_stage_detail
 
-    if current_task == id_task:
-        current_task = None
+    with task_state_lock:
+        if current_task == id_task:
+            current_task = None
+            current_task_stage = None
+            current_task_stage_detail = None
 
-    finished_tasks.append(id_task)
-    if len(finished_tasks) > 16:
-        finished_tasks.pop(0)
+        finished_tasks.append(id_task)
+        if len(finished_tasks) > 16:
+            finished_tasks.pop(0)
+
+
+def set_current_task_stage(stage, detail=None):
+    """Describe the active task's coarse server-side work phase."""
+
+    global current_task_stage, current_task_stage_detail
+
+    with task_state_lock:
+        if current_task is None:
+            return
+        current_task_stage = stage
+        current_task_stage_detail = detail
+
+
+def task_activity_snapshot():
+    with task_state_lock:
+        return TaskActivitySnapshot(
+            current_task=current_task,
+            stage=current_task_stage,
+            detail=current_task_stage_detail,
+            pending_count=len(pending_tasks),
+        )
 
 def create_task_id(task_type):
     N = 7
@@ -51,7 +90,8 @@ def record_results(id_task, res):
 
 
 def add_task_to_queue(id_job):
-    pending_tasks[id_job] = time.time()
+    with task_state_lock:
+        pending_tasks[id_job] = time.time()
 
 class PendingTasksResponse(BaseModel):
     size: int = Field(title="Pending task size")
@@ -80,22 +120,24 @@ def setup_progress_api(app):
 
 
 def get_pending_tasks():
-    pending_tasks_ids = list(pending_tasks)
+    with task_state_lock:
+        pending_tasks_ids = list(pending_tasks)
     pending_len = len(pending_tasks_ids)
     return PendingTasksResponse(size=pending_len, tasks=pending_tasks_ids)
 
 
 def progressapi(req: ProgressRequest):
-    active = req.id_task == current_task
-    queued = req.id_task in pending_tasks
-    completed = req.id_task in finished_tasks
+    with task_state_lock:
+        active = req.id_task == current_task
+        queued = req.id_task in pending_tasks
+        completed = req.id_task in finished_tasks
+        sorted_queued = sorted(pending_tasks, key=pending_tasks.get) if queued else []
+        queue_position = sorted_queued.index(req.id_task) + 1 if queued else None
 
     if not active:
         textinfo = "Waiting..."
         if queued:
-            sorted_queued = sorted(pending_tasks.keys(), key=lambda x: pending_tasks[x])
-            queue_index = sorted_queued.index(req.id_task)
-            textinfo = "In queue: {}/{}".format(queue_index + 1, len(sorted_queued))
+            textinfo = "In queue: {}/{}".format(queue_position, len(sorted_queued))
         return ProgressResponse(active=active, queued=queued, completed=completed, id_live_preview=-1, textinfo=textinfo)
 
     progress = 0

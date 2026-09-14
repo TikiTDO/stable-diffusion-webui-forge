@@ -59,7 +59,11 @@ explicit generation action:
 The editor owns a session-local variation tray. It begins with the original,
 preserves a flattened working input plus its mask before a render, and appends
 every returned variation or inpaint. Selecting any old or new member changes
-the source without leaving the editor or erasing the other branches.
+the source without leaving the editor or erasing the other branches. A branch
+may be removed from this transient tray when it is not useful; that operation
+does not delete the raw generated file. Removing the active branch selects an
+adjacent survivor and does not manufacture a new working snapshot of the thing
+the person just rejected.
 
 The interface may change which work surface occupies the Stage—candidate
 review, pen editing, spatial blocking, or project sequencing—but does not need

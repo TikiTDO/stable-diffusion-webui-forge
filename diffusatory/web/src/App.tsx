@@ -3,8 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ForgeClient } from "./api/forge/client";
 import type {
   InstanceDescriptor,
+  Lora,
   PromptExpansionInput,
   PromptExpansionMode,
+  ServerActivity,
 } from "./api/forge/types";
 import { Composer } from "./components/Composer";
 import { FocusedEditWorkspace } from "./components/FocusedEditWorkspace";
@@ -42,6 +44,7 @@ import {
 } from "./domain/draft";
 import { useForgeCatalog } from "./domain/useForgeCatalog";
 import { useForgeGeneration } from "./domain/useForgeGeneration";
+import { useServerActivity } from "./domain/useServerActivity";
 import { usePromptExpansion } from "./domain/usePromptExpansion";
 import {
   appendCandidates,
@@ -67,6 +70,11 @@ import {
 } from "./domain/editorVariations";
 import { EditorVariationTray } from "./components/EditorVariationTray";
 import { workbenchShortcutFor } from "./domain/workbenchShortcuts";
+import {
+  compilePromptWithLoras,
+  defaultsFromActiveLora,
+  type ActiveLora,
+} from "./domain/loras";
 
 interface EditorOpenOptions {
   dimensions?: { width: number; height: number };
@@ -107,6 +115,97 @@ function isImageFile(file: File): boolean {
 
 function newExpansionSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;
+}
+
+function serverActivityPresentation(
+  activity: ServerActivity | null,
+  activityError: string | null,
+  state: ReturnType<typeof useForgeGeneration>["state"],
+) {
+  if (state.phase === "submitting" && activity?.task_id !== state.taskId) {
+    return {
+      label: "Submitting render",
+      detail: state.job
+        ? `${state.job.width} × ${state.job.height} · ${state.job.checkpoint}`
+        : "Sending the render request",
+      busy: true,
+      failed: false,
+    };
+  }
+  if (!activity) {
+    return {
+      label: activityError ? "Status unavailable" : "Reading status…",
+      detail: activityError ?? "Connecting to the render server",
+      busy: false,
+      failed: Boolean(activityError),
+    };
+  }
+
+  const taskIsOurs = activity.task_id === state.taskId;
+  const localJob = taskIsOurs ? state.job : null;
+  const checkpoint = activity.checkpoint ?? localJob?.checkpoint ?? null;
+  const model = checkpoint?.split(/[\\/]/).at(-1) ?? null;
+  const step =
+    activity.sampling_steps > 0
+      ? `Step ${Math.min(activity.sampling_step + 1, activity.sampling_steps)} of ${activity.sampling_steps}`
+      : null;
+  const progress =
+    activity.progress === null
+      ? null
+      : `${Math.round(activity.progress * 100)}%`;
+  const detail = (...parts: Array<string | null | undefined>) =>
+    parts.filter(Boolean).join(" · ");
+
+  switch (activity.phase) {
+    case "queued":
+      return {
+        label: "Waiting for renderer",
+        detail: `${activity.queue_size} ${activity.queue_size === 1 ? "job" : "jobs"} queued`,
+        busy: true,
+        failed: false,
+      };
+    case "loading-model":
+      return {
+        label: "Loading model",
+        detail: detail(activity.detail, model, activity.queue_size ? `${activity.queue_size} queued` : null),
+        busy: true,
+        failed: false,
+      };
+    case "rendering":
+      return {
+        label: detail(
+          "Rendering",
+          localJob?.outputs
+            ? `${localJob.outputs} ${localJob.outputs === 1 ? "image" : "images"}`
+            : null,
+          progress,
+        ),
+        detail: detail(step, activity.detail, model),
+        busy: true,
+        failed: false,
+      };
+    case "saving":
+      return {
+        label: "Saving outputs",
+        detail: detail(activity.detail, model),
+        busy: true,
+        failed: false,
+      };
+    case "preparing":
+      return {
+        label: "Preparing render",
+        detail: detail(activity.detail, model),
+        busy: true,
+        failed: false,
+      };
+    default:
+      return {
+        label: "Idle",
+        detail: model ? `Ready · ${model}` : "Ready",
+        busy: false,
+        failed: false,
+      };
+  }
 }
 
 function visibleShortcutTarget(name: string): HTMLElement | null {
@@ -203,6 +302,13 @@ export default function App() {
   } = useControlNetCatalog(client);
   const { state, generate, interrupt, skip, generating } =
     useForgeGeneration(client);
+  const { activity: serverActivity, error: serverActivityError } =
+    useServerActivity(client, state.phase);
+  const activity = serverActivityPresentation(
+    serverActivity,
+    serverActivityError,
+    state,
+  );
   const sourceActive = generationSource === "editor";
   const activeDimensions = sourceActive ? editorDimensions : {
     width: draft.width,
@@ -348,6 +454,21 @@ export default function App() {
         : "Restored the built-in recipe for this session, but browser storage is unavailable.",
     });
   }, [catalog, draft.checkpoint, savedModelDefaults]);
+
+  const saveCurrentLoraDefaults = useCallback(
+    async (lora: Lora, active: ActiveLora) => {
+      await client.saveLoraDefaults(
+        lora.id,
+        defaultsFromActiveLora(active, lora),
+      );
+      reload();
+      setImageImportNotice({
+        kind: "success",
+        message: `Saved defaults for ${lora.name}.`,
+      });
+    },
+    [client, reload],
+  );
 
   const currentImageAvailable = editorSession > 0 && editorReady;
   const conditionsReady = conditions.every(
@@ -500,7 +621,9 @@ export default function App() {
     }
     const request = {
       ...requestFromDraft(draft),
-      prompt: promptSet.realizations.map((item) => item.prompt),
+      prompt: promptSet.realizations.map((item) =>
+        compilePromptWithLoras(item.prompt, draft.loras),
+      ),
       negativePrompt: promptSet.realizations.map((item) => item.negative_prompt),
       outputs: promptSet.realizations.length,
       controlNet,
@@ -677,6 +800,19 @@ export default function App() {
     },
     [editorDirty, editorSession, openEditor],
   );
+  const loadEditorVariation = useCallback((variation: EditorVariation) => {
+    setEditorReady(false);
+    setEditorHasMask(false);
+    setEditorError(null);
+    setEditorSource(variation.image);
+    setEditorMaskSource(variation.mask);
+    setEditorDimensions({ width: variation.width, height: variation.height });
+    setEditorDirty(false);
+    setActiveEditorVariationId(variation.id);
+    setEditorDocumentRevision((current) => current + 1);
+    setGenerationSource("editor");
+    setCanvasView("editor");
+  }, []);
   const selectEditorVariation = useCallback(
     (variation: EditorVariation) => {
       if (variation.id === activeEditorVariationId && !editorDirty) return;
@@ -698,19 +834,51 @@ export default function App() {
           ),
         ]);
       }
-      setEditorReady(false);
-      setEditorHasMask(false);
-      setEditorError(null);
-      setEditorSource(variation.image);
-      setEditorMaskSource(variation.mask);
-      setEditorDimensions({ width: variation.width, height: variation.height });
-      setEditorDirty(false);
-      setActiveEditorVariationId(variation.id);
-      setEditorDocumentRevision((current) => current + 1);
-      setGenerationSource("editor");
-      setCanvasView("editor");
+      loadEditorVariation(variation);
     },
-    [activeEditorVariationId, editorDirty, editorSession],
+    [activeEditorVariationId, editorDirty, editorSession, loadEditorVariation],
+  );
+  const removeEditorVariation = useCallback(
+    (variation: EditorVariation) => {
+      const index = editorVariations.findIndex(
+        (candidate) => candidate.id === variation.id,
+      );
+      if (index < 0) return;
+      const removingActive = variation.id === activeEditorVariationId;
+      if (
+        removingActive &&
+        editorDirty &&
+        !window.confirm(
+          "Remove this variation and discard its uncommitted paint and mask? The raw generated image will remain on disk.",
+        )
+      ) {
+        return;
+      }
+      const remaining = editorVariations.filter(
+        (candidate) => candidate.id !== variation.id,
+      );
+      setEditorVariations(remaining);
+      if (!removingActive) return;
+      const adjacent = remaining[Math.min(index, remaining.length - 1)] ?? null;
+      if (adjacent) {
+        loadEditorVariation(adjacent);
+      } else {
+        setEditorReady(false);
+        setEditorHasMask(false);
+        setEditorError(null);
+        setEditorSource(null);
+        setEditorMaskSource(null);
+        setEditorDirty(false);
+        setActiveEditorVariationId(null);
+        setEditorDocumentRevision((current) => current + 1);
+      }
+    },
+    [
+      activeEditorVariationId,
+      editorDirty,
+      editorVariations,
+      loadEditorVariation,
+    ],
   );
   const handleEditorReady = useCallback((width: number, height: number) => {
     setEditorDimensions({ width, height });
@@ -872,26 +1040,21 @@ export default function App() {
             <h1>Diffusatory</h1>
           </div>
         </div>
-        <div className="instance">
+        <div
+          className={`instance ${activity.busy ? "is-busy" : ""} ${activity.failed ? "is-failed" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
           <span
-            className={`instance__light ${instance ? "is-ready" : ""}`}
+            className={`instance__light ${instance ? "is-ready" : ""} ${activity.busy ? "is-busy" : ""}`}
             aria-hidden="true"
           />
           <div>
-            <strong>
-              {generating && state.job
-                ? `${state.job.kind === "img2img" ? "Editing" : "Generating"} ${
-                    state.job.outputs
-                  } ${state.job.outputs === 1 ? "image" : "images"}`
-                : instance?.name ?? "Finding the local instrument…"}
-            </strong>
+            <span className="instance__scope">Server</span>
+            <strong>{instance ? activity.label : "Connecting…"}</strong>
             <small>
-              {generating && state.job
-                ? `${state.job.width} × ${state.job.height} · ${state.job.steps} steps · ${
-                    state.job.checkpoint.split(/[\\/]/).at(-1) ?? state.job.checkpoint
-                  }`
-                : instance
-                ? `${instance.host} · ${instance.version.slice(0, 8)}`
+              {instance
+                ? `${activity.detail} · ${instance.host}`
                 : instanceError ?? "Reading capabilities"}
             </small>
           </div>
@@ -921,6 +1084,7 @@ export default function App() {
           onCheckpointChange={changeCheckpoint}
           onSaveModelDefault={saveCurrentModelDefault}
           onRestoreModelDefault={restoreCurrentModelDefault}
+          onSaveLoraDefaults={saveCurrentLoraDefaults}
           onGenerate={(operation, inpaintOnlyMasked) =>
             void submit(operation, inpaintOnlyMasked)
           }
@@ -1101,6 +1265,7 @@ export default function App() {
                 variations={editorVariations}
                 activeId={activeEditorVariationId}
                 onSelect={selectEditorVariation}
+                onRemove={removeEditorVariation}
               />
             </section>
             </div>
@@ -1161,6 +1326,7 @@ export default function App() {
           onCheckpointChange={changeCheckpoint}
           onSaveModelDefault={saveCurrentModelDefault}
           onRestoreModelDefault={restoreCurrentModelDefault}
+          onSaveLoraDefaults={saveCurrentLoraDefaults}
           onEditSettingsChange={(patch) =>
             setEditSettings((current) => ({ ...current, ...patch }))
           }
@@ -1173,6 +1339,7 @@ export default function App() {
           onSkip={() => void skip()}
           onInterrupt={() => void interrupt()}
           onSelectVariation={selectEditorVariation}
+          onRemoveVariation={removeEditorVariation}
           onClose={closeEditor}
           onShowShortcuts={() => setKeyboardGuideOpen(true)}
         />

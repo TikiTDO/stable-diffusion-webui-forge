@@ -11,6 +11,7 @@ import type {
   ImageMetadataResponse,
   InstanceDescriptor,
   Lora,
+  LoraDefaults,
   ModelModule,
   ModelProfile,
   PromptExpansionInput,
@@ -19,6 +20,7 @@ import type {
   PromptStyle,
   Sampler,
   Scheduler,
+  ServerActivity,
   Txt2ImgInput,
   Txt2ImgResponse,
 } from "./types";
@@ -103,6 +105,10 @@ export class ForgeClient {
     return readJson<InstanceDescriptor>(response);
   }
 
+  async activity(signal?: AbortSignal): Promise<ServerActivity> {
+    return this.get<ServerActivity>("/diffusatory/api/v1/status", signal);
+  }
+
   async expandPrompts(
     input: PromptExpansionInput,
     signal?: AbortSignal,
@@ -147,7 +153,7 @@ export class ForgeClient {
       this.get<Sampler[]>("/sdapi/v1/samplers", signal),
       this.get<Scheduler[]>("/sdapi/v1/schedulers", signal),
       this.get<PromptStyle[]>("/sdapi/v1/prompt-styles", signal),
-      this.get<Lora[]>("/sdapi/v1/loras", signal),
+      this.get<Lora[]>("/diffusatory/api/v1/loras", signal),
       this.get<EmbeddingInventory>("/sdapi/v1/embeddings", signal),
       this.get<ForgeOptions>("/sdapi/v1/options", signal),
       this.get<ModelProfile[]>("/diffusatory/api/v1/model-profiles", signal).catch(
@@ -168,6 +174,23 @@ export class ForgeClient {
       modelProfiles,
       options,
     };
+  }
+
+  async saveLoraDefaults(
+    identifier: string,
+    defaults: LoraDefaults,
+    signal?: AbortSignal,
+  ): Promise<Lora> {
+    const response = await this.fetcher(
+      `${this.baseUrl}/diffusatory/api/v1/loras/${encodeURIComponent(identifier)}/defaults`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        signal,
+        body: JSON.stringify(defaults),
+      },
+    );
+    return readJson<Lora>(response);
   }
 
   async controlNetCatalog(signal?: AbortSignal): Promise<ControlNetCatalog> {

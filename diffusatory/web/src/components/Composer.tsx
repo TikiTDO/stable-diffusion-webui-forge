@@ -1,4 +1,4 @@
-import type { ForgeCatalog } from "../api/forge/types";
+import type { ForgeCatalog, Lora } from "../api/forge/types";
 import type { ControlNetCatalog } from "../api/forge/types";
 import type {
   PromptExpansionMode,
@@ -17,6 +17,8 @@ import { PromptComposition } from "./PromptComposition";
 import { NumberInput } from "./NumberInput";
 import type { EditOperation, ImageEditSettings } from "../features/editor/model";
 import { profileForCheckpoint } from "../domain/modelProfiles";
+import { adjustPromptAttention } from "../domain/promptAttention";
+import type { ActiveLora } from "../domain/loras";
 
 interface ComposerProps {
   draft: GenerationDraft;
@@ -36,6 +38,7 @@ interface ComposerProps {
   onCheckpointChange: (checkpoint: string) => void;
   onSaveModelDefault: () => void;
   onRestoreModelDefault: () => void;
+  onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
   onGenerate: (
     operation?: EditOperation,
     inpaintOnlyMasked?: boolean,
@@ -105,6 +108,7 @@ export function Composer({
   onCheckpointChange,
   onSaveModelDefault,
   onRestoreModelDefault,
+  onSaveLoraDefaults,
   onGenerate,
   onInterrupt,
   onSkip,
@@ -548,6 +552,26 @@ export function Composer({
             value={draft.prompt}
             onChange={(event) => onChange({ prompt: event.target.value })}
             onKeyDown={(event) => {
+              if (
+                (event.metaKey || event.ctrlKey) &&
+                (event.key === "ArrowUp" || event.key === "ArrowDown")
+              ) {
+                const target = event.currentTarget;
+                const edit = adjustPromptAttention(
+                  target.value,
+                  target.selectionStart,
+                  target.selectionEnd,
+                  event.key === "ArrowUp" ? 1 : -1,
+                );
+                if (edit) {
+                  event.preventDefault();
+                  onChange({ prompt: edit.text });
+                  requestAnimationFrame(() => {
+                    target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+                  });
+                }
+                return;
+              }
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                 event.preventDefault();
                 onGenerate(
@@ -568,6 +592,25 @@ export function Composer({
             data-shortcut-target="negative-prompt"
             value={draft.negativePrompt}
             onChange={(event) => onChange({ negativePrompt: event.target.value })}
+            onKeyDown={(event) => {
+              if (
+                !(event.metaKey || event.ctrlKey) ||
+                (event.key !== "ArrowUp" && event.key !== "ArrowDown")
+              ) return;
+              const target = event.currentTarget;
+              const edit = adjustPromptAttention(
+                target.value,
+                target.selectionStart,
+                target.selectionEnd,
+                event.key === "ArrowUp" ? 1 : -1,
+              );
+              if (!edit) return;
+              event.preventDefault();
+              onChange({ negativePrompt: edit.text });
+              requestAnimationFrame(() => {
+                target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+              });
+            }}
             rows={3}
           />
         </label>
@@ -588,8 +631,11 @@ export function Composer({
           <PromptTools
             catalog={catalog}
             selectedStyles={draft.styles}
+            activeLoras={draft.loras}
             onStylesChange={(styles) => onChange({ styles })}
+            onLorasChange={(loras) => onChange({ loras })}
             onInsert={insertPrompt}
+            onSaveDefaults={onSaveLoraDefaults}
           />
         )}
       </section>

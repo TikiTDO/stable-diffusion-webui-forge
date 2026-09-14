@@ -58,6 +58,8 @@ class DiffusatoryMountTests(unittest.TestCase):
                     "prompt-expansion",
                     "spatial-conditioning",
                     "model-residency",
+                    "server-status",
+                    "lora-library",
                 ],
                 body["capabilities"],
             )
@@ -139,6 +141,45 @@ class DiffusatoryMountTests(unittest.TestCase):
             self.assertIsInstance(body["process_rss_bytes"], int)
             self.assertEqual(str(checkpoint), body["entries"][0]["checkpoint"])
             self.assertEqual("active", body["entries"][0]["state"])
+
+    def test_activity_route_reports_the_server_task_stage(self) -> None:
+        app = FastAPI()
+        mount_diffusatory(app, dist=Path("/missing"))
+        fake_state = SimpleNamespace(
+            job="scripts_txt2img",
+            job_count=1,
+            job_no=0,
+            sampling_steps=20,
+            sampling_step=8,
+            textinfo="Sampling",
+        )
+        fake_activity = SimpleNamespace(
+            current_task="task(diffusatory-test)",
+            stage="rendering",
+            detail=None,
+            pending_count=2,
+        )
+        fake_progress = SimpleNamespace(
+            task_activity_snapshot=lambda: fake_activity,
+        )
+        fake_shared = SimpleNamespace(
+            state=fake_state,
+            opts=SimpleNamespace(sd_model_checkpoint="story-xl.safetensors"),
+        )
+
+        with (
+            patch.object(modules, "progress", fake_progress, create=True),
+            patch.object(modules, "shared", fake_shared, create=True),
+        ):
+            body = TestClient(app).get("/diffusatory/api/v1/status").json()
+
+        self.assertEqual("rendering", body["phase"])
+        self.assertTrue(body["busy"])
+        self.assertEqual(0.4, body["progress"])
+        self.assertEqual(8, body["sampling_step"])
+        self.assertEqual(20, body["sampling_steps"])
+        self.assertEqual(2, body["queue_size"])
+        self.assertEqual("story-xl.safetensors", body["checkpoint"])
 
 
 if __name__ == "__main__":

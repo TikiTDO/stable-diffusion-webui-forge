@@ -16,7 +16,7 @@ from skimage import exposure
 from typing import Any
 
 import modules.sd_hijack
-from modules import devices, prompt_parser, masking, sd_samplers, lowvram, infotext_utils, extra_networks, sd_vae_approx, scripts, sd_samplers_common, sd_unet, errors, rng, profiling
+from modules import devices, prompt_parser, masking, sd_samplers, lowvram, infotext_utils, extra_networks, sd_vae_approx, scripts, sd_samplers_common, sd_unet, errors, rng, profiling, progress
 from modules.rng import slerp, get_noise_source_type  # noqa: F401
 from modules.sd_samplers_common import images_tensor_to_samples, decode_first_stage, approximation_indexes
 from modules.shared import opts, cmd_opts, state
@@ -802,6 +802,7 @@ def manage_model_and_prompt_cache(p: StableDiffusionProcessing):
     global need_global_unload
 
     p.sd_model, just_reloaded = forge_model_reload()
+    progress.set_current_task_stage("preparing", "Preparing prompts and conditioning")
 
     if need_global_unload and not just_reloaded:
         memory_management.unload_all_models()
@@ -991,7 +992,9 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 sigmas_backup = p.sd_model.forge_objects.unet.model.predictor.sigmas
                 p.sd_model.forge_objects.unet.model.predictor.set_sigmas(rescale_zero_terminal_snr_sigmas(p.sd_model.forge_objects.unet.model.predictor.sigmas))
 
+            progress.set_current_task_stage("rendering")
             samples_ddim = p.sample(conditioning=p.c, unconditional_conditioning=p.uc, seeds=p.seeds, subseeds=p.subseeds, subseed_strength=p.subseed_strength, prompts=p.prompts)
+            progress.set_current_task_stage("saving", "Decoding and saving outputs")
 
             for x_sample in samples_ddim:
                 p.latents_after_sampling.append(x_sample)

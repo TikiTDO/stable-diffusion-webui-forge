@@ -111,6 +111,9 @@ simultaneous rewrite of every layer.
 14. [`14-model-residency.md`](14-model-residency.md) — the 64 GiB weighted-LRU
     model policy, Forge integration seam, and first rehearsal for the
     Observatory ML manager.
+15. [`15-lora-prompt-workbench.md`](15-lora-prompt-workbench.md) — LoRAs as a
+    prompt-critical modulation stack, activation-term authorship, library
+    discovery, and metadata ownership.
 
 ## Related records
 

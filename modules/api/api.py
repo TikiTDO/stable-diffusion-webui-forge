@@ -31,7 +31,7 @@ from typing import Any, Union, get_origin, get_args
 import piexif
 import piexif.helper
 from contextlib import closing
-from modules.progress import create_task_id, add_task_to_queue, start_task, finish_task, current_task
+from modules.progress import create_task_id, add_task_to_queue, start_task, finish_task, set_current_task_stage, current_task
 
 def script_name_to_index(name, scripts):
     try:
@@ -497,15 +497,16 @@ class Api:
                     else:
                         p.script_args = tuple(script_args) # Need to pass args as tuple here
                         processed = process_images(p)
+                    set_current_task_stage("saving", "Finalizing outputs")
                     process_extra_images(processed)
-                    finish_task(task_id)
+                    b64images = list(map(encode_pil_to_base64, processed.images + processed.extra_images)) if send_images else []
+                    response_info = processed.js()
                 finally:
+                    finish_task(task_id)
                     shared.state.end()
                     shared.total_tqdm.clear()
 
-        b64images = list(map(encode_pil_to_base64, processed.images + processed.extra_images)) if send_images else []
-
-        return models.TextToImageResponse(images=b64images, parameters=vars(txt2imgreq), info=processed.js())
+        return models.TextToImageResponse(images=b64images, parameters=vars(txt2imgreq), info=response_info)
 
     def img2imgapi(self, img2imgreq: models.StableDiffusionImg2ImgProcessingAPI):
         task_id = img2imgreq.force_task_id or create_task_id("img2img")
@@ -571,19 +572,20 @@ class Api:
                     else:
                         p.script_args = tuple(script_args) # Need to pass args as tuple here
                         processed = process_images(p)
+                    set_current_task_stage("saving", "Finalizing outputs")
                     process_extra_images(processed)
-                    finish_task(task_id)
+                    b64images = list(map(encode_pil_to_base64, processed.images + processed.extra_images)) if send_images else []
+                    response_info = processed.js()
                 finally:
+                    finish_task(task_id)
                     shared.state.end()
                     shared.total_tqdm.clear()
-
-        b64images = list(map(encode_pil_to_base64, processed.images + processed.extra_images)) if send_images else []
 
         if not img2imgreq.include_init_images:
             img2imgreq.init_images = None
             img2imgreq.mask = None
 
-        return models.ImageToImageResponse(images=b64images, parameters=vars(img2imgreq), info=processed.js())
+        return models.ImageToImageResponse(images=b64images, parameters=vars(img2imgreq), info=response_info)
 
     def extras_single_image_api(self, req: models.ExtrasSingleImageRequest):
         reqDict = setUpscalers(req)

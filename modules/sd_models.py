@@ -13,7 +13,7 @@ from omegaconf import OmegaConf, ListConfig
 from urllib import request
 import contextlib
 
-from modules import paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_disable_initialization, errors, hashes, sd_models_config, sd_unet, sd_models_xl, cache, extra_networks, processing, lowvram, sd_hijack, patches
+from modules import paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_disable_initialization, errors, hashes, sd_models_config, sd_unet, sd_models_xl, cache, extra_networks, processing, lowvram, sd_hijack, patches, progress
 from modules.shared import opts, cmd_opts
 from modules.timer import Timer
 import numpy as np
@@ -497,6 +497,10 @@ def forge_model_reload():
     if model_data.forge_hash == current_hash and model_data.sd_model is not None:
         return model_data.sd_model, False
 
+    progress.set_current_task_stage(
+        "loading-model",
+        checkpoint_info.name_for_extra,
+    )
     print('Loading Model: ' + str(model_data.forge_loading_parameters))
 
     timer = Timer()

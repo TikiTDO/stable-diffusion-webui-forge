@@ -273,7 +273,7 @@ describe("ForgeClient", () => {
         { name: "divider", prompt: null, negative_prompt: null },
         { name: "useful", prompt: "cinematic", negative_prompt: null },
       ],
-      "/sdapi/v1/loras": [],
+      "/diffusatory/api/v1/loras": [],
       "/sdapi/v1/embeddings": {
         loaded: { zebra: {}, amber: {} },
         skipped: {},
@@ -389,6 +389,34 @@ describe("ForgeClient", () => {
       id_live_preview: 6,
       live_preview: true,
     });
+  });
+
+  it("reads the server-wide render phase independently of the current browser", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      return json({
+        phase: "loading-model",
+        busy: true,
+        task_id: "task(other-client)",
+        queue_size: 1,
+        progress: 0,
+        sampling_step: 0,
+        sampling_steps: 0,
+        job_index: 0,
+        job_count: 0,
+        operation: "txt2img",
+        checkpoint: "flux.safetensors",
+        detail: "flux",
+      });
+    };
+
+    const result = await new ForgeClient("", fetcher).activity();
+
+    expect(result.phase).toBe("loading-model");
+    expect(result.task_id).toBe("task(other-client)");
+    expect(calls[0]?.[0]).toBe("/diffusatory/api/v1/status");
+    expect(calls[0]?.[1]).toEqual({ signal: undefined });
   });
 
   it("surfaces Forge's detail rather than an opaque HTTP failure", async () => {

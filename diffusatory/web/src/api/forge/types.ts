@@ -8,6 +8,29 @@ export interface InstanceDescriptor {
   capabilities: string[];
 }
 
+export type ServerActivityPhase =
+  | "idle"
+  | "queued"
+  | "preparing"
+  | "loading-model"
+  | "rendering"
+  | "saving";
+
+export interface ServerActivity {
+  phase: ServerActivityPhase;
+  busy: boolean;
+  task_id: string | null;
+  queue_size: number;
+  progress: number | null;
+  sampling_step: number;
+  sampling_steps: number;
+  job_index: number;
+  job_count: number;
+  operation: "txt2img" | "img2img" | null;
+  checkpoint: string | null;
+  detail: string | null;
+}
+
 export interface Txt2ImgInput {
   prompt: string | string[];
   negativePrompt?: string | string[];
@@ -155,8 +178,35 @@ export interface PromptStyle {
 }
 
 export interface Lora {
+  id: string;
   name: string;
   alias: string;
+  reference: string;
+  relative_path: string;
+  folders: string[];
+  modified_at: number;
+  size_bytes: number;
+  model_family: "sdxl" | "flux" | "unknown";
+  base_model: string | null;
+  preview_url: string | null;
+  description: string;
+  tags: string[];
+  recommended_keywords: string[];
+  defaults: LoraDefaults;
+}
+
+export interface LoraKeywordDefault {
+  text: string;
+  weight: number;
+  enabled: boolean;
+}
+
+export interface LoraDefaults {
+  description: string;
+  model_family: "sdxl" | "flux" | "unknown";
+  preferred_strength: number;
+  keywords: LoraKeywordDefault[];
+  notes: string;
 }
 
 export interface EmbeddingInventory {

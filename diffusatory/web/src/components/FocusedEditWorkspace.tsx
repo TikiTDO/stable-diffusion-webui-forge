@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 
 import type {
   ForgeCatalog,
+  Lora,
   PromptExpansionMode,
   PromptExpansionResponse,
 } from "../api/forge/types";
@@ -21,6 +22,8 @@ import { NumberInput } from "./NumberInput";
 import { PromptComposition } from "./PromptComposition";
 import { PromptTools } from "./PromptTools";
 import { profileForCheckpoint } from "../domain/modelProfiles";
+import { adjustPromptAttention } from "../domain/promptAttention";
+import type { ActiveLora } from "../domain/loras";
 
 interface FocusedEditWorkspaceProps {
   documentKey: string;
@@ -55,6 +58,7 @@ interface FocusedEditWorkspaceProps {
   onCheckpointChange: (checkpoint: string) => void;
   onSaveModelDefault: () => void;
   onRestoreModelDefault: () => void;
+  onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
   onEditSettingsChange: (patch: Partial<ImageEditSettings>) => void;
   onPromptModeChange: (mode: PromptExpansionMode) => void;
   onExpansionSeedChange: (seed: number) => void;
@@ -66,6 +70,7 @@ interface FocusedEditWorkspaceProps {
   onSkip: () => void;
   onInterrupt: () => void;
   onSelectVariation: (variation: EditorVariation) => void;
+  onRemoveVariation: (variation: EditorVariation) => void;
   onClose: () => void;
   onShowShortcuts: () => void;
 }
@@ -121,6 +126,7 @@ export const FocusedEditWorkspace = forwardRef<
     onCheckpointChange,
     onSaveModelDefault,
     onRestoreModelDefault,
+    onSaveLoraDefaults,
     onEditSettingsChange,
     onPromptModeChange,
     onExpansionSeedChange,
@@ -129,6 +135,7 @@ export const FocusedEditWorkspace = forwardRef<
     onSkip,
     onInterrupt,
     onSelectVariation,
+    onRemoveVariation,
     onClose,
     onShowShortcuts,
   },
@@ -257,6 +264,7 @@ export const FocusedEditWorkspace = forwardRef<
             variations={variations}
             activeId={activeVariationId}
             onSelect={onSelectVariation}
+            onRemove={onRemoveVariation}
           />
         </div>
 
@@ -488,6 +496,26 @@ export const FocusedEditWorkspace = forwardRef<
                 value={draft.prompt}
                 onChange={(event) => onDraftChange({ prompt: event.target.value })}
                 onKeyDown={(event) => {
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    (event.key === "ArrowUp" || event.key === "ArrowDown")
+                  ) {
+                    const target = event.currentTarget;
+                    const edit = adjustPromptAttention(
+                      target.value,
+                      target.selectionStart,
+                      target.selectionEnd,
+                      event.key === "ArrowUp" ? 1 : -1,
+                    );
+                    if (edit) {
+                      event.preventDefault();
+                      onDraftChange({ prompt: edit.text });
+                      requestAnimationFrame(() => {
+                        target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+                      });
+                    }
+                    return;
+                  }
                   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                     event.preventDefault();
                     onGenerate(
@@ -507,6 +535,25 @@ export const FocusedEditWorkspace = forwardRef<
                 onChange={(event) =>
                   onDraftChange({ negativePrompt: event.target.value })
                 }
+                onKeyDown={(event) => {
+                  if (
+                    !(event.metaKey || event.ctrlKey) ||
+                    (event.key !== "ArrowUp" && event.key !== "ArrowDown")
+                  ) return;
+                  const target = event.currentTarget;
+                  const edit = adjustPromptAttention(
+                    target.value,
+                    target.selectionStart,
+                    target.selectionEnd,
+                    event.key === "ArrowUp" ? 1 : -1,
+                  );
+                  if (!edit) return;
+                  event.preventDefault();
+                  onDraftChange({ negativePrompt: edit.text });
+                  requestAnimationFrame(() => {
+                    target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+                  });
+                }}
               />
             </label>
             <PromptComposition
@@ -526,8 +573,11 @@ export const FocusedEditWorkspace = forwardRef<
             <PromptTools
               catalog={catalog}
               selectedStyles={draft.styles}
+              activeLoras={draft.loras}
               onStylesChange={(styles) => onDraftChange({ styles })}
+              onLorasChange={(loras) => onDraftChange({ loras })}
               onInsert={insertPrompt}
+              onSaveDefaults={onSaveLoraDefaults}
             />
           )}
 
