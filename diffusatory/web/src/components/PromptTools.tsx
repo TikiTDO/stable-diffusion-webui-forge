@@ -5,6 +5,7 @@ import {
   activeLoraFromCatalog,
   loraSearchMatch,
   restoreLoraDefaults,
+  visibleLoraKeywordIndexes,
   type ActiveLora,
   type LoraSearchGroup,
   type LoraSearchMatch,
@@ -99,6 +100,9 @@ export function PromptTools({
   const [refreshing, setRefreshing] = useState(false);
   const [refreshStatus, setRefreshStatus] = useState<string | null>(null);
   const [randomOrder, setRandomOrder] = useState<string[]>([]);
+  const [expandedKeywordIds, setExpandedKeywordIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const query = search.trim();
   const secondaryQuery = secondarySearch.trim().toLocaleLowerCase();
   const activeIds = useMemo(
@@ -248,6 +252,13 @@ export function PromptTools({
         <div className="lora-shelf">
           {activeLoras.map((active) => {
             const source = catalogById.get(active.id);
+            const keywordsExpanded = expandedKeywordIds.has(active.id);
+            const visibleKeywordIndexes = visibleLoraKeywordIndexes(
+              active.keywords,
+              keywordsExpanded,
+            );
+            const hiddenKeywordCount =
+              active.keywords.length - visibleKeywordIndexes.length;
             return (
               <article
                 className={`active-lora ${active.enabled ? "" : "is-disabled"}`}
@@ -306,58 +317,80 @@ export function PromptTools({
                   aria-label={`${active.name} activation terms`}
                 >
                   {active.keywords.length ? (
-                    active.keywords.map((keyword, index) => (
-                      <div
-                        className={keyword.enabled ? "" : "is-disabled"}
-                        key={`${keyword.text}-${index}`}
-                      >
-                        <button
-                          type="button"
-                          aria-pressed={keyword.enabled}
-                          onClick={() =>
-                            changeActive(active.id, (lora) => ({
-                              ...lora,
-                              keywords: lora.keywords.map(
-                                (candidate, candidateIndex) =>
-                                  candidateIndex === index
-                                    ? {
-                                        ...candidate,
-                                        enabled: !candidate.enabled,
-                                      }
-                                    : candidate,
-                              ),
-                            }))
-                          }
+                    visibleKeywordIndexes.map((index) => {
+                      const keyword = active.keywords[index];
+                      return (
+                        <div
+                          className={keyword.enabled ? "" : "is-disabled"}
+                          key={`${keyword.text}-${index}`}
                         >
-                          {keyword.text}
-                        </button>
-                        <input
-                          type="number"
-                          min="-10"
-                          max="10"
-                          step="0.1"
-                          value={keyword.weight}
-                          aria-label={`${keyword.text} prompt weight`}
-                          onChange={(event) =>
-                            changeActive(active.id, (lora) => ({
-                              ...lora,
-                              keywords: lora.keywords.map(
-                                (candidate, candidateIndex) =>
-                                  candidateIndex === index &&
-                                  Number.isFinite(event.target.valueAsNumber)
-                                    ? {
-                                        ...candidate,
-                                        weight: event.target.valueAsNumber,
-                                      }
-                                    : candidate,
-                              ),
-                            }))
-                          }
-                        />
-                      </div>
-                    ))
+                          <button
+                            type="button"
+                            aria-pressed={keyword.enabled}
+                            onClick={() =>
+                              changeActive(active.id, (lora) => ({
+                                ...lora,
+                                keywords: lora.keywords.map(
+                                  (candidate, candidateIndex) =>
+                                    candidateIndex === index
+                                      ? {
+                                          ...candidate,
+                                          enabled: !candidate.enabled,
+                                        }
+                                      : candidate,
+                                ),
+                              }))
+                            }
+                          >
+                            {keyword.text}
+                          </button>
+                          <input
+                            type="number"
+                            min="-10"
+                            max="10"
+                            step="0.1"
+                            value={keyword.weight}
+                            aria-label={`${keyword.text} prompt weight`}
+                            onChange={(event) =>
+                              changeActive(active.id, (lora) => ({
+                                ...lora,
+                                keywords: lora.keywords.map(
+                                  (candidate, candidateIndex) =>
+                                    candidateIndex === index &&
+                                    Number.isFinite(event.target.valueAsNumber)
+                                      ? {
+                                          ...candidate,
+                                          weight: event.target.valueAsNumber,
+                                        }
+                                      : candidate,
+                                ),
+                              }))
+                            }
+                          />
+                        </div>
+                      );
+                    })
                   ) : (
                     <small>No activation terms saved.</small>
+                  )}
+                  {active.keywords.length > 10 && (
+                    <button
+                      type="button"
+                      className="lora-keywords__more"
+                      aria-expanded={keywordsExpanded}
+                      onClick={() =>
+                        setExpandedKeywordIds((current) => {
+                          const next = new Set(current);
+                          if (next.has(active.id)) next.delete(active.id);
+                          else next.add(active.id);
+                          return next;
+                        })
+                      }
+                    >
+                      {keywordsExpanded
+                        ? "Show fewer"
+                        : `Show ${hiddenKeywordCount} more`}
+                    </button>
                   )}
                 </div>
                 <footer>

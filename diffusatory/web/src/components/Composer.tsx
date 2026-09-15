@@ -150,8 +150,8 @@ export function Composer({
   onShufflePromptSet,
 }: ComposerProps) {
   const editing = sourceActive;
-  const frameWidth = editing ? editDimensions.width : draft.width;
-  const frameHeight = editing ? editDimensions.height : draft.height;
+  const frameWidth = draft.width;
+  const frameHeight = draft.height;
   const modelProfile = catalog
     ? profileForCheckpoint(catalog, draft.checkpoint)
     : null;
@@ -288,10 +288,10 @@ export function Composer({
 
         <div className="draft-controls">
         <fieldset className="dimensions">
-          <legend>Frame <kbd className="shortcut-chip" aria-hidden="true">Alt F</kbd></legend>
+          <legend>{editing ? "Next pass" : "Frame"} <kbd className="shortcut-chip" aria-hidden="true">Alt F</kbd></legend>
           {editing && (
             <small className="dimensions__truth">
-              Source size · resizing is not implemented yet
+              Source {editDimensions.width}×{editDimensions.height}
             </small>
           )}
           <div className="aspect-presets">
@@ -304,7 +304,6 @@ export function Composer({
                     ? "is-selected"
                     : ""
                 }
-                disabled={editing}
                 aria-label={`${aspect.label} ${aspect.ratio}, ${aspect.width} by ${aspect.height}`}
                 title={`${aspect.label} · ${aspect.ratio} · ${aspect.width} × ${aspect.height}`}
                 onClick={() =>
@@ -330,7 +329,6 @@ export function Composer({
                 max="2048"
                 step="64"
                 value={frameWidth}
-                disabled={editing}
                 clamp={(value) => clamp(value, 64, 2048)}
                 onValueChange={(width) => onChange({ width })}
               />
@@ -338,7 +336,6 @@ export function Composer({
             <button
               type="button"
               className="swap-dimensions"
-              disabled={editing}
               onClick={() =>
                 onChange({ width: draft.height, height: draft.width })
               }
@@ -354,7 +351,6 @@ export function Composer({
                 max="2048"
                 step="64"
                 value={frameHeight}
-                disabled={editing}
                 clamp={(value) => clamp(value, 64, 2048)}
                 onValueChange={(height) => onChange({ height })}
               />
@@ -665,7 +661,6 @@ export function Composer({
         {editing && (
           <fieldset className="edit-generation-controls">
             <legend>Edit image</legend>
-            <small>Paint and mask stay available; choose the operation when generating.</small>
             <label>
               <span>Denoise {editSettings.denoisingStrength.toFixed(2)}</span>
               <input
@@ -680,6 +675,21 @@ export function Composer({
                   })
                 }
               />
+            </label>
+            <label>
+              <span>Resize source</span>
+              <select
+                value={editSettings.resizeMode}
+                onChange={(event) =>
+                  onEditSettingsChange({
+                    resizeMode: Number(event.target.value) as 0 | 1 | 2,
+                  })
+                }
+              >
+                <option value={1}>Crop to frame</option>
+                <option value={2}>Fit + fill</option>
+                <option value={0}>Stretch</option>
+              </select>
             </label>
             <>
                 <label>

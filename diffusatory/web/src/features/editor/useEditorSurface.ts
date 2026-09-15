@@ -137,11 +137,14 @@ export function useEditorSurface({
   const editorDocumentRef = useRef<EditorDocument | null>(null);
   const interactionRef = useRef<ActiveInteraction | null>(null);
   const penInContactRef = useRef(false);
-  const activeLayerRef = useRef<EditorLayer>("paint");
+  const activeLayerRef = useRef<EditorLayer>("mask");
   const toolRef = useRef<EditorTool>("brush");
   const colorRef = useRef("#312338");
-  const brushSizeRef = useRef(16);
-  const opacityRef = useRef(1);
+  const brushSizeRef = useRef(96);
+  const brushSizesRef = useRef<Record<EditorLayer, number>>({
+    paint: 16,
+    mask: 96,
+  });
   const calibrationRef = useRef<PressureCalibration>(
     DEFAULT_PRESSURE_CALIBRATION,
   );
@@ -153,11 +156,10 @@ export function useEditorSurface({
 
   const [ready, setReady] = useState(false);
   const [sourceError, setSourceError] = useState<string | null>(null);
-  const [activeLayer, setActiveLayerState] = useState<EditorLayer>("paint");
+  const [activeLayer, setActiveLayerState] = useState<EditorLayer>("mask");
   const [tool, setToolState] = useState<EditorTool>("brush");
   const [color, setColorState] = useState("#312338");
-  const [brushSize, setBrushSizeState] = useState(16);
-  const [opacity, setOpacityState] = useState(1);
+  const [brushSize, setBrushSizeState] = useState(96);
   const [wheelTarget, setWheelTarget] = useState<"zoom" | "brush-size">(
     "zoom",
   );
@@ -168,11 +170,6 @@ export function useEditorSurface({
   const [calibrationTarget, setCalibrationTargetState] = useState<
     "light" | "firm" | null
   >(null);
-
-  const setActiveLayer = useCallback((next: EditorLayer) => {
-    activeLayerRef.current = next;
-    setActiveLayerState(next);
-  }, []);
 
   const setTool = useCallback((next: EditorTool) => {
     toolRef.current = next;
@@ -186,14 +183,17 @@ export function useEditorSurface({
 
   const setBrushSize = useCallback((next: number) => {
     const bounded = boundedBrushSize(next);
+    brushSizesRef.current[activeLayerRef.current] = bounded;
     brushSizeRef.current = bounded;
     setBrushSizeState(bounded);
   }, []);
 
-  const setOpacity = useCallback((next: number) => {
-    const bounded = Math.min(1, Math.max(0.05, next));
-    opacityRef.current = bounded;
-    setOpacityState(bounded);
+  const setActiveLayer = useCallback((next: EditorLayer) => {
+    activeLayerRef.current = next;
+    const nextSize = brushSizesRef.current[next];
+    brushSizeRef.current = nextSize;
+    setBrushSizeState(nextSize);
+    setActiveLayerState(next);
   }, []);
 
   const setCalibrationTarget = useCallback(
@@ -256,10 +256,11 @@ export function useEditorSurface({
         return;
       }
       event.preventDefault();
+      const factor = activeLayerRef.current === "mask" ? 1.55 : 1.12;
       setBrushSize(
         event.deltaY < 0
-          ? brushSizeRef.current * 1.12
-          : brushSizeRef.current / 1.12,
+          ? brushSizeRef.current * factor
+          : brushSizeRef.current / factor,
       );
     },
     [handleViewportWheel, setBrushSize, wheelTarget],
@@ -520,8 +521,8 @@ export function useEditorSurface({
             layer,
             erase: action === "erase",
             color: colorRef.current,
-            size: brushSizeRef.current,
-            opacity: layer === "mask" ? 1 : opacityRef.current,
+            size: brushSizesRef.current[layer],
+            opacity: 1,
             pressure: calibrationRef.current,
           }),
         };
@@ -713,11 +714,14 @@ export function useEditorSurface({
           setTool("brush");
           break;
         case "brush-size":
-          setBrushSize(
-            shortcut.direction < 0
-              ? brushSizeRef.current / 1.25
-              : brushSizeRef.current * 1.25,
-          );
+          {
+            const factor = activeLayerRef.current === "mask" ? 1.6 : 1.25;
+            setBrushSize(
+              shortcut.direction < 0
+                ? brushSizeRef.current / factor
+                : brushSizeRef.current * factor,
+            );
+          }
           break;
         case "wheel-target":
           toggleBrushWheel();
@@ -795,8 +799,6 @@ export function useEditorSurface({
     setBrushSize,
     wheelTarget,
     toggleBrushWheel,
-    opacity,
-    setOpacity,
     zoom,
     profile,
     setProfile,

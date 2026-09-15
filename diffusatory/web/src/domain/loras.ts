@@ -15,6 +15,31 @@ export interface ActiveLora {
   keywords: ActiveLoraKeyword[];
 }
 
+/**
+ * Keep the compact LoRA card useful even when metadata supplies dozens of
+ * activation suggestions. Enabled terms are authored generation state, so
+ * they always remain visible. Disabled suggestions only fill the remaining
+ * compact slots.
+ */
+export function visibleLoraKeywordIndexes(
+  keywords: ActiveLoraKeyword[],
+  expanded: boolean,
+  limit = 10,
+): number[] {
+  if (expanded || keywords.length <= limit) {
+    return keywords.map((_, index) => index);
+  }
+  const enabled = keywords.flatMap((keyword, index) =>
+    keyword.enabled ? [index] : [],
+  );
+  if (enabled.length >= limit) return enabled;
+  const visible = new Set(enabled);
+  for (let index = 0; index < keywords.length && visible.size < limit; index += 1) {
+    if (!keywords[index].enabled) visible.add(index);
+  }
+  return keywords.flatMap((_, index) => (visible.has(index) ? [index] : []));
+}
+
 function finiteWeight(value: number, fallback = 1): number {
   return Number.isFinite(value) ? Math.max(-10, Math.min(10, value)) : fallback;
 }

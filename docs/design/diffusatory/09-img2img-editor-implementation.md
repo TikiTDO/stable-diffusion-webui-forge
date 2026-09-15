@@ -1,7 +1,7 @@
 # Img2img and pen-editor implementation record
 
-Status: implemented locally; synthetic/browser and live Forge checked; physical
-tablet acceptance still open.
+Status: implemented on the integration branch; synthetic/browser and live
+Forge checked; physical tablet acceptance still open.
 
 ## What exists
 
@@ -18,6 +18,15 @@ canvas is only a view. Generation composites source plus paint into the exact
 mask stay available together. **Generate variation** deliberately omits the
 mask; **Generate inpaint** requires and submits it, so request shape is chosen
 at the consequential action rather than through a mode picker.
+
+The ordinary mouse-and-pen posture is now **mask first**. Mask and paint retain
+separate remembered brush sizes: the mask opens at a coarse 96 source pixels
+and offers S/M/L/XL jumps, while paint opens at 16 pixels for hints. Wheel and
+keyboard size changes are deliberately faster for masks. Opacity is absent
+from the ordinary editor because it was a false degree of freedom here:
+inpaint selection is already shown translucent by the view, while exported
+mask and paint strokes are fully selected/solid. Pressure changes a pen
+stroke's footprint rather than silently weakening the generated mask.
 
 Each editor opening creates a local branch tray containing the original. Before
 a dirty document renders, its flattened paint and serialised mask are retained
@@ -92,6 +101,14 @@ inherited control where half the slider already covered most of the image. The
 cursor preview is transformed with the document, so its footprint describes
 the source-image area that will change rather than a fixed screen-sized circle.
 
+The next pass has its own output frame. Width and height remain editable after
+an image is opened, and the original source dimensions stay visible beside
+them. A named resize policy selects crop-to-frame, fit-and-fill, or stretch.
+Ordinary img2img and whole-image inpaint return the requested output frame;
+only-masked inpaint uses it as the working crop while returning the original
+source frame, matching Forge's established semantics. Changing checkpoints
+does not close the editor or discard the source, paint, mask, or branch tray.
+
 Canvas2D is sufficient for this first implementation. PixiJS, Fabric, or a
 retained scene graph would not remove the need to implement pressure, stroke
 sampling, masking, compositing, deterministic export, and undo. This choice is
@@ -150,8 +167,10 @@ artifact is `/agents/vesper/scratch/diffusatory-edit-variation-session.png`.
 - Synthetic `PointerEvent` input does not establish Wacom or Huion driver
   behavior, hover alignment, pressure feel, eraser reporting, ExpressKey
   delivery, touch arbitration, or pen latency.
-- The current editor keeps source dimensions fixed. A resize-policy UI and a
-  real non-square source pass remain open.
+- The next-pass size and resize policy are now exposed and included in the
+  request. A real non-square source comparison is still needed to establish
+  crop, fill, stretch, and only-masked output semantics visually rather than
+  only by request shape.
 - The live pass establishes one only-masked Flux path. Whole-image inpaint and
   an ordinary img2img comparison still need deliberate image-semantic checks.
 - Canvas rotation is not implemented. Tilt/altitude, azimuth, and twist now

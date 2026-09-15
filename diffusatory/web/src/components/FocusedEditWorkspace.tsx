@@ -276,13 +276,10 @@ export const FocusedEditWorkspace = forwardRef<
         <aside className="focused-edit__rail" aria-label="Focused edit controls">
           <section className="focused-edit__model">
             <div className="focused-edit__section-heading">
-              <div>
-                <p className="eyebrow">Model and render</p>
-                <h3>Next pass</h3>
-              </div>
+              <h3>Next pass</h3>
               {modelProfile && (
                 <span>
-                  {modelProfile.family.toUpperCase()} · {modelProfile.defaults.steps}-step base
+                  Source {dimensions.width}×{dimensions.height} · {modelProfile.family.toUpperCase()}
                 </span>
               )}
             </div>
@@ -309,57 +306,133 @@ export const FocusedEditWorkspace = forwardRef<
                 onRefresh={onRefreshCheckpoints}
               />
             </div>
-            <div className="focused-edit__model-default">
-              <span>
-                {hasSavedModelDefault
-                  ? "Your saved recipe is active"
-                  : "Built-in family/model recipe"}
-              </span>
-              <button type="button" onClick={onSaveModelDefault}>
-                {hasSavedModelDefault ? "Update default" : "Save as default"}
-              </button>
-              {hasSavedModelDefault && (
-                <button type="button" onClick={onRestoreModelDefault}>
-                  Restore built-in
-                </button>
-              )}
-            </div>
-            {catalog && catalog.modules.length > 0 && (
-              <details className="focused-edit__components">
-                <summary>
-                  Components · {draft.modules.length
-                    ? `${draft.modules.length} selected`
-                    : modelProfile?.component_mode === "integrated"
-                      ? "built into checkpoint"
-                      : "automatic"}
-                </summary>
-                <div>
-                  {catalog.modules.map((modelModule) => (
-                    <label key={modelModule.filename}>
-                      <input
-                        type="checkbox"
-                        checked={draft.modules.includes(modelModule.filename)}
-                        onChange={(event) =>
-                          onDraftChange({
-                            modules: event.target.checked
-                              ? [...draft.modules, modelModule.filename]
-                              : draft.modules.filter(
-                                  (item) => item !== modelModule.filename,
-                                ),
-                          })
-                        }
-                      />
-                      <span>{modelModule.model_name}</span>
-                    </label>
-                  ))}
-                </div>
-              </details>
-            )}
-            <div className="focused-edit__render-grid">
+            <fieldset className="focused-edit__pass-size">
+              <legend>Pass size</legend>
               <label>
-                  <span>Sampler <kbd className="shortcut-chip" aria-hidden="true">Alt R</kbd></span>
-                  <select
-                    data-shortcut-target="render"
+                <span>Width <kbd className="shortcut-chip" aria-hidden="true">Alt F</kbd></span>
+                <NumberInput
+                  data-shortcut-target="frame"
+                  min="64"
+                  max="2048"
+                  step="64"
+                  value={draft.width}
+                  clamp={(value) => clamp(value, 64, 2048)}
+                  onValueChange={(width) => onDraftChange({ width })}
+                />
+              </label>
+              <button
+                type="button"
+                className="swap-dimensions"
+                aria-label="Swap pass width and height"
+                onClick={() =>
+                  onDraftChange({ width: draft.height, height: draft.width })
+                }
+              >
+                ⇄
+              </button>
+              <label>
+                <span>Height <kbd className="shortcut-chip" aria-hidden="true">Alt Shift F</kbd></span>
+                <NumberInput
+                  data-shortcut-target="frame-height"
+                  min="64"
+                  max="2048"
+                  step="64"
+                  value={draft.height}
+                  clamp={(value) => clamp(value, 64, 2048)}
+                  onValueChange={(height) => onDraftChange({ height })}
+                />
+              </label>
+              <small title="Variation and whole-frame passes use this output size. Masked inpaint uses it for the working crop.">
+                Output · masked work area
+              </small>
+            </fieldset>
+            <div className="focused-edit__pass-controls">
+              <label>
+                <span>Resize source</span>
+                <select
+                  value={editSettings.resizeMode}
+                  onChange={(event) =>
+                    onEditSettingsChange({
+                      resizeMode: Number(event.target.value) as 0 | 1 | 2,
+                    })
+                  }
+                >
+                  <option value={1}>Crop to frame</option>
+                  <option value={2}>Fit + fill</option>
+                  <option value={0}>Stretch</option>
+                </select>
+              </label>
+              <label>
+                <span>Candidates <kbd className="shortcut-chip" aria-hidden="true">Alt N</kbd></span>
+                <NumberInput
+                  data-shortcut-target="candidates"
+                  min="1"
+                  max="8"
+                  value={draft.outputs}
+                  clamp={(value) => clamp(value, 1, 8)}
+                  onValueChange={(outputs) => onDraftChange({ outputs })}
+                />
+              </label>
+              <label>
+                <span>Seed <kbd className="shortcut-chip" aria-hidden="true">Alt S</kbd></span>
+                <NumberInput
+                  data-shortcut-target="seed"
+                  min="-1"
+                  value={draft.seed}
+                  onValueChange={(seed) => onDraftChange({ seed })}
+                />
+              </label>
+            </div>
+            <label className="focused-edit__denoise">
+              <span>Denoise <strong>{editSettings.denoisingStrength.toFixed(2)}</strong> <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></span>
+              <input
+                data-shortcut-target="tools"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={editSettings.denoisingStrength}
+                onChange={(event) =>
+                  onEditSettingsChange({
+                    denoisingStrength: event.target.valueAsNumber,
+                  })
+                }
+              />
+            </label>
+            <div className="focused-edit__inpaint-settings">
+              <label>
+                <span>Mask blur</span>
+                <NumberInput
+                  min="0"
+                  max="64"
+                  value={editSettings.maskBlur}
+                  clamp={(value) => clamp(value, 0, 64)}
+                  onValueChange={(maskBlur) => onEditSettingsChange({ maskBlur })}
+                />
+              </label>
+              <label>
+                <span>Padding</span>
+                <NumberInput
+                  min="0"
+                  max="256"
+                  step="4"
+                  value={editSettings.inpaintPadding}
+                  clamp={(value) => clamp(value, 0, 256)}
+                  onValueChange={(inpaintPadding) =>
+                    onEditSettingsChange({ inpaintPadding })
+                  }
+                />
+              </label>
+            </div>
+            <details className="focused-edit__render-recipe">
+              <summary>
+                Render recipe · {draft.sampler} / {draft.scheduler} · {draft.steps} steps
+              </summary>
+              <div className="focused-edit__render-grid">
+              <label>
+                <span>Sampler <kbd className="shortcut-chip" aria-hidden="true">Alt R</kbd></span>
+                <select
+                  data-shortcut-target="render"
                   value={draft.sampler}
                   onChange={(event) => onDraftChange({ sampler: event.target.value })}
                 >
@@ -369,9 +442,9 @@ export const FocusedEditWorkspace = forwardRef<
                 </select>
               </label>
               <label>
-                  <span>Scheduler <kbd className="shortcut-chip" aria-hidden="true">Alt Shift R</kbd></span>
-                  <select
-                    data-shortcut-target="scheduler"
+                <span>Scheduler <kbd className="shortcut-chip" aria-hidden="true">Alt Shift R</kbd></span>
+                <select
+                  data-shortcut-target="scheduler"
                   value={draft.scheduler}
                   onChange={(event) => onDraftChange({ scheduler: event.target.value })}
                 >
@@ -416,83 +489,57 @@ export const FocusedEditWorkspace = forwardRef<
                   />
                 </label>
               )}
-              <label>
-                  <span>Candidates <kbd className="shortcut-chip" aria-hidden="true">Alt N</kbd></span>
-                  <NumberInput
-                    data-shortcut-target="candidates"
-                  min="1"
-                  max="8"
-                  value={draft.outputs}
-                  clamp={(value) => clamp(value, 1, 8)}
-                  onValueChange={(outputs) => onDraftChange({ outputs })}
-                  />
-              </label>
-              <label>
-                <span>Seed <kbd className="shortcut-chip" aria-hidden="true">Alt S</kbd></span>
-                <NumberInput
-                  data-shortcut-target="seed"
-                  min="-1"
-                  value={draft.seed}
-                  onValueChange={(seed) => onDraftChange({ seed })}
-                />
-              </label>
               <div className="focused-edit__preview-cadence">
                 <span>Live preview</span>
                 <strong>Every 3 steps</strong>
               </div>
-            </div>
-            {modelIssue && <p className="stage__error" role="alert">{modelIssue}</p>}
-          </section>
-
-          <section className="focused-edit__operation">
-            <header>
-              <div>
-                <p className="eyebrow">Edit controls</p>
-                <h3>Prepare either pass</h3>
               </div>
-              <span>Choose when you generate</span>
-            </header>
-            <label>
-              <span>Denoise <strong>{editSettings.denoisingStrength.toFixed(2)}</strong> <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></span>
-              <input
-                data-shortcut-target="tools"
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={editSettings.denoisingStrength}
-                onChange={(event) =>
-                  onEditSettingsChange({
-                    denoisingStrength: event.target.valueAsNumber,
-                  })
-                }
-              />
-            </label>
-            <div className="focused-edit__inpaint-settings">
-                <label>
-                  <span>Mask blur</span>
-                  <NumberInput
-                    min="0"
-                    max="64"
-                    value={editSettings.maskBlur}
-                    clamp={(value) => clamp(value, 0, 64)}
-                    onValueChange={(maskBlur) => onEditSettingsChange({ maskBlur })}
-                  />
-                </label>
-                <label>
-                  <span>Padding</span>
-                  <NumberInput
-                    min="0"
-                    max="256"
-                    step="4"
-                    value={editSettings.inpaintPadding}
-                    clamp={(value) => clamp(value, 0, 256)}
-                    onValueChange={(inpaintPadding) =>
-                      onEditSettingsChange({ inpaintPadding })
-                    }
-                  />
-                </label>
-            </div>
+              <div className="focused-edit__model-default">
+                <span>
+                  {hasSavedModelDefault ? "Saved default" : "Built-in default"}
+                </span>
+                <button type="button" onClick={onSaveModelDefault}>
+                  {hasSavedModelDefault ? "Update default" : "Save as default"}
+                </button>
+                {hasSavedModelDefault && (
+                  <button type="button" onClick={onRestoreModelDefault}>
+                    Restore built-in
+                  </button>
+                )}
+              </div>
+              {catalog && catalog.modules.length > 0 && (
+                <details className="focused-edit__components">
+                  <summary>
+                    Components · {draft.modules.length
+                      ? `${draft.modules.length} selected`
+                      : modelProfile?.component_mode === "integrated"
+                        ? "built into checkpoint"
+                        : "automatic"}
+                  </summary>
+                  <div>
+                    {catalog.modules.map((modelModule) => (
+                      <label key={modelModule.filename}>
+                        <input
+                          type="checkbox"
+                          checked={draft.modules.includes(modelModule.filename)}
+                          onChange={(event) =>
+                            onDraftChange({
+                              modules: event.target.checked
+                                ? [...draft.modules, modelModule.filename]
+                                : draft.modules.filter(
+                                    (item) => item !== modelModule.filename,
+                                  ),
+                            })
+                          }
+                        />
+                        <span>{modelModule.model_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </details>
+            {modelIssue && <p className="stage__error" role="alert">{modelIssue}</p>}
           </section>
 
           <section className="focused-edit__prompt">

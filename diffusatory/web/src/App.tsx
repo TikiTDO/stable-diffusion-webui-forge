@@ -20,7 +20,10 @@ import {
   ImageEditor,
   type ImageEditorHandle,
 } from "./features/editor/ImageEditor";
-import type { EditOperation } from "./features/editor/model";
+import type {
+  EditOperation,
+  ImageEditSettings,
+} from "./features/editor/model";
 import {
   conditionIssue,
   createCondition,
@@ -276,11 +279,12 @@ export default function App() {
   const [regionalComposition, setRegionalComposition] = useState(
     createRegionalComposition,
   );
-  const [editSettings, setEditSettings] = useState({
+  const [editSettings, setEditSettings] = useState<ImageEditSettings>({
     denoisingStrength: 0.6,
     maskBlur: 4,
     inpaintOnlyMasked: true,
     inpaintPadding: 32,
+    resizeMode: 1,
   });
   const editorRef = useRef<ImageEditorHandle>(null);
   const editorSessionSequence = useRef(0);
@@ -679,7 +683,10 @@ export default function App() {
     pendingEditorRun.current = {
       session: editorSession,
       operation,
-      dimensions: { width: editor.width, height: editor.height },
+      dimensions:
+        operation === "inpaint" && effectiveEditSettings.inpaintOnlyMasked
+          ? { width: editor.width, height: editor.height }
+          : { width: draft.width, height: draft.height },
     };
     setActiveEditOperation(operation);
     setActiveInpaintScope(
@@ -695,8 +702,8 @@ export default function App() {
         ...request,
         initImage: editor.initImage,
         mask: operation === "inpaint" ? editor.mask ?? undefined : undefined,
-        width: editor.width,
-        height: editor.height,
+        width: draft.width,
+        height: draft.height,
         previewEvery: 3,
         ...effectiveEditSettings,
       },
@@ -776,6 +783,11 @@ export default function App() {
       setEditorMaskSource(null);
       setEditorDirty(false);
       setEditorDimensions(dimensions);
+      setDraft((current) => ({
+        ...current,
+        width: dimensions.width,
+        height: dimensions.height,
+      }));
       setEditorSession(session);
       setEditorDocumentRevision(0);
       setEditorVariations([original]);
@@ -813,6 +825,11 @@ export default function App() {
     setEditorSource(variation.image);
     setEditorMaskSource(variation.mask);
     setEditorDimensions({ width: variation.width, height: variation.height });
+    setDraft((current) => ({
+      ...current,
+      width: variation.width,
+      height: variation.height,
+    }));
     setEditorDirty(false);
     setActiveEditorVariationId(variation.id);
     setEditorDocumentRevision((current) => current + 1);

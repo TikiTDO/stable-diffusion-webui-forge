@@ -360,6 +360,7 @@ export class ForgeClient {
         inpaint_full_res: input.inpaintOnlyMasked ?? true,
         inpaint_full_res_padding: input.inpaintPadding ?? 32,
         inpainting_fill: 1,
+        resize_mode: input.resizeMode ?? 1,
         width: input.width ?? 1024,
         height: input.height ?? 1024,
         steps: input.steps ?? 20,

@@ -46,9 +46,10 @@ function paintDot(
   sample: PointerSample,
   operation: StrokeOperation,
 ) {
-  const pressure = samplePressure(sample, operation);
   const footprint = brushFootprint(sample, operation);
-  context.globalAlpha = operation.opacity * pressure;
+  // Pressure changes the physical footprint, not the pigment alpha. Ordinary
+  // paint is a structural hint and inpaint masks must remain fully selected.
+  context.globalAlpha = operation.opacity;
   context.beginPath();
   context.ellipse(
     sample.imageX,

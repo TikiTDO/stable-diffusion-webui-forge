@@ -10,6 +10,8 @@ export interface ImageEditSettings {
   maskBlur: number;
   inpaintOnlyMasked: boolean;
   inpaintPadding: number;
+  /** Forge resize mode: 0 stretch, 1 crop, 2 fill. */
+  resizeMode: 0 | 1 | 2;
 }
 
 export interface StrokeOperation {

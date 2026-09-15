@@ -87,19 +87,19 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
           <div className="layer-switch" aria-label="Drawing layer">
             <button
               type="button"
-              className={editor.activeLayer === "paint" ? "is-selected" : ""}
-              aria-keyshortcuts="Q"
-              onClick={() => editor.setActiveLayer("paint")}
-            >
-              Paint <kbd>Q</kbd>
-            </button>
-            <button
-              type="button"
               className={editor.activeLayer === "mask" ? "is-selected" : ""}
               aria-keyshortcuts="W"
               onClick={() => editor.setActiveLayer("mask")}
             >
               Inpaint mask <kbd>W</kbd>
+            </button>
+            <button
+              type="button"
+              className={editor.activeLayer === "paint" ? "is-selected" : ""}
+              aria-keyshortcuts="Q"
+              onClick={() => editor.setActiveLayer("paint")}
+            >
+              Paint <kbd>Q</kbd>
             </button>
           </div>
           <div className="tool-switch" aria-label="Editor tool">
@@ -152,17 +152,19 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
           </button>
         </header>
 
-        <div className="editor-controls">
-          <label className="color-control">
-            <span>Colour</span>
-            <input
-              type="color"
-              value={editor.color}
-              onChange={(event) => editor.setColor(event.target.value)}
-            />
-          </label>
+        <div className={`editor-controls editor-controls--${editor.activeLayer}`}>
+          {editor.activeLayer === "paint" && (
+            <label className="color-control">
+              <span>Colour</span>
+              <input
+                type="color"
+                value={editor.color}
+                onChange={(event) => editor.setColor(event.target.value)}
+              />
+            </label>
+          )}
           <label>
-            <span>Brush {editor.brushSize}px</span>
+            <span>Brush {editor.brushSize}px <kbd>C</kbd>/<kbd>V</kbd></span>
             <input
               type="range"
               min="0"
@@ -176,18 +178,26 @@ export const ImageEditor = forwardRef<ImageEditorHandle, ImageEditorProps>(
               }
             />
           </label>
-          <label>
-            <span>Opacity {Math.round(editor.opacity * 100)}%</span>
-            <input
-              type="range"
-              min="5"
-              max="100"
-              value={editor.opacity * 100}
-              onChange={(event) =>
-                editor.setOpacity(event.target.valueAsNumber / 100)
-              }
-            />
-          </label>
+          {editor.activeLayer === "mask" && (
+            <div className="mask-size-presets" aria-label="Mask brush size">
+              {([
+                ["S", 32],
+                ["M", 96],
+                ["L", 192],
+                ["XL", 256],
+              ] as const).map(([label, size]) => (
+                <button
+                  type="button"
+                  key={label}
+                  className={editor.brushSize === size ? "is-selected" : ""}
+                  title={`${label} mask brush · ${size}px`}
+                  onClick={() => editor.setBrushSize(size)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="editor-button-row">
             <button type="button" aria-keyshortcuts="Z" onClick={editor.undo}>
               Undo <kbd>Z</kbd>

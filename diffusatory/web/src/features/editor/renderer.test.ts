@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_PRESSURE_CALIBRATION } from "../../input/calibration";
 import type { PointerSample } from "../../input/pointer";
 import { createStrokeOperation } from "./model";
-import { brushFootprint } from "./renderer";
+import { brushFootprint, paintStrokeSamples } from "./renderer";
 
 function sample(patch: Partial<PointerSample> = {}): PointerSample {
   return {
@@ -57,5 +57,46 @@ describe("pen brush footprint", () => {
     const footprint = brushFootprint(sample({ tiltX: 60, twist: 90 }), operation);
     expect(footprint.radiusY).toBeLessThan(footprint.radiusX);
     expect(footprint.rotation).toBeCloseTo(Math.PI / 2);
+  });
+
+  it("uses pressure for footprint without fading the stroke", () => {
+    const seenAlpha: number[] = [];
+    let currentAlpha = 1;
+    const context = {
+      get globalAlpha() {
+        return currentAlpha;
+      },
+      set globalAlpha(value: number) {
+        currentAlpha = value;
+      },
+      fillStyle: "",
+      strokeStyle: "",
+      lineCap: "butt",
+      lineJoin: "miter",
+      globalCompositeOperation: "source-over",
+      save: () => undefined,
+      restore: () => undefined,
+      beginPath: () => undefined,
+      ellipse: () => undefined,
+      fill() {
+        seenAlpha.push(currentAlpha);
+      },
+    } as unknown as CanvasRenderingContext2D;
+    const faintPressure = createStrokeOperation({
+      layer: operation.layer,
+      erase: operation.erase,
+      color: operation.color,
+      size: operation.size,
+      opacity: 0.75,
+      pressure: operation.pressure,
+    });
+    faintPressure.samples.push(sample({ pressure: 0.1 }));
+
+    paintStrokeSamples(context, faintPressure);
+
+    expect(seenAlpha).toEqual([0.75]);
+    expect(brushFootprint(faintPressure.samples[0], faintPressure).radiusX).toBeLessThan(
+      operation.size / 2,
+    );
   });
 });

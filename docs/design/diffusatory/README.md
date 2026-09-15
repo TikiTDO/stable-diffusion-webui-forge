@@ -114,6 +114,9 @@ simultaneous rewrite of every layer.
 15. [`15-lora-prompt-workbench.md`](15-lora-prompt-workbench.md) — LoRAs as a
     prompt-critical modulation stack, activation-term authorship, library
     discovery, and metadata ownership.
+16. [`16-generation-plan.md`](16-generation-plan.md) — variations, per-shot
+    regional prompt layouts, candidate allocation, embedding destinations, and
+    compilation as one structured generation object.
 
 ## Related records
 

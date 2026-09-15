@@ -1191,7 +1191,6 @@ h2 {
 }
 
 .lora-shelf__header,
-.active-lora > header,
 .active-lora > footer,
 .lora-library__controls {
   display: flex;
@@ -1251,9 +1250,16 @@ h2 {
   opacity: 0.58;
 }
 
+.active-lora > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .active-lora > header > strong {
-  min-width: 110px;
-  margin-right: auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1265,6 +1271,10 @@ h2 {
   gap: 5px;
   color: var(--quiet);
   font-size: 13px;
+}
+
+.active-lora > header label span {
+  white-space: nowrap;
 }
 
 .active-lora input[type="number"],
@@ -1297,10 +1307,11 @@ h2 {
 
 .lora-keywords > div {
   display: flex;
+  max-width: 100%;
 }
 
 .lora-keywords > div button {
-  max-width: 220px;
+  max-width: min(220px, calc(100% - 55px));
   overflow: hidden;
   border-radius: 7px 0 0 7px;
   color: var(--amber-bright);
@@ -1320,7 +1331,13 @@ h2 {
 }
 
 .active-lora > footer {
+  flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.lora-keywords__more {
+  flex: 0 0 auto;
+  color: var(--amber-bright) !important;
 }
 
 .active-lora > footer button {
@@ -2535,7 +2552,6 @@ h2 {
 
 .editor-controls {
   display: grid;
-  grid-template-columns: 76px minmax(130px, 1fr) minmax(120px, 0.8fr) auto;
   align-items: end;
   gap: 8px;
   margin-bottom: 10px;
@@ -2543,6 +2559,14 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: rgba(9, 8, 14, 0.5);
+}
+
+.editor-controls--paint {
+  grid-template-columns: 76px minmax(140px, 1fr) auto;
+}
+
+.editor-controls--mask {
+  grid-template-columns: minmax(160px, 1fr) auto auto;
 }
 
 .editor-controls label {
@@ -2562,6 +2586,34 @@ h2 {
 
 .editor-controls input[type="range"] {
   accent-color: var(--amber);
+}
+
+.editor-controls kbd {
+  color: var(--quiet);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.mask-size-presets {
+  display: flex;
+  gap: 4px;
+}
+
+.mask-size-presets button {
+  min-width: 34px;
+  height: 31px;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 0 7px;
+  color: var(--muted);
+  background: rgba(24, 22, 31, 0.88);
+}
+
+.mask-size-presets button.is-selected {
+  border-color: rgba(232, 169, 88, 0.48);
+  color: var(--amber-bright);
+  background: rgba(232, 169, 88, 0.1);
 }
 
 .pen-controls {
@@ -4060,7 +4112,7 @@ h1 {
 }
 
 .focused-edit__header h2,
-.focused-edit__operation h3,
+.focused-edit__model h3,
 .focused-edit__prompt h3 {
   margin: 2px 0 0;
   font-family: Georgia, "Times New Roman", serif;
@@ -4368,7 +4420,6 @@ h1 {
   padding-right: 3px;
 }
 
-.focused-edit__operation,
 .focused-edit__model,
 .focused-edit__prompt,
 .focused-edit__results,
@@ -4379,7 +4430,6 @@ h1 {
   background: var(--panel);
 }
 
-.focused-edit__operation,
 .focused-edit__model,
 .focused-edit__prompt,
 .focused-edit__results {
@@ -4395,7 +4445,10 @@ h1 {
 }
 
 .focused-edit__checkpoint,
-.focused-edit__render-grid label {
+.focused-edit__render-grid label,
+.focused-edit__pass-size label,
+.focused-edit__pass-controls label,
+.focused-edit__denoise {
   display: grid;
   min-width: 0;
   gap: 4px;
@@ -4408,14 +4461,20 @@ h1 {
 }
 
 .focused-edit__checkpoint > label > span,
-.focused-edit__render-grid label > span {
+.focused-edit__render-grid label > span,
+.focused-edit__pass-size label > span,
+.focused-edit__pass-controls label > span,
+.focused-edit__denoise > span {
   color: var(--muted);
   font-weight: 650;
 }
 
 .focused-edit__checkpoint select,
 .focused-edit__render-grid select,
-.focused-edit__render-grid input {
+.focused-edit__render-grid input,
+.focused-edit__pass-size input,
+.focused-edit__pass-controls input,
+.focused-edit__pass-controls select {
   min-width: 0;
   height: 36px;
   border: 1px solid var(--line-strong);
@@ -4475,13 +4534,74 @@ h1 {
   accent-color: var(--amber);
 }
 
+.focused-edit__pass-size {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 6px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px;
+}
+
+.focused-edit__pass-size legend {
+  padding: 0 4px;
+  color: var(--quiet);
+  font-size: 13px;
+}
+
+.focused-edit__pass-size > small {
+  grid-column: 1 / -1;
+  color: var(--quiet);
+  font-size: 12px;
+}
+
+.focused-edit__pass-size .swap-dimensions {
+  width: 34px;
+  height: 36px;
+  text-align: center;
+}
+
+.focused-edit__pass-controls {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.25fr) minmax(70px, 0.65fr) minmax(90px, 1fr);
+  gap: 7px;
+}
+
+.focused-edit__denoise input[type="range"] {
+  width: 100%;
+  accent-color: var(--amber);
+}
+
+.focused-edit__render-recipe {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.focused-edit__render-recipe > summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.focused-edit__render-recipe > summary::-webkit-details-marker {
+  display: none;
+}
+
+.focused-edit__render-recipe[open] > summary {
+  margin-bottom: 8px;
+  color: var(--amber-bright);
+}
+
 .focused-edit__render-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
-.focused-edit__operation > header,
 .focused-edit__section-heading,
 .focused-edit__results > header {
   display: flex;
@@ -4490,12 +4610,11 @@ h1 {
   gap: 12px;
 }
 
-.focused-edit__operation h3,
+.focused-edit__model h3,
 .focused-edit__prompt h3 {
   font-size: 18px;
 }
 
-.focused-edit__operation > label,
 .focused-edit__prompt > label,
 .focused-edit__inpaint-settings label {
   display: grid;
@@ -4503,16 +4622,10 @@ h1 {
   gap: 5px;
 }
 
-.focused-edit__operation label > span,
 .focused-edit__prompt label > span,
 .focused-edit__inpaint-settings label > span {
   color: var(--muted);
   font-weight: 650;
-}
-
-.focused-edit__operation input[type="range"] {
-  width: 100%;
-  accent-color: var(--amber);
 }
 
 .focused-edit__inpaint-settings {

@@ -7,6 +7,7 @@ import {
   loraSearchMatch,
   loraSearchScore,
   promptContainsTerm,
+  visibleLoraKeywordIndexes,
 } from "./loras";
 
 const catalogLora: Lora = {
@@ -125,5 +126,28 @@ describe("LoRA prompt composition", () => {
       defaults: { ...catalogLora.defaults, description: "", keywords: [], notes: "" },
     };
     expect(loraSearchMatch(sparse, "pose")).toBeNull();
+  });
+
+  it("keeps selected terms visible while limiting disabled suggestions", () => {
+    const keywords = Array.from({ length: 15 }, (_, index) => ({
+      text: `term ${index}`,
+      weight: 1,
+      enabled: index >= 10,
+    }));
+    expect(visibleLoraKeywordIndexes(keywords, false)).toEqual([
+      0, 1, 2, 3, 4, 10, 11, 12, 13, 14,
+    ]);
+    expect(visibleLoraKeywordIndexes(keywords, true)).toHaveLength(15);
+  });
+
+  it("offers no disabled suggestions once ten terms are selected", () => {
+    const keywords = Array.from({ length: 15 }, (_, index) => ({
+      text: `term ${index}`,
+      weight: 1,
+      enabled: index < 10,
+    }));
+    expect(visibleLoraKeywordIndexes(keywords, false)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    ]);
   });
 });
