@@ -155,9 +155,11 @@ export function Composer({
   const modelProfile = catalog
     ? profileForCheckpoint(catalog, draft.checkpoint)
     : null;
-  const insertPrompt = (text: string) => {
-    const separator = draft.prompt.trim() ? ", " : "";
-    onChange({ prompt: `${draft.prompt.trimEnd()}${separator}${text}` });
+  const insertEmbedding = (targetId: string, text: string) => {
+    const key = targetId === "negative" ? "negativePrompt" : "prompt";
+    const current = draft[key];
+    const separator = current.trim() ? ", " : "";
+    onChange({ [key]: `${current.trimEnd()}${separator}${text}` });
   };
 
   return (
@@ -640,9 +642,13 @@ export function Composer({
             catalog={catalog}
             selectedStyles={draft.styles}
             activeLoras={draft.loras}
+            embeddingTargets={[
+              { id: "prompt", label: "Prompt" },
+              { id: "negative", label: "Negative prompt" },
+            ]}
             onStylesChange={(styles) => onChange({ styles })}
             onLorasChange={(loras) => onChange({ loras })}
-            onInsert={insertPrompt}
+            onInsertEmbedding={insertEmbedding}
             onSaveDefaults={onSaveLoraDefaults}
             onRefreshLibrary={onRefreshLoras}
           />

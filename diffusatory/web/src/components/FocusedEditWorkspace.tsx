@@ -146,9 +146,11 @@ export const FocusedEditWorkspace = forwardRef<
   },
   ref,
 ) {
-  const insertPrompt = (text: string) => {
-    const separator = draft.prompt.trim() ? ", " : "";
-    onDraftChange({ prompt: `${draft.prompt.trimEnd()}${separator}${text}` });
+  const insertEmbedding = (targetId: string, text: string) => {
+    const key = targetId === "negative" ? "negativePrompt" : "prompt";
+    const current = draft[key];
+    const separator = current.trim() ? ", " : "";
+    onDraftChange({ [key]: `${current.trimEnd()}${separator}${text}` });
   };
   const modelProfile = catalog
     ? profileForCheckpoint(catalog, draft.checkpoint)
@@ -633,9 +635,13 @@ export const FocusedEditWorkspace = forwardRef<
               catalog={catalog}
               selectedStyles={draft.styles}
               activeLoras={draft.loras}
+              embeddingTargets={[
+                { id: "prompt", label: "Prompt" },
+                { id: "negative", label: "Negative prompt" },
+              ]}
               onStylesChange={(styles) => onDraftChange({ styles })}
               onLorasChange={(loras) => onDraftChange({ loras })}
-              onInsert={insertPrompt}
+              onInsertEmbedding={insertEmbedding}
               onSaveDefaults={onSaveLoraDefaults}
               onRefreshLibrary={onRefreshLoras}
             />

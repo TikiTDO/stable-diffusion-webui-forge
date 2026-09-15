@@ -1535,6 +1535,46 @@ h2 {
   flex-flow: row wrap;
 }
 
+.embedding-target-picker {
+  display: grid;
+  gap: 6px;
+  margin-top: 7px;
+  border: 1px solid rgba(232, 169, 88, 0.28);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(232, 169, 88, 0.055);
+}
+
+.embedding-target-picker > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--quiet);
+  font-size: 13px;
+}
+
+.embedding-target-picker > span strong {
+  color: var(--ink);
+}
+
+.embedding-target-picker > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.embedding-target-picker button {
+  border: 1px solid rgba(232, 169, 88, 0.32);
+  border-radius: 7px;
+  padding: 5px 7px;
+  color: var(--amber-bright);
+  background: rgba(232, 169, 88, 0.08);
+}
+
+.embedding-target-picker .embedding-target-picker__cancel {
+  margin-left: auto;
+  color: var(--quiet);
+}
+
 .draft-controls {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 92px minmax(112px, 0.6fr);

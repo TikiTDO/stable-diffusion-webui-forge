@@ -15,9 +15,10 @@ interface PromptToolsProps {
   catalog: ForgeCatalog;
   selectedStyles: string[];
   activeLoras: ActiveLora[];
+  embeddingTargets: Array<{ id: string; label: string }>;
   onStylesChange: (styles: string[]) => void;
   onLorasChange: (loras: ActiveLora[]) => void;
-  onInsert: (text: string) => void;
+  onInsertEmbedding: (targetId: string, text: string) => void;
   onSaveDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
   onRefreshLibrary: () => Promise<number>;
 }
@@ -86,9 +87,10 @@ export function PromptTools({
   catalog,
   selectedStyles,
   activeLoras,
+  embeddingTargets,
   onStylesChange,
   onLorasChange,
-  onInsert,
+  onInsertEmbedding,
   onSaveDefaults,
   onRefreshLibrary,
 }: PromptToolsProps) {
@@ -103,6 +105,7 @@ export function PromptTools({
   const [expandedKeywordIds, setExpandedKeywordIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [pendingEmbedding, setPendingEmbedding] = useState<string | null>(null);
   const query = search.trim();
   const secondaryQuery = secondarySearch.trim().toLocaleLowerCase();
   const activeIds = useMemo(
@@ -591,12 +594,51 @@ export function PromptTools({
                 <button
                   type="button"
                   key={name}
-                  onClick={() => onInsert(name)}
+                  className={pendingEmbedding === name ? "is-selected" : ""}
+                  aria-expanded={pendingEmbedding === name}
+                  onClick={() =>
+                    setPendingEmbedding((current) =>
+                      current === name ? null : name,
+                    )
+                  }
                 >
                   + {name}
                 </button>
               ))}
             </div>
+            {pendingEmbedding && (
+              <div
+                className="embedding-target-picker"
+                role="group"
+                aria-label={`Choose prompt destination for ${pendingEmbedding}`}
+              >
+                <span>
+                  Add <strong>{pendingEmbedding}</strong> to
+                </span>
+                <div>
+                  {embeddingTargets.map((target) => (
+                    <button
+                      type="button"
+                      key={target.id}
+                      onClick={() => {
+                        onInsertEmbedding(target.id, pendingEmbedding);
+                        setPendingEmbedding(null);
+                      }}
+                    >
+                      {target.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="embedding-target-picker__cancel"
+                    onClick={() => setPendingEmbedding(null)}
+                    aria-label="Cancel embedding insertion"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
           <section>
             <h3>Styles</h3>
