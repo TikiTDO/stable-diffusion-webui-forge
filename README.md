@@ -31,7 +31,8 @@ path `.diffusatory/runtime/api-token` and is never printed. This is an admission
 boundary against accidental API use, not proof that a determined client did not
 load the public workbench first.
 
-Persistent local choices belong in the ignored `.diffusatory/config.env`:
+Persistent local choices belong in the ignored `diffusatory-user.sh`, which the
+launcher sources automatically:
 
 ```bash
 DIFFUSATORY_ACCESS_MODE=both  # ui, api, or both

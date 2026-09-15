@@ -49,7 +49,8 @@ driving the UI.
 The server is plain HTTP unless both `DIFFUSATORY_TLS_CERTFILE` and
 `DIFFUSATORY_TLS_KEYFILE` are configured. Put persistent host, port, access,
 TLS, and optional Bash-array `DIFFUSATORY_EXTRA_ARGS` choices in the ignored
-`.diffusatory/config.env`; ordinary operation remains `./diffusatory.sh`.
+root-level `diffusatory-user.sh`; ordinary operation remains
+`./diffusatory.sh`.
 Console output is also appended to `.diffusatory/runtime/server.log` by default.
 Fresh environments require Python 3.11 or newer. The launcher uses the system's
 current `python3`; `DIFFUSATORY_PYTHON` may select another interpreter.

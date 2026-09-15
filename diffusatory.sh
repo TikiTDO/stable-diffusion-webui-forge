@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 local_root="$repo_root/.diffusatory"
-config_file="$local_root/config.env"
+config_file="$repo_root/diffusatory-user.sh"
 
 if [[ -f "$config_file" ]]; then
     # This is an operator-owned local Bash configuration file. It is ignored
@@ -27,7 +27,7 @@ Usage: ./diffusatory.sh [Forge launch arguments]
 
 Build and launch the complete Diffusatory workbench.
 
-Local configuration may be stored in .diffusatory/config.env:
+Local configuration may be stored in diffusatory-user.sh:
   DIFFUSATORY_ACCESS_MODE=both   # ui, api, or both
   DIFFUSATORY_HOST=127.0.0.1
   DIFFUSATORY_PORT=7865

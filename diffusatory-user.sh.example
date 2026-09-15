@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Copy this file to diffusatory-user.sh and set only the local choices you need.
+# The real file is ignored by Git and sourced automatically by diffusatory.sh.
+
+DIFFUSATORY_ACCESS_MODE=both
+DIFFUSATORY_HOST=127.0.0.1
+DIFFUSATORY_PORT=7865
+
+# Uncomment both paths to serve HTTPS. Supplying only one is an error.
+# DIFFUSATORY_TLS_CERTFILE=/path/to/cert.pem
+# DIFFUSATORY_TLS_KEYFILE=/path/to/key.pem
+
+# Optional local paths and runtime choices.
+# DIFFUSATORY_PYTHON=python3.14
+# DIFFUSATORY_LOG_FILE=/path/to/server.log
+# DIFFUSATORY_EXTRA_ARGS=(--xformers)

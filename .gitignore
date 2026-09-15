@@ -33,6 +33,7 @@ __pycache__
 /styles.csv.bak
 /webui-user.bat
 /webui-user.sh
+/diffusatory-user.sh
 /interrogate
 /user.css
 /.idea
