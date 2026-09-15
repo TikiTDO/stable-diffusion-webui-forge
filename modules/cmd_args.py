@@ -102,6 +102,15 @@ parser.add_argument('--vae-path', type=normalized_filepath, help='Checkpoint to 
 parser.add_argument("--disable-safe-unpickle", action='store_true', help="disable checking pytorch models for malicious code", default=False)
 parser.add_argument("--api", action='store_true', help="use api=True to launch the API together with the webui (use --nowebui instead for only the API)")
 parser.add_argument("--api-auth", type=str, help='Set authentication for API like "username:password"; or comma-delimit multiple like "u1:p1,u2:p2,u3:p3"', default=None)
+parser.add_argument(
+    "--diffusatory-access",
+    choices=("ui", "api", "both"),
+    default=os.getenv("DIFFUSATORY_ACCESS_MODE", "ui"),
+    help=(
+        "Choose who may use Diffusatory: the browser UI session, explicit "
+        "bearer-token API clients, or both (default: ui)"
+    ),
+)
 parser.add_argument("--api-log", action='store_true', help="use api-log=True to enable logging of all API requests")
 parser.add_argument("--nowebui", action='store_true', help="use api=True to launch the API instead of the webui")
 parser.add_argument("--ui-debug-mode", action='store_true', help="Don't load model to quickly launch UI")

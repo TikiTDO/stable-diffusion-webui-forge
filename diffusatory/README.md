@@ -8,7 +8,15 @@ generation executor.
 
 ## Development
 
-Run Forge with `--api`, then:
+The ordinary production-shaped run is one command from the repository root:
+
+```bash
+./diffusatory.sh
+```
+
+It builds and serves the React application, creates the local bearer-token file,
+and launches the inference server. For live frontend development, leave that
+server running and start Vite separately:
 
 ```bash
 cd diffusatory/web
@@ -18,20 +26,31 @@ pnpm dev
 
 The development server opens `/diffusatory/` on port 5173 and proxies Forge
 routes to `http://127.0.0.1:7865`. Set `VITE_FORGE_TARGET` to use another local
-instance.
+instance. The client opens its browser session before making catalog or render
+requests, so the same UI-only boundary works through the development proxy.
 
 ## Production mount
 
-```bash
-cd diffusatory/web
-pnpm build
-```
-
-On its next start, Forge mounts the build at `/diffusatory/`, and `/` redirects
-there. The operator cut over on 2026-09-14: the Gradio UI and its exclusive
+`./diffusatory.sh` rebuilds the production client before each UI-capable start.
+Forge mounts that build at `/diffusatory/`, and `/` redirects there. The
+operator cut over on 2026-09-14: the Gradio UI and its exclusive
 launcher branch are no longer served, and there is no legacy route. The
 inherited engine still contains Gradio-coupled internals to unwind only when
 their surviving API behavior has a native owner; Git retains the prior UI.
+
+Access is selected with `DIFFUSATORY_ACCESS_MODE=ui|api|both` (default `both` in
+the launcher). UI access receives a process-local HttpOnly session cookie. API
+access requires the bearer token stored at
+`.diffusatory/runtime/api-token`; unauthenticated API requests return `401`.
+`api` mode does not mount the browser application. The cookie boundary is meant
+to stop opportunistic API use, not to resist a client deliberately loading and
+driving the UI.
+
+The server is plain HTTP unless both `DIFFUSATORY_TLS_CERTFILE` and
+`DIFFUSATORY_TLS_KEYFILE` are configured. Put persistent host, port, access,
+TLS, and optional Bash-array `DIFFUSATORY_EXTRA_ARGS` choices in the ignored
+`.diffusatory/config.env`; ordinary operation remains `./diffusatory.sh`.
+Console output is also appended to `.diffusatory/runtime/server.log` by default.
 
 Configure a human-readable instance label and, when needed, an externally
 managed stable identifier with:

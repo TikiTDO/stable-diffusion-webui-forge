@@ -44,6 +44,9 @@ def create_api(app):
 
 
 def diffusatory_worker():
+    import os
+    from pathlib import Path
+
     from fastapi import FastAPI
     from modules.shared_cmd_options import cmd_opts
     from modules import progress, script_callbacks
@@ -56,12 +59,25 @@ def diffusatory_worker():
     script_callbacks.before_ui_callback()
     script_callbacks.app_started_callback(None, app)
 
+    from diffusatory.server.access import (
+        install_diffusatory_access,
+        read_api_token,
+    )
     from diffusatory.server.mount import mount_diffusatory
-    mount_diffusatory(app)
+
+    token_path = os.getenv("DIFFUSATORY_API_TOKEN_FILE")
+    api_token = read_api_token(Path(token_path)) if token_path else None
+    install_diffusatory_access(
+        app,
+        mode=cmd_opts.diffusatory_access,
+        api_token=api_token,
+        secure_cookie=bool(cmd_opts.tls_keyfile and cmd_opts.tls_certfile),
+    )
+    mount_diffusatory(app, serve_ui=cmd_opts.diffusatory_access != "api")
 
     print(f"Startup time: {startup_timer.summary()}.")
     api.launch(
-        server_name=initialize_util.gradio_server_name(),
+        server_name=initialize_util.gradio_server_name() or "127.0.0.1",
         port=cmd_opts.port if cmd_opts.port else 7861,
         root_path=f"/{cmd_opts.subpath}" if cmd_opts.subpath else ""
     )

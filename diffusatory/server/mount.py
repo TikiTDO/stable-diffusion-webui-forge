@@ -203,7 +203,9 @@ def server_activity_descriptor() -> ServerActivityDescriptor:
     )
 
 
-def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
+def mount_diffusatory(
+    app: FastAPI, *, dist: Path | None = None, serve_ui: bool = True
+) -> bool:
     """Register the instance contract and mount a built client when present.
 
     The descriptor route is registered before the static mount so that
@@ -311,6 +313,9 @@ def mount_diffusatory(app: FastAPI, *, dist: Path | None = None) -> bool:
         return compile_prompt_expansion(request)
 
     app.include_router(router)
+
+    if not serve_ui:
+        return False
 
     dist = DEFAULT_DIST if dist is None else dist
     if not (dist / "index.html").is_file():

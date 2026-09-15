@@ -11,22 +11,50 @@ legacy route; Git retains it if an implementation detail ever needs study.
 
 ## Run
 
-Build the client, then launch the application:
+Launch the complete application from the repository root:
 
 ```bash
-cd diffusatory/web
-pnpm install
-pnpm build
-
-cd ../..
-venv/bin/python launch.py --api --port 7865
+./diffusatory.sh
 ```
 
-Opening `http://127.0.0.1:7865/` enters Diffusatory. The canonical client path
-is `/diffusatory/`; Forge-compatible inference routes remain under `/sdapi/v1`,
+The launcher installs missing client dependencies, builds the current client,
+creates the private API credential when needed, and starts the existing Python
+environment (or lets Forge create it on a first run). Opening
+`http://127.0.0.1:7865/` enters Diffusatory. The canonical client path is
+`/diffusatory/`; Forge-compatible inference routes remain under `/sdapi/v1`,
 `/internal`, and `/controlnet` while they are the correct engine seams.
 
-For live frontend work, keep the application on port 7865 and run:
+The default `both` access mode gives the browser an automatic HttpOnly session
+cookie and requires an explicit bearer token for other API clients. A request
+that has neither receives `401`. The generated token lives in the ignored local
+path `.diffusatory/runtime/api-token` and is never printed. This is an admission
+boundary against accidental API use, not proof that a determined client did not
+load the public workbench first.
+
+Persistent local choices belong in the ignored `.diffusatory/config.env`:
+
+```bash
+DIFFUSATORY_ACCESS_MODE=both  # ui, api, or both
+DIFFUSATORY_HOST=127.0.0.1
+DIFFUSATORY_PORT=7865
+DIFFUSATORY_EXTRA_ARGS=(--xformers)
+```
+
+Console output is also appended to the ignored local log
+`.diffusatory/runtime/server.log`.
+
+Optional HTTPS uses the same one-command launch after adding both certificate
+paths to that file:
+
+```bash
+DIFFUSATORY_TLS_CERTFILE=/path/to/cert.pem
+DIFFUSATORY_TLS_KEYFILE=/path/to/key.pem
+```
+
+Run `./diffusatory.sh --help` for the compact launcher reference.
+
+For live frontend work only, keep the application on port 7865 and run Vite in
+a second terminal:
 
 ```bash
 cd diffusatory/web
