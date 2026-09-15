@@ -17,17 +17,17 @@ NATIVE_SIDECAR_SUFFIX = ".diffusatory.json"
 
 
 class LoraKeyword(BaseModel):
-    text: str = Field(min_length=1, max_length=500)
+    text: str = Field(min_length=1)
     weight: float = Field(default=1.0, ge=-10.0, le=10.0)
     enabled: bool = True
 
 
 class LoraDefaults(BaseModel):
-    description: str = Field(default="", max_length=20_000)
+    description: str = ""
     model_family: str = Field(default="unknown", pattern="^(sdxl|flux|unknown)$")
     preferred_strength: float = Field(default=1.0, ge=-10.0, le=10.0)
-    keywords: list[LoraKeyword] = Field(default_factory=list, max_length=200)
-    notes: str = Field(default="", max_length=20_000)
+    keywords: list[LoraKeyword] = Field(default_factory=list)
+    notes: str = ""
 
 
 class LoraCatalogItem(BaseModel):

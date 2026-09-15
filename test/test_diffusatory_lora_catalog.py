@@ -97,6 +97,36 @@ class DiffusatoryLoraCatalogTests(unittest.TestCase):
             self.assertEqual(json.loads(sidecar.read_text())["schema_version"], 1)
             self.assertEqual(list(root.glob(".*.tmp")), [])
 
+    def test_long_downloader_description_cannot_break_the_catalog(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            model = root / "richly-documented.safetensors"
+            model.write_bytes(b"weights")
+            description = "<p>Local model documentation.</p>" * 1_000
+            model.with_suffix(".metadata.json").write_text(
+                json.dumps({"modelDescription": description})
+            )
+
+            item = build_lora_item(self.network(model), root)
+
+            self.assertEqual(description, item.description)
+            self.assertEqual(description, item.defaults.description)
+
+    def test_large_keyword_metadata_cannot_break_the_catalog(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            model = root / "large-vocabulary.safetensors"
+            model.write_bytes(b"weights")
+            terms = [f"term-{index}-" + ("x" * 500) for index in range(205)]
+            model.with_suffix(".metadata.json").write_text(
+                json.dumps({"civitai": {"trainedWords": terms}})
+            )
+
+            item = build_lora_item(self.network(model), root)
+
+            self.assertEqual(205, len(item.defaults.keywords))
+            self.assertEqual(terms[-1], item.defaults.keywords[-1].text)
+
     def test_downloader_prompt_is_split_without_conflating_adapter_strength(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
