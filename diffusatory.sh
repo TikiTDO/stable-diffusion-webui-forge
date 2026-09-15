@@ -34,6 +34,7 @@ Local configuration may be stored in .diffusatory/config.env:
   DIFFUSATORY_TLS_CERTFILE=/path/to/cert.pem
   DIFFUSATORY_TLS_KEYFILE=/path/to/key.pem
   DIFFUSATORY_LOG_FILE=/path/to/server.log
+  DIFFUSATORY_PYTHON=python3.14
   DIFFUSATORY_EXTRA_ARGS=(--xformers)
 
 An API token is created automatically for api/both mode. Its value is never
@@ -53,6 +54,48 @@ case "$access_mode" in
         exit 2
         ;;
 esac
+
+python_is_supported() {
+    "$1" -c 'import sys; raise SystemExit(sys.version_info[:2] < (3, 11))' \
+        >/dev/null 2>&1
+}
+
+select_python() {
+    local candidate
+    if [[ -n ${DIFFUSATORY_PYTHON:-} ]]; then
+        if command -v "$DIFFUSATORY_PYTHON" >/dev/null 2>&1 && \
+           python_is_supported "$DIFFUSATORY_PYTHON"; then
+            printf '%s\n' "$DIFFUSATORY_PYTHON"
+            return 0
+        fi
+        printf 'Diffusatory: DIFFUSATORY_PYTHON must select Python 3.11 or newer\n' >&2
+        return 1
+    fi
+    for candidate in python3 python3.14 python3.13 python3.12 python3.11; do
+        if command -v "$candidate" >/dev/null 2>&1 && python_is_supported "$candidate"; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    printf 'Diffusatory: Python 3.11 or newer is required\n' >&2
+    return 1
+}
+
+if [[ -x "$repo_root/venv/bin/python" ]]; then
+    if ! python_is_supported "$repo_root/venv/bin/python"; then
+        current_python=$(
+            "$repo_root/venv/bin/python" -c \
+                'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' \
+                2>/dev/null || printf unknown
+        )
+        printf 'Diffusatory: existing venv uses Python %s; recreate it with Python 3.11 or newer\n' \
+            "$current_python" >&2
+        exit 2
+    fi
+    python_cmd="$repo_root/venv/bin/python"
+else
+    python_cmd=$(select_python)
+fi
 
 if [[ ! "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
     printf 'Diffusatory: invalid port %q\n' "$port" >&2
@@ -78,11 +121,7 @@ if [[ "$access_mode" == "api" || "$access_mode" == "both" ]]; then
         mkdir -p "$(dirname -- "$token_file")"
         previous_umask=$(umask)
         umask 077
-        token_python=python3
-        if [[ -x "$repo_root/venv/bin/python" ]]; then
-            token_python="$repo_root/venv/bin/python"
-        fi
-        "$token_python" -c 'import secrets; print(secrets.token_urlsafe(32))' > "$token_file"
+        "$python_cmd" -c 'import secrets; print(secrets.token_urlsafe(32))' > "$token_file"
         umask "$previous_umask"
     fi
     chmod 600 "$token_file"
@@ -144,4 +183,5 @@ if [[ -x venv/bin/python ]]; then
     exec venv/bin/python -u launch.py "${prepare_args[@]}" "${launch_args[@]}"
 fi
 
+export python_cmd
 exec ./webui.sh "${launch_args[@]}"

@@ -51,6 +51,8 @@ The server is plain HTTP unless both `DIFFUSATORY_TLS_CERTFILE` and
 TLS, and optional Bash-array `DIFFUSATORY_EXTRA_ARGS` choices in the ignored
 `.diffusatory/config.env`; ordinary operation remains `./diffusatory.sh`.
 Console output is also appended to `.diffusatory/runtime/server.log` by default.
+Fresh environments require Python 3.11 or newer. The launcher uses the system's
+current `python3`; `DIFFUSATORY_PYTHON` may select another interpreter.
 
 Configure a human-readable instance label and, when needed, an externally
 managed stable identifier with:

@@ -37,6 +37,7 @@ Persistent local choices belong in the ignored `.diffusatory/config.env`:
 DIFFUSATORY_ACCESS_MODE=both  # ui, api, or both
 DIFFUSATORY_HOST=127.0.0.1
 DIFFUSATORY_PORT=7865
+DIFFUSATORY_PYTHON=python3.14
 DIFFUSATORY_EXTRA_ARGS=(--xformers)
 ```
 
@@ -52,6 +53,10 @@ DIFFUSATORY_TLS_KEYFILE=/path/to/key.pem
 ```
 
 Run `./diffusatory.sh --help` for the compact launcher reference.
+
+Python 3.11 or newer is required. The launcher uses the system's current
+`python3` for a fresh environment and refuses an older existing venv before
+dependency installation.
 
 For live frontend work only, keep the application on port 7865 and run Vite in
 a second terminal:
