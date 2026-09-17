@@ -27,4 +27,43 @@ describe("prompt attention keyboard editing", () => {
       selectionEnd: 12,
     });
   });
+
+  it("adjusts weight repeatedly without nesting parentheses", () => {
+    const step1 = adjustPromptAttention("thing", 2, 2, 1);
+    expect(step1).toEqual({
+      text: "(thing:1.1)",
+      selectionStart: 1,
+      selectionEnd: 6,
+    });
+
+    const step2 = adjustPromptAttention(step1!.text, step1!.selectionStart, step1!.selectionEnd, 1);
+    expect(step2).toEqual({
+      text: "(thing:1.2)",
+      selectionStart: 1,
+      selectionEnd: 6,
+    });
+
+    const step3 = adjustPromptAttention(step2!.text, step2!.selectionStart, step2!.selectionEnd, -1);
+    expect(step3).toEqual({
+      text: "(thing:1.1)",
+      selectionStart: 1,
+      selectionEnd: 6,
+    });
+
+    const step4 = adjustPromptAttention(step3!.text, step3!.selectionStart, step3!.selectionEnd, -1);
+    expect(step4).toEqual({
+      text: "thing",
+      selectionStart: 0,
+      selectionEnd: 5,
+    });
+  });
+
+  it("adjusts weight when the entire enclosing block is selected", () => {
+    const step1 = adjustPromptAttention("(thing:1.1)", 0, 11, 1);
+    expect(step1).toEqual({
+      text: "(thing:1.2)",
+      selectionStart: 1,
+      selectionEnd: 6,
+    });
+  });
 });

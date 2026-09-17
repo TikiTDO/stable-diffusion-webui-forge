@@ -12,18 +12,20 @@ function formatWeight(value: number): string {
   return Number.isInteger(rounded) ? `${rounded}.0` : `${rounded}`;
 }
 
-function enclosingWeightedBlock(text: string, caret: number) {
+function enclosingWeightedBlock(text: string, selectionStart: number, selectionEnd: number) {
   let selected: { start: number; end: number; content: string; weight: number } | null = null;
   for (const match of text.matchAll(WEIGHTED_BLOCK)) {
     const start = match.index;
     const end = start + match[0].length;
-    if (caret < start || caret > end) continue;
-    selected = {
-      start,
-      end,
-      content: match[1].trimEnd(),
-      weight: Number(match[2]),
-    };
+    if (selectionStart >= start && selectionEnd <= end) {
+      selected = {
+        start,
+        end,
+        content: match[1].trimEnd(),
+        weight: Number(match[2]),
+      };
+      break;
+    }
   }
   return selected;
 }
@@ -43,25 +45,26 @@ export function adjustPromptAttention(
   selectionEnd: number,
   direction: 1 | -1,
 ): PromptAttentionEdit | null {
-  if (selectionStart === selectionEnd) {
-    const block = enclosingWeightedBlock(text, selectionStart);
-    if (block) {
-      const nextWeight = Math.round((block.weight + direction * 0.1) * 10) / 10;
-      if (Math.abs(nextWeight - 1) < 0.000001) {
-        const next = text.slice(0, block.start) + block.content + text.slice(block.end);
-        return {
-          text: next,
-          selectionStart: block.start,
-          selectionEnd: block.start + block.content.length,
-        };
-      }
-      const replacement = `(${block.content}:${formatWeight(nextWeight)})`;
+  const block = enclosingWeightedBlock(text, selectionStart, selectionEnd);
+  if (block) {
+    const nextWeight = Math.round((block.weight + direction * 0.1) * 10) / 10;
+    if (Math.abs(nextWeight - 1) < 0.000001) {
+      const next = text.slice(0, block.start) + block.content + text.slice(block.end);
       return {
-        text: text.slice(0, block.start) + replacement + text.slice(block.end),
-        selectionStart: block.start + 1,
-        selectionEnd: block.start + 1 + block.content.length,
+        text: next,
+        selectionStart: block.start,
+        selectionEnd: block.start + block.content.length,
       };
     }
+    const replacement = `(${block.content}:${formatWeight(nextWeight)})`;
+    return {
+      text: text.slice(0, block.start) + replacement + text.slice(block.end),
+      selectionStart: block.start + 1,
+      selectionEnd: block.start + 1 + block.content.length,
+    };
+  }
+
+  if (selectionStart === selectionEnd) {
     [selectionStart, selectionEnd] = currentWord(text, selectionStart);
   }
   while (selectionEnd > selectionStart && text[selectionEnd - 1] === " ") {
