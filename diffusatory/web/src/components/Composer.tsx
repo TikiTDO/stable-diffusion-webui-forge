@@ -715,8 +715,8 @@ export function Composer({
       <aside className="tool-dock" aria-label="Image and conditioning tools">
         <header className="tool-dock__heading">
           <div>
-            <p className="eyebrow">Image tools</p>
-            <h2>Shape the frame <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></h2>
+            <p className="eyebrow">Spatial & guides</p>
+            <h2>Tools <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></h2>
           </div>
           <span>{conditions.length} condition{conditions.length === 1 ? "" : "s"}</span>
         </header>

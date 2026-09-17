@@ -247,10 +247,7 @@ export function ConditionStack({
                 {(condition.preview || condition.previewError) && (
                   <div className="condition-output" aria-live="polite">
                     {condition.preview ? (
-                      <>
-                        <img src={condition.preview} alt={`${condition.intent} preprocessor result`} />
-                        <small>This is the guide Forge will derive from the source.</small>
-                      </>
+                      <img src={condition.preview} alt={`${condition.intent} preprocessor result`} />
                     ) : (
                       <p role="alert">{condition.previewError}</p>
                     )}

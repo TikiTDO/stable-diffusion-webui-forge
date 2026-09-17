@@ -55,7 +55,6 @@ export function RegionComposer({
       <header className="region-composer__header">
         <div>
           <h3 id="regions-title">Spatial regions</h3>
-          <small>Grid active</small>
         </div>
         <div className="region-composer__actions">
           {!stageVisible && (
@@ -70,7 +69,7 @@ export function RegionComposer({
       <div className="region-prompts">
         <div className="region-common">
           <span>Common to every region</span>
-          <p>{commonPrompt.trim() || "Add the shared scene in the main prompt above."}</p>
+          <p>{commonPrompt.trim() || "Shared prompt above applies to all regions"}</p>
         </div>
         <div className="region-cell-prompts">
           {plan.cells.map((cell, index) => (
@@ -79,7 +78,7 @@ export function RegionComposer({
               <textarea
                 rows={2}
                 value={value.cellPrompts[cell.row][cell.column]}
-                placeholder="What belongs here?"
+                placeholder="Region prompt…"
                 onChange={(event) => onChange(updateCellPrompt(value, cell.row, cell.column, event.target.value))}
               />
             </label>
@@ -88,20 +87,20 @@ export function RegionComposer({
         <label className="region-background-prompt">
           <span>
             <input type="checkbox" checked={value.backgroundEnabled} onChange={(event) => onChange({ ...value, backgroundEnabled: event.target.checked })} />
-            Prompt the background outside the grid
+            Prompt ungridded background
           </span>
           <textarea
             rows={2}
             disabled={!value.backgroundEnabled}
             value={value.backgroundPrompt}
-            placeholder="Distant environment, atmosphere, lighting…"
+            placeholder="Background prompt…"
             onChange={(event) => onChange({ ...value, backgroundPrompt: event.target.value })}
           />
         </label>
       </div>
 
       <details className="region-plan">
-        <summary>Inspect resolved plan</summary>
+        <summary>Plan geometry</summary>
         <dl>
           <div><dt>Canvas</dt><dd>{frameWidth} × {frameHeight}</dd></div>
           <div><dt>Cells</dt><dd>{plan.cells.length}</dd></div>
@@ -111,10 +110,6 @@ export function RegionComposer({
           <div><dt>Soft edge</dt><dd>{plan.softnessPixels.toFixed(1)} px</dd></div>
         </dl>
       </details>
-
-      <small className="region-render-note" role="status">
-        Common prompt applies globally
-      </small>
     </section>
   );
 }
