@@ -109,6 +109,7 @@ StableDiffusionTxt2ImgProcessingAPI = PydanticModelGenerator(
         {"key": "save_images", "type": bool, "default": False},
         {"key": "alwayson_scripts", "type": dict, "default": {}},
         {"key": "diffusatory_spatial_plan", "type": SpatialConditioningPlan | None, "default": None},
+        {"key": "diffusatory_composition", "type": str | dict | None, "default": None},
         {"key": "force_task_id", "type": str | None, "default": None},
         {"key": "infotext", "type": str | None, "default": None},
     ]
@@ -131,6 +132,7 @@ StableDiffusionImg2ImgProcessingAPI = PydanticModelGenerator(
         {"key": "save_images", "type": bool, "default": False},
         {"key": "alwayson_scripts", "type": dict, "default": {}},
         {"key": "diffusatory_spatial_plan", "type": SpatialConditioningPlan | None, "default": None},
+        {"key": "diffusatory_composition", "type": str | dict | None, "default": None},
         {"key": "force_task_id", "type": str | None, "default": None},
         {"key": "infotext", "type": str | None, "default": None},
     ]

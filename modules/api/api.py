@@ -470,6 +470,7 @@ class Api:
         args.pop('alwayson_scripts', None)
         args.pop('infotext', None)
         spatial_plan = args.pop('diffusatory_spatial_plan', None)
+        composition = args.pop('diffusatory_composition', None)
         if spatial_plan is not None and args.get('enable_hr'):
             raise HTTPException(status_code=422, detail="Diffusatory spatial conditioning does not yet support Hires.fix")
 
@@ -484,6 +485,13 @@ class Api:
             with closing(StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)) as p:
                 p.is_api = True
                 p.diffusatory_spatial_plan = spatial_plan
+                if composition is not None:
+                    p.diffusatory_composition = composition
+                    if isinstance(composition, (dict, list)):
+                        import json
+                        p.extra_generation_params["Diffusatory composition"] = json.dumps(composition, ensure_ascii=False)
+                    else:
+                        p.extra_generation_params["Diffusatory composition"] = str(composition)
                 p.scripts = script_runner
                 p.outpath_grids = opts.outdir_txt2img_grids
                 p.outpath_samples = opts.outdir_txt2img_samples
@@ -546,6 +554,7 @@ class Api:
         args.pop('alwayson_scripts', None)
         args.pop('infotext', None)
         spatial_plan = args.pop('diffusatory_spatial_plan', None)
+        composition = args.pop('diffusatory_composition', None)
 
         script_args = self.init_script_args(img2imgreq, self.default_script_arg_img2img, selectable_scripts, selectable_script_idx, script_runner, input_script_args=infotext_script_args)
 
@@ -559,6 +568,13 @@ class Api:
                 p.init_images = [decode_base64_to_image(x) for x in init_images]
                 p.is_api = True
                 p.diffusatory_spatial_plan = spatial_plan
+                if composition is not None:
+                    p.diffusatory_composition = composition
+                    if isinstance(composition, (dict, list)):
+                        import json
+                        p.extra_generation_params["Diffusatory composition"] = json.dumps(composition, ensure_ascii=False)
+                    else:
+                        p.extra_generation_params["Diffusatory composition"] = str(composition)
                 p.scripts = script_runner
                 p.outpath_grids = opts.outdir_img2img_grids
                 p.outpath_samples = opts.outdir_img2img_samples

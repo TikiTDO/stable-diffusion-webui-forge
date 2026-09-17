@@ -1,4 +1,18 @@
-import type { ResolvedSpatialPlan } from "../../features/regions/types";
+import type {
+  RegionalComposition,
+  ResolvedSpatialPlan,
+} from "../../features/regions/types";
+import type { ActiveLora } from "../../domain/loras";
+
+export interface DiffusatoryComposition {
+  version: number;
+  prompt: string;
+  negativePrompt?: string;
+  loras?: ActiveLora[];
+  promptGroups?: unknown[];
+  regions?: RegionalComposition;
+  [key: string]: unknown;
+}
 
 export interface InstanceDescriptor {
   id: string;
@@ -49,6 +63,7 @@ export interface Txt2ImgInput {
   previewEvery?: number;
   controlNet?: ControlNetUnitInput[];
   spatialPlan?: ResolvedSpatialPlan;
+  composition?: DiffusatoryComposition | string;
 }
 
 export interface Img2ImgInput extends Txt2ImgInput {

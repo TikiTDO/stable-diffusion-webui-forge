@@ -966,6 +966,14 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                 from diffusatory.server.spatial_conditioning import prepare_spatial_runtime
                 prepare_spatial_runtime(p)
 
+            if getattr(p, "diffusatory_composition", None) is not None and "Diffusatory composition" not in p.extra_generation_params:
+                comp = getattr(p, "diffusatory_composition")
+                if isinstance(comp, (dict, list)):
+                    import json
+                    p.extra_generation_params["Diffusatory composition"] = json.dumps(comp, ensure_ascii=False)
+                elif isinstance(comp, str):
+                    p.extra_generation_params["Diffusatory composition"] = comp
+
             p.extra_generation_params.update(p.sd_model.extra_generation_params)
 
             # params.txt should be saved after scripts.process_batch, since the

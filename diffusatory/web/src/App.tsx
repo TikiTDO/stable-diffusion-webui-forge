@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ForgeClient } from "./api/forge/client";
 import type {
+  DiffusatoryComposition,
   InstanceDescriptor,
   Lora,
   LoraDefaults,
@@ -654,6 +655,15 @@ export default function App() {
       );
       return;
     }
+    const composition: DiffusatoryComposition = {
+      version: 1,
+      prompt: draft.prompt,
+      negativePrompt: draft.negativePrompt,
+      loras: draft.loras,
+      ...(regionalComposition.enabled
+        ? { regions: regionalComposition }
+        : {}),
+    };
     const request = {
       ...requestFromDraft(draft),
       prompt: promptSet.realizations.map((item) =>
@@ -662,6 +672,7 @@ export default function App() {
       negativePrompt: promptSet.realizations.map((item) => item.negative_prompt),
       outputs: promptSet.realizations.length,
       controlNet,
+      composition,
       ...(regionalComposition.enabled
         ? {
             spatialPlan: resolveSpatialPlan(
@@ -991,6 +1002,9 @@ export default function App() {
             ...current,
             ...imported.editSettings,
           }));
+          if (imported.regions) {
+            setRegionalComposition(imported.regions);
+          }
 
           if (!imported.hasGenerationMetadata) {
             setImageImportNotice({

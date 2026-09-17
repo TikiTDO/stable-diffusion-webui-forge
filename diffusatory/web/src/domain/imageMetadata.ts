@@ -1,8 +1,10 @@
 import type {
+  DiffusatoryComposition,
   ForgeCatalog,
   ImageMetadataResponse,
 } from "../api/forge/types";
 import type { ImageEditSettings } from "../features/editor/model";
+import type { RegionalComposition } from "../features/regions/types";
 import type { GenerationDraft } from "./draft";
 import { applyCheckpointProfile } from "./modelProfiles";
 import {
@@ -13,9 +15,69 @@ import {
 export interface ImageMetadataImport {
   draft: GenerationDraft;
   editSettings: Partial<ImageEditSettings>;
+  regions?: RegionalComposition;
   imported: string[];
   warnings: string[];
   hasGenerationMetadata: boolean;
+}
+
+export function parseDiffusatoryComposition(
+  value: unknown,
+): DiffusatoryComposition | null {
+  if (!value) return null;
+  if (typeof value === "object" && value !== null && "prompt" in value) {
+    return value as DiffusatoryComposition;
+  }
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  // 1. Direct JSON (or double-encoded JSON string from infotext)
+  try {
+    let candidate: unknown = JSON.parse(trimmed);
+    if (typeof candidate === "string") {
+      try {
+        candidate = JSON.parse(candidate);
+      } catch {
+        // Keep candidate as string
+      }
+    }
+    if (
+      typeof candidate === "object" &&
+      candidate !== null &&
+      "prompt" in candidate &&
+      typeof (candidate as Record<string, unknown>).prompt === "string"
+    ) {
+      return candidate as DiffusatoryComposition;
+    }
+  } catch {
+    // Not raw JSON directly
+  }
+
+  // 2. Base64 encoded JSON
+  try {
+    const decoded = atob(trimmed);
+    let candidate: unknown = JSON.parse(decoded);
+    if (typeof candidate === "string") {
+      try {
+        candidate = JSON.parse(candidate);
+      } catch {
+        // Keep candidate as string
+      }
+    }
+    if (
+      typeof candidate === "object" &&
+      candidate !== null &&
+      "prompt" in candidate &&
+      typeof (candidate as Record<string, unknown>).prompt === "string"
+    ) {
+      return candidate as DiffusatoryComposition;
+    }
+  } catch {
+    // Not base64
+  }
+
+  return null;
 }
 
 function hasOwn(
@@ -159,18 +221,44 @@ export function importImageMetadata(
     warnings.push("The model catalog was unavailable, so the checkpoint was not changed.");
   }
 
-  if (hasOwn(parameters, "Prompt")) {
-    const prompt = stringValue(parameters, "Prompt");
-    if (prompt !== null) {
-      draft.prompt = prompt;
-      imported.push("prompt");
-    }
-  }
-  if (hasOwn(parameters, "Negative prompt")) {
-    const negativePrompt = stringValue(parameters, "Negative prompt");
-    if (negativePrompt !== null) {
-      draft.negativePrompt = negativePrompt;
+  const compositionRaw =
+    parameters["Diffusatory composition"] ??
+    parameters["diffusatory_composition"];
+  const composition = parseDiffusatoryComposition(compositionRaw);
+
+  let regions: RegionalComposition | undefined;
+  if (composition) {
+    draft.prompt = composition.prompt;
+    imported.push("prompt");
+
+    if (composition.negativePrompt !== undefined) {
+      draft.negativePrompt = composition.negativePrompt;
       imported.push("negative prompt");
+    }
+
+    if (Array.isArray(composition.loras)) {
+      draft.loras = composition.loras;
+      imported.push("loras");
+    }
+
+    if (composition.regions && typeof composition.regions === "object") {
+      regions = composition.regions as RegionalComposition;
+      imported.push("regions");
+    }
+  } else {
+    if (hasOwn(parameters, "Prompt")) {
+      const prompt = stringValue(parameters, "Prompt");
+      if (prompt !== null) {
+        draft.prompt = prompt;
+        imported.push("prompt");
+      }
+    }
+    if (hasOwn(parameters, "Negative prompt")) {
+      const negativePrompt = stringValue(parameters, "Negative prompt");
+      if (negativePrompt !== null) {
+        draft.negativePrompt = negativePrompt;
+        imported.push("negative prompt");
+      }
     }
   }
 
@@ -282,6 +370,7 @@ export function importImageMetadata(
   return {
     draft,
     editSettings,
+    ...(regions ? { regions } : {}),
     imported: [...new Set(imported)],
     warnings,
     hasGenerationMetadata,

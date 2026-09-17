@@ -137,4 +137,77 @@ describe("generation metadata import", () => {
     expect(imported.draft.scheduler).toBe(starterDraft.scheduler);
     expect(imported.warnings).toHaveLength(3);
   });
+
+  it("restores structured prompt, negative prompt, loras, and regions from Diffusatory composition", () => {
+    const composition = {
+      version: 1,
+      prompt: "clean authored prompt",
+      negativePrompt: "clean negative prompt",
+      loras: [
+        {
+          id: "lora-1",
+          name: "Ink Style",
+          reference: "ink",
+          enabled: true,
+          strength: 0.75,
+          keywords: [{ text: "ink sketch", weight: 1.1, enabled: true }],
+        },
+      ],
+      regions: {
+        enabled: true,
+        columns: [0.5, 0.5],
+        rows: [1.0],
+        transform: { centerX: 0.5, centerY: 0.5, width: 1, height: 1, rotation: 0 },
+        softness: 8,
+        cellPrompts: [["left tower", "right sky"]],
+        backgroundEnabled: true,
+        backgroundPrompt: "distant hills",
+      },
+    };
+
+    const imported = importImageMetadata(
+      starterDraft,
+      catalog,
+      metadata({
+        Prompt: "clean authored prompt, ink sketch, <lora:ink:0.75>",
+        "Negative prompt": "clean negative prompt",
+        "Diffusatory composition": JSON.stringify(composition),
+        Steps: "20",
+      }),
+    );
+
+    expect(imported.draft.prompt).toBe("clean authored prompt");
+    expect(imported.draft.negativePrompt).toBe("clean negative prompt");
+    expect(imported.draft.loras).toHaveLength(1);
+    expect(imported.draft.loras[0].name).toBe("Ink Style");
+    expect(imported.draft.loras[0].strength).toBe(0.75);
+    expect(imported.regions).toBeDefined();
+    expect(imported.regions?.backgroundPrompt).toBe("distant hills");
+    expect(imported.imported).toContain("prompt");
+    expect(imported.imported).toContain("negative prompt");
+    expect(imported.imported).toContain("loras");
+    expect(imported.imported).toContain("regions");
+  });
+
+  it("restores composition from base64-encoded Diffusatory composition", () => {
+    const composition = {
+      version: 1,
+      prompt: "astronomer at dusk",
+      loras: [],
+    };
+    const b64 = btoa(JSON.stringify(composition));
+
+    const imported = importImageMetadata(
+      starterDraft,
+      catalog,
+      metadata({
+        Prompt: "astronomer at dusk",
+        "Diffusatory composition": b64,
+      }),
+    );
+
+    expect(imported.draft.prompt).toBe("astronomer at dusk");
+    expect(imported.imported).toContain("prompt");
+    expect(imported.imported).toContain("loras");
+  });
 });

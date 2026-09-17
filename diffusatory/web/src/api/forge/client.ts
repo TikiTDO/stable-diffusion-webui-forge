@@ -388,6 +388,14 @@ export class ForgeClient {
         ...(input.spatialPlan
           ? { diffusatory_spatial_plan: input.spatialPlan }
           : {}),
+        ...(input.composition
+          ? {
+              diffusatory_composition:
+                typeof input.composition === "string"
+                  ? input.composition
+                  : JSON.stringify(input.composition),
+            }
+          : {}),
       }),
     });
     return readJson<Txt2ImgResponse>(response);
@@ -448,6 +456,14 @@ export class ForgeClient {
         alwayson_scripts: controlNetAlwaysOnScripts(input.controlNet),
         ...(input.spatialPlan
           ? { diffusatory_spatial_plan: input.spatialPlan }
+          : {}),
+        ...(input.composition
+          ? {
+              diffusatory_composition:
+                typeof input.composition === "string"
+                  ? input.composition
+                  : JSON.stringify(input.composition),
+            }
           : {}),
       }),
     });

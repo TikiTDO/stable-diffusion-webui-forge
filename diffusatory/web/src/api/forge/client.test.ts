@@ -266,6 +266,30 @@ describe("ForgeClient", () => {
     });
   });
 
+  it("sends the composition blob through txt2img and img2img", async () => {
+    let body: Record<string, unknown> | null = null;
+    const fetcher: typeof fetch = async (_input, request) => {
+      body = JSON.parse(request?.body as string) as Record<string, unknown>;
+      return json({ images: ["a"], parameters: {}, info: "{}" });
+    };
+
+    const composition = {
+      version: 1,
+      prompt: "astronomer",
+      negativePrompt: "blurry",
+      loras: [],
+    };
+
+    await new ForgeClient("", fetcher).txt2img("task(diffusatory-comp)", {
+      prompt: "astronomer",
+      composition,
+    });
+
+    expect(body).toMatchObject({
+      diffusatory_composition: JSON.stringify(composition),
+    });
+  });
+
   it("sends the visible editor source and mask through img2img", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {
