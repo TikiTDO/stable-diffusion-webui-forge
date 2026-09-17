@@ -5048,6 +5048,181 @@ h1 {
   white-space: nowrap;
 }
 
+.editor-variations__top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.editor-variations__top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-variations__add-session-btn,
+.editor-variations__trash-toggle {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-light);
+  color: var(--quiet);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.editor-variations__add-session-btn:hover,
+.editor-variations__trash-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--paper);
+}
+
+.editor-variations__trash-toggle.is-active {
+  background: rgba(232, 169, 88, 0.2);
+  color: var(--amber-bright);
+  border-color: var(--amber-bright);
+}
+
+.editor-variations__new-session-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.editor-variations__new-session-form input {
+  flex: 1;
+  background: #08070c;
+  border: 1px solid var(--line-strong);
+  color: var(--paper);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.editor-variations__new-session-form button {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.editor-variations__sessions-list {
+  display: grid;
+  gap: 8px;
+}
+
+.editor-variations__session-block {
+  display: grid;
+  gap: 4px;
+}
+
+.editor-variations__session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--quiet);
+}
+
+.editor-variations__collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.editor-variations__collapse-btn:hover {
+  color: var(--paper);
+}
+
+.collapse-arrow {
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.editor-variations__empty-note {
+  font-size: 12px;
+  color: var(--quiet);
+  font-style: italic;
+  padding: 8px;
+}
+
+.editor-variations__candidate-strip {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  background: rgba(5, 4, 8, 0.85);
+  border-radius: 4px;
+  padding: 1px 2px;
+}
+
+.candidate-pill {
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: bold;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.candidate-pill.is-active {
+  background: var(--amber-bright);
+  color: #000;
+}
+
+.editor-variations__move-select {
+  position: absolute;
+  top: 28px;
+  right: 4px;
+  z-index: 2;
+  font-size: 10px;
+  max-width: 60px;
+  background: rgba(8, 7, 12, 0.85);
+  color: var(--quiet);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 2px;
+  cursor: pointer;
+}
+
+.editor-variations__restore-btn {
+  position: absolute;
+  inset: auto 4px 4px 4px;
+  z-index: 2;
+  background: rgba(232, 169, 88, 0.25);
+  border: 1px solid rgba(232, 169, 88, 0.5);
+  color: var(--amber-bright);
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.editor-variations__trash-section {
+  border-top: 1px dashed var(--line);
+  padding-top: 6px;
+  margin-top: 4px;
+}
+
 .focused-edit__canvas .editor-canvas-wrap {
   min-height: 0;
   height: auto;

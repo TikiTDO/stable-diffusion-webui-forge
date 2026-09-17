@@ -17,7 +17,7 @@ import type {
   EditOperation,
   ImageEditSettings,
 } from "../features/editor/model";
-import type { EditorVariation } from "../domain/editorVariations";
+import type { EditorSession, EditorVariation } from "../domain/editorVariations";
 import { EditorVariationTray } from "./EditorVariationTray";
 import { NumberInput } from "./NumberInput";
 import { PromptTools } from "./PromptTools";
@@ -50,6 +50,12 @@ interface FocusedEditWorkspaceProps {
   activeInpaintScope: "masked" | "whole" | null;
   variations: EditorVariation[];
   activeVariationId: string | null;
+  sessions?: EditorSession[];
+  onSelectCandidate?: (variation: EditorVariation, candidateIndex: number) => void;
+  onAddSession?: (label: string) => void;
+  onToggleSessionCollapse?: (sessionId: string) => void;
+  onMoveToSession?: (variationId: string, targetSessionId: string) => void;
+  onRestoreVariation?: (variation: EditorVariation) => void;
   promptMode: PromptExpansionMode;
   expansionSeed: number;
   promptExpansion: PromptExpansionResponse | null;
@@ -152,6 +158,12 @@ export const FocusedEditWorkspace = forwardRef<
     onInterrupt,
     onSelectVariation,
     onRemoveVariation,
+    sessions,
+    onSelectCandidate,
+    onAddSession,
+    onToggleSessionCollapse,
+    onMoveToSession,
+    onRestoreVariation,
     onClose,
     onShowShortcuts,
   },
@@ -268,8 +280,14 @@ export const FocusedEditWorkspace = forwardRef<
           <EditorVariationTray
             variations={variations}
             activeId={activeVariationId}
+            sessions={sessions}
             onSelect={onSelectVariation}
             onRemove={onRemoveVariation}
+            onSelectCandidate={onSelectCandidate}
+            onAddSession={onAddSession}
+            onToggleSessionCollapse={onToggleSessionCollapse}
+            onMoveToSession={onMoveToSession}
+            onRestore={onRestoreVariation}
           />
         </div>
 

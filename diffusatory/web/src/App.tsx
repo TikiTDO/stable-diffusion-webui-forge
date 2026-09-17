@@ -69,8 +69,17 @@ import {
 } from "./domain/savedModelDefaults";
 import {
   appendGeneratedEditorVariations,
+  createEditorSession,
+  DEFAULT_PRIMARY_SESSION,
   initialEditorVariation,
+  moveVariationToSession,
+  PRIMARY_SESSION_ID,
+  REMOVED_SESSION_ID,
+  removeVariationToTrash,
+  restoreVariationFromTrash,
+  selectVariationCandidate,
   workingEditorVariation,
+  type EditorSession,
   type EditorVariation,
 } from "./domain/editorVariations";
 import { EditorVariationTray } from "./components/EditorVariationTray";
@@ -264,6 +273,25 @@ export default function App() {
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorVariations, setEditorVariations] = useState<EditorVariation[]>([]);
   const [activeEditorVariationId, setActiveEditorVariationId] = useState<string | null>(null);
+  const [editorSessions, setEditorSessions] = useState<EditorSession[]>([
+    DEFAULT_PRIMARY_SESSION,
+  ]);
+  const handleAddSession = useCallback((label: string) => {
+    setEditorSessions((current) => [...current, createEditorSession(label, current)]);
+  }, []);
+  const handleToggleSessionCollapse = useCallback((sessionId: string) => {
+    setEditorSessions((current) =>
+      current.map((s) => (s.id === sessionId ? { ...s, collapsed: !s.collapsed } : s)),
+    );
+  }, []);
+  const handleMoveVariation = useCallback(
+    (variationId: string, targetSessionId: string) => {
+      setEditorVariations((current) =>
+        moveVariationToSession(current, variationId, targetSessionId),
+      );
+    },
+    [],
+  );
   const [activeEditOperation, setActiveEditOperation] = useState<EditOperation | null>(null);
   const [activeInpaintScope, setActiveInpaintScope] = useState<
     "masked" | "whole" | null
@@ -318,6 +346,7 @@ export default function App() {
     session: number;
     operation: EditOperation;
     dimensions: { width: number; height: number };
+    sourceId?: string | null;
   } | null>(null);
   const catalogApplied = useRef(false);
   const previewRuns = useRef(new Map<string, number>());
@@ -378,6 +407,7 @@ export default function App() {
           pending.operation,
           state.results,
           pending.dimensions,
+          pending.sourceId,
         ),
       );
     }
@@ -734,14 +764,15 @@ export default function App() {
           editor.mask,
           { width: editor.width, height: editor.height },
           current,
+          activeEditorVariationId,
         ),
       ]);
-      setActiveEditorVariationId(snapshotId);
       setEditorDirty(false);
     }
     pendingEditorRun.current = {
       session: editorSession,
       operation,
+      sourceId: activeEditorVariationId,
       dimensions:
         operation === "inpaint" && effectiveEditSettings.inpaintOnlyMasked
           ? { width: editor.width, height: editor.height }
@@ -856,6 +887,7 @@ export default function App() {
       }));
       setEditorSession(session);
       setEditorDocumentRevision(0);
+      setEditorSessions([DEFAULT_PRIMARY_SESSION]);
       setEditorVariations([original]);
       setActiveEditorVariationId(original.id);
       setEditorPresentation(presentation);
@@ -927,6 +959,31 @@ export default function App() {
     },
     [activeEditorVariationId, editorDirty, editorSession, loadEditorVariation],
   );
+  const selectVariationCandidateIndex = useCallback(
+    (variation: EditorVariation, candidateIndex: number) => {
+      setEditorVariations((current) =>
+        selectVariationCandidate(current, variation.id, candidateIndex),
+      );
+      const candidates =
+        variation.candidates && variation.candidates.length
+          ? variation.candidates
+          : variation.image
+            ? [variation.image]
+            : [];
+      const chosen = candidates[candidateIndex];
+      if (chosen && variation.id === activeEditorVariationId) {
+        setEditorSource(chosen);
+      }
+    },
+    [activeEditorVariationId],
+  );
+
+  const restoreEditorVariation = useCallback((variation: EditorVariation) => {
+    setEditorVariations((current) =>
+      restoreVariationFromTrash(current, variation.id, PRIMARY_SESSION_ID),
+    );
+  }, []);
+
   const removeEditorVariation = useCallback(
     (variation: EditorVariation) => {
       const index = editorVariations.findIndex(
@@ -938,17 +995,19 @@ export default function App() {
         removingActive &&
         editorDirty &&
         !window.confirm(
-          "Remove this variation and discard its uncommitted paint and mask? The raw generated image will remain on disk.",
+          "Remove this variation to trash and discard its uncommitted paint and mask? The raw generated image will remain on disk.",
         )
       ) {
         return;
       }
-      const remaining = editorVariations.filter(
-        (candidate) => candidate.id !== variation.id,
-      );
-      setEditorVariations(remaining);
+      const updated = removeVariationToTrash(editorVariations, variation.id);
+      setEditorVariations(updated);
       if (!removingActive) return;
-      const adjacent = remaining[Math.min(index, remaining.length - 1)] ?? null;
+      const activeRemaining = updated.filter(
+        (candidate) => candidate.sessionId !== REMOVED_SESSION_ID,
+      );
+      const adjacent =
+        activeRemaining[Math.min(index, activeRemaining.length - 1)] ?? null;
       if (adjacent) {
         loadEditorVariation(adjacent);
       } else {
@@ -1398,8 +1457,14 @@ export default function App() {
               <EditorVariationTray
                 variations={editorVariations}
                 activeId={activeEditorVariationId}
+                sessions={editorSessions}
                 onSelect={selectEditorVariation}
                 onRemove={removeEditorVariation}
+                onSelectCandidate={selectVariationCandidateIndex}
+                onAddSession={handleAddSession}
+                onToggleSessionCollapse={handleToggleSessionCollapse}
+                onMoveToSession={handleMoveVariation}
+                onRestore={restoreEditorVariation}
               />
             </section>
             </div>
@@ -1434,6 +1499,7 @@ export default function App() {
           activeInpaintScope={activeInpaintScope}
           variations={editorVariations}
           activeVariationId={activeEditorVariationId}
+          sessions={editorSessions}
           promptMode={promptMode}
           expansionSeed={expansionSeed}
           promptExpansion={promptExpansion.response}
@@ -1481,6 +1547,11 @@ export default function App() {
           onInterrupt={() => void interrupt()}
           onSelectVariation={selectEditorVariation}
           onRemoveVariation={removeEditorVariation}
+          onSelectCandidate={selectVariationCandidateIndex}
+          onAddSession={handleAddSession}
+          onToggleSessionCollapse={handleToggleSessionCollapse}
+          onMoveToSession={handleMoveVariation}
+          onRestoreVariation={restoreEditorVariation}
           onClose={closeEditor}
           onShowShortcuts={() => setKeyboardGuideOpen(true)}
         />
