@@ -155,7 +155,7 @@ export function Composer({
   onShufflePromptSet,
 }: ComposerProps) {
   const editing = sourceActive;
-  const [variationsOpen, setVariationsOpen] = useState(promptMode !== "off");
+  const [variationsOpen, setVariationsOpen] = useState(false);
   const frameWidth = draft.width;
   const frameHeight = draft.height;
   const modelProfile = catalog
@@ -486,7 +486,7 @@ export function Composer({
               disabled={!canGenerate}
               onClick={() => onGenerate("img2img")}
             >
-              <span>{generating ? "Forge is working" : "Generate variation"}</span>
+              <span>{generating ? "Forge is working" : "Generate edit"}</span>
               <kbd>Ctrl ↵</kbd>
             </button>
             <button
@@ -560,22 +560,51 @@ export function Composer({
         <div className="composer__heading">
           <h2>Prompt <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h2>
           {!editing && (
-            <button
-              type="button"
-              className={`prompt-variations-toggle ${variationsOpen ? "is-open" : ""} ${promptMode !== "off" ? "is-active" : ""}`}
-              onClick={() => setVariationsOpen((prev) => !prev)}
-              aria-expanded={variationsOpen}
-              title={
-                promptMode === "off"
-                  ? "Toggle prompt variations"
-                  : `Prompt variations active: ${promptMode}`
-              }
-            >
-              <span>Variations</span>
+            <div className="prompt-variations-control">
+              <button
+                type="button"
+                className={`prompt-variations-toggle ${promptMode !== "off" ? "is-active" : ""}`}
+                onClick={() => {
+                  const next: Record<PromptExpansionMode, PromptExpansionMode> = {
+                    off: "random",
+                    random: "exhaustive",
+                    exhaustive: "off",
+                  };
+                  onPromptModeChange(next[promptMode]);
+                }}
+                title={`Dynamic prompt variations: ${
+                  promptMode === "off"
+                    ? "As written (literal)"
+                    : promptMode === "random"
+                      ? "Random branch per candidate"
+                      : "Every unique branch"
+                }. Click to cycle mode.`}
+              >
+                <span>
+                  {promptMode === "off"
+                    ? "Variations: Off"
+                    : promptMode === "random"
+                      ? "Variations: Random"
+                      : "Variations: All branches"}
+                </span>
+                {promptMode !== "off" && promptExpansion && (
+                  <span className="variations-badge">
+                    {promptExpansion.resolved_count}
+                  </span>
+                )}
+              </button>
               {promptMode !== "off" && (
-                <span className="variations-badge">{promptMode}</span>
+                <button
+                  type="button"
+                  className={`prompt-variations-inspect ${variationsOpen ? "is-open" : ""}`}
+                  onClick={() => setVariationsOpen((prev) => !prev)}
+                  title={variationsOpen ? "Hide realization list" : "Inspect resolved prompts"}
+                  aria-expanded={variationsOpen}
+                >
+                  {variationsOpen ? "Hide" : "Inspect"}
+                </button>
               )}
-            </button>
+            </div>
           )}
         </div>
 

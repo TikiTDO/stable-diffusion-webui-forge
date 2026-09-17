@@ -288,6 +288,39 @@ h2 {
   text-transform: capitalize;
 }
 
+.prompt-variations-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prompt-variations-inspect {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.prompt-variations-inspect:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.prompt-variations-inspect.is-open {
+  border-color: rgba(124, 198, 254, 0.4);
+  color: #b7dcfa;
+  background: rgba(74, 123, 166, 0.15);
+}
+
 .workspace-mode,
 .layer-switch,
 .tool-switch,

@@ -674,8 +674,8 @@ export const FocusedEditWorkspace = forwardRef<
               onClick={() => onGenerate("img2img")}
             >
               {generating && activeOperation === "img2img"
-                ? "Making variation…"
-                : "Generate variation"}
+                ? "Rendering edit…"
+                : "Generate edit"}
               <kbd>Ctrl ↵</kbd>
             </button>
             <button
