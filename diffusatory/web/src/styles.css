@@ -245,6 +245,49 @@ h2 {
   gap: 12px;
 }
 
+.prompt-variations-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.prompt-variations-toggle:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.prompt-variations-toggle.is-open {
+  border-color: rgba(124, 198, 254, 0.4);
+  color: #b7dcfa;
+  background: rgba(74, 123, 166, 0.15);
+}
+
+.prompt-variations-toggle.is-active {
+  border-color: rgba(247, 178, 103, 0.5);
+  color: #f7b267;
+}
+
+.prompt-variations-toggle .variations-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(247, 178, 103, 0.2);
+  color: #f7b267;
+  text-transform: capitalize;
+}
+
 .workspace-mode,
 .layer-switch,
 .tool-switch,
@@ -665,6 +708,8 @@ h2 {
   display: grid;
   gap: 11px;
   margin-top: 12px;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   border: 1px solid rgba(124, 198, 254, 0.24);
   border-radius: 12px;
@@ -677,6 +722,8 @@ h2 {
 .region-composer--off {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   border-color: var(--line);
   background: rgba(9, 8, 14, 0.44);
 }
@@ -896,6 +943,7 @@ h2 {
 .region-prompts {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .region-common,
@@ -929,6 +977,10 @@ h2 {
 .region-cell-prompts {
   display: grid;
   gap: 6px;
+  min-width: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .region-cell-prompts label,
@@ -3231,6 +3283,10 @@ h1 {
 .tool-dock {
   grid-area: tools;
   padding: 14px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
 }
 
 .tool-dock__heading {

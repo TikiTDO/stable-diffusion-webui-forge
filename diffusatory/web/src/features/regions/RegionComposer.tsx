@@ -40,9 +40,8 @@ export function RegionComposer({
     return (
       <section className="region-composer region-composer--off">
         <div>
-          <p className="eyebrow">Spatial composition</p>
-          <strong>One prompt, whole frame</strong>
-          <small>Add regions when characters or places need explicit positions.</small>
+          <strong>Spatial regions</strong>
+          <small>Full frame</small>
         </div>
         <button type="button" onClick={() => onChange({ ...createRegionalComposition(), enabled: true })}>
           + Place regions
@@ -55,9 +54,8 @@ export function RegionComposer({
     <section className="region-composer" aria-labelledby="regions-title">
       <header className="region-composer__header">
         <div>
-          <p className="eyebrow">Spatial composition</p>
-          <h3 id="regions-title">Describe each part</h3>
-          <small>The transformable grid is open on the stage.</small>
+          <h3 id="regions-title">Spatial regions</h3>
+          <small>Grid active</small>
         </div>
         <div className="region-composer__actions">
           {!stageVisible && (
@@ -114,9 +112,9 @@ export function RegionComposer({
         </dl>
       </details>
 
-      <p className="region-render-note" role="status">
-        Native masked conditioning is active. LoRA and other model-weight tags belong in the common prompt because their effect is global.
-      </p>
+      <small className="region-render-note" role="status">
+        Common prompt applies globally
+      </small>
     </section>
   );
 }

@@ -52,9 +52,7 @@ export function ConditionStack({
     <section className="condition-stack" aria-labelledby="conditions-title">
       <header className="condition-stack__header">
         <div>
-          <p className="eyebrow">Composition guides</p>
           <h3 id="conditions-title">Conditions</h3>
-          <small>Give the model structure, pose, depth, or a visual reference.</small>
         </div>
         <button
           type="button"
@@ -77,8 +75,8 @@ export function ConditionStack({
 
       {conditions.length === 0 && !loading && !error && (
         <button type="button" className="condition-empty" data-shortcut-target="tools" onClick={onAdd}>
-          <strong>Add a guide when words are not enough.</strong>
-          <span>Pose, depth, line art, reference image, edges, and more.</span>
+          <strong>+ Add condition guide</strong>
+          <span>Pose, depth, line art, reference, or edges</span>
         </button>
       )}
 

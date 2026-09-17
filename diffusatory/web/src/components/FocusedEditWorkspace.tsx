@@ -19,7 +19,6 @@ import type {
 import type { EditorVariation } from "../domain/editorVariations";
 import { EditorVariationTray } from "./EditorVariationTray";
 import { NumberInput } from "./NumberInput";
-import { PromptComposition } from "./PromptComposition";
 import { PromptTools } from "./PromptTools";
 import { CatalogRefreshButton } from "./CatalogRefreshButton";
 import { profileForCheckpoint } from "../domain/modelProfiles";
@@ -617,17 +616,6 @@ export const FocusedEditWorkspace = forwardRef<
                 }}
               />
             </label>
-            <PromptComposition
-              mode={promptMode}
-              expansionSeed={expansionSeed}
-              response={promptExpansion}
-              loading={promptExpansionLoading}
-              error={promptExpansionError}
-              actionError={promptActionError}
-              onModeChange={onPromptModeChange}
-              onExpansionSeedChange={onExpansionSeedChange}
-              onShuffle={onShufflePromptSet}
-            />
           </section>
 
           {catalog && (

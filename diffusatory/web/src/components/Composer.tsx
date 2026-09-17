@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ForgeCatalog, Lora } from "../api/forge/types";
 import type { ControlNetCatalog } from "../api/forge/types";
 import type {
@@ -150,6 +151,7 @@ export function Composer({
   onShufflePromptSet,
 }: ComposerProps) {
   const editing = sourceActive;
+  const [variationsOpen, setVariationsOpen] = useState(promptMode !== "off");
   const frameWidth = draft.width;
   const frameHeight = draft.height;
   const modelProfile = catalog
@@ -553,6 +555,24 @@ export function Composer({
       <section className="composer prompt-dock" aria-label="Prompt composer">
         <div className="composer__heading">
           <h2>Prompt <kbd className="shortcut-chip" aria-hidden="true">Alt P</kbd></h2>
+          {!editing && (
+            <button
+              type="button"
+              className={`prompt-variations-toggle ${variationsOpen ? "is-open" : ""} ${promptMode !== "off" ? "is-active" : ""}`}
+              onClick={() => setVariationsOpen((prev) => !prev)}
+              aria-expanded={variationsOpen}
+              title={
+                promptMode === "off"
+                  ? "Toggle prompt variations"
+                  : `Prompt variations active: ${promptMode}`
+              }
+            >
+              <span>Variations</span>
+              {promptMode !== "off" && (
+                <span className="variations-badge">{promptMode}</span>
+              )}
+            </button>
+          )}
         </div>
 
         <label className="prompt-field">
@@ -625,17 +645,19 @@ export function Composer({
           />
         </label>
 
-        <PromptComposition
-          mode={promptMode}
-          expansionSeed={expansionSeed}
-          response={promptExpansion}
-          loading={promptExpansionLoading}
-          error={promptExpansionError}
-          actionError={promptActionError}
-          onModeChange={onPromptModeChange}
-          onExpansionSeedChange={onExpansionSeedChange}
-          onShuffle={onShufflePromptSet}
-        />
+        {!editing && variationsOpen && (
+          <PromptComposition
+            mode={promptMode}
+            expansionSeed={expansionSeed}
+            response={promptExpansion}
+            loading={promptExpansionLoading}
+            error={promptExpansionError}
+            actionError={promptActionError}
+            onModeChange={onPromptModeChange}
+            onExpansionSeedChange={onExpansionSeedChange}
+            onShuffle={onShufflePromptSet}
+          />
+        )}
 
         {catalog && (
           <PromptTools
