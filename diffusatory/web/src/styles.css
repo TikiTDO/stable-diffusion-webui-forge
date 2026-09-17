@@ -3032,6 +3032,30 @@ h2 {
   min-height: 760px;
 }
 
+.stage-editor__canvas-area {
+  display: grid;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage-editor__plane,
+.stage-editor__canvas-area .editor-live-preview {
+  grid-row: 1;
+  grid-column: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage-editor__plane {
+  display: grid;
+}
+
+.stage-editor__plane.is-obscured {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .image-editor {
   outline: none;
 }
@@ -4825,6 +4849,93 @@ h1 {
 @keyframes live-placeholder {
   from { background-position: 100% 0; }
   to { background-position: -100% 0; }
+}
+
+.presentation-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-light);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.presentation-toggle-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--paper);
+  border-color: var(--amber-bright);
+}
+
+.focused-edit__live-status-pill {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(18, 16, 26, 0.88);
+  border: 1px solid rgba(232, 169, 88, 0.4);
+  backdrop-filter: blur(8px);
+  color: var(--amber-bright);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.focused-edit__live-status-pill button {
+  background: rgba(232, 169, 88, 0.15);
+  border: 1px solid rgba(232, 169, 88, 0.35);
+  color: var(--amber-bright);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.focused-edit__live-status-pill button:hover {
+  background: rgba(232, 169, 88, 0.3);
+  border-color: rgba(232, 169, 88, 0.6);
+}
+
+.stage-editor__live-status-pill {
+  top: 60px;
+  right: 20px;
+}
+
+.editor-live-preview__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-preview-toggle {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--line-light);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.live-preview-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--paper);
+  border-color: var(--amber-bright);
+}
+
+.editor-live-preview--panel {
+  min-height: 480px;
 }
 
 .editor-variations {

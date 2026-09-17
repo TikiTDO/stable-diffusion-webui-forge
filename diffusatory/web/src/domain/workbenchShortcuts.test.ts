@@ -54,4 +54,8 @@ describe("workbench shortcuts", () => {
     expect(workbenchShortcutFor(event("p"))).toBeNull();
     expect(workbenchShortcutFor(event("p", { ctrlKey: true }))).toBeNull();
   });
+
+  it("routes Escape to close", () => {
+    expect(workbenchShortcutFor(event("Escape"))).toEqual({ kind: "close" });
+  });
 });

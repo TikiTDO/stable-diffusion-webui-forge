@@ -74,6 +74,7 @@ import {
   type EditorVariation,
 } from "./domain/editorVariations";
 import { EditorVariationTray } from "./components/EditorVariationTray";
+import { EditorLivePreview } from "./components/EditorLivePreview";
 import { workbenchShortcutFor } from "./domain/workbenchShortcuts";
 import {
   compilePromptWithLoras,
@@ -270,6 +271,28 @@ export default function App() {
   const [editorPresentation, setEditorPresentation] = useState<
     "workspace" | "focused"
   >("workspace");
+  const [showLivePreview, setShowLivePreview] = useState<boolean>(() => {
+    try {
+      const saved = sessionStorage.getItem("diffusatory:showLivePreview");
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+  const handleToggleLivePreview = useCallback(() => {
+    setShowLivePreview((prev) => {
+      const next = !prev;
+      try {
+        sessionStorage.setItem("diffusatory:showLivePreview", JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+  const handleTogglePresentation = useCallback(() => {
+    setEditorPresentation((prev) => (prev === "focused" ? "workspace" : "focused"));
+  }, []);
   const [imageImportNotice, setImageImportNotice] =
     useState<ImageImportNotice | null>(null);
   const [imageDragActive, setImageDragActive] = useState(false);
@@ -755,9 +778,16 @@ export default function App() {
       const shortcut = workbenchShortcutFor(event);
       if (!shortcut) return;
       if (shortcut.kind === "close") {
-        if (!keyboardGuideOpen) return;
-        event.preventDefault();
-        setKeyboardGuideOpen(false);
+        if (keyboardGuideOpen) {
+          event.preventDefault();
+          setKeyboardGuideOpen(false);
+          return;
+        }
+        if (editorSession > 0 && editorPresentation === "focused") {
+          event.preventDefault();
+          setEditorPresentation("workspace");
+          return;
+        }
         return;
       }
       if (shortcut.kind === "help") {
@@ -988,7 +1018,7 @@ export default function App() {
             metadata,
             savedModelDefaults,
           );
-          if (!replaceEditor(source, "focused", {
+          if (!replaceEditor(source, editorPresentation, {
             dimensions,
           })) {
             setImageImportNotice({
@@ -1024,7 +1054,7 @@ export default function App() {
             });
           }
         } catch (error) {
-          if (!replaceEditor(source, "focused", { dimensions })) {
+          if (!replaceEditor(source, editorPresentation, { dimensions })) {
             setImageImportNotice({
               kind: "warning",
               message: "Kept the current edit; the dropped image was not opened.",
@@ -1045,7 +1075,7 @@ export default function App() {
         });
       }
     },
-    [catalog, client, draft, replaceEditor, savedModelDefaults],
+    [catalog, client, draft, editorPresentation, replaceEditor, savedModelDefaults],
   );
 
   useEffect(() => {
@@ -1285,6 +1315,14 @@ export default function App() {
                 </div>
                 <button
                   type="button"
+                  className="presentation-toggle-button"
+                  onClick={() => setEditorPresentation("focused")}
+                  title="Expand to focused full-screen view"
+                >
+                  ⤢ Focused view
+                </button>
+                <button
+                  type="button"
                   className="return-to-results"
                   onClick={() => setCanvasView("variants")}
                 >
@@ -1301,32 +1339,62 @@ export default function App() {
               {editorError && (
                 <p className="stage__error" role="alert">{editorError}</p>
               )}
-              <ImageEditor
-                key={`${editorSession}:${editorDocumentRevision}`}
-                ref={editorRef}
-                source={editorSource}
-                maskSource={editorMaskSource}
-                width={editorDimensions.width}
-                height={editorDimensions.height}
-                shortcutsActive={canvasView === "editor"}
-                onReady={handleEditorReady}
-                onMaskChange={setEditorHasMask}
-                onContentChange={() => {
-                  setEditorDirty(true);
-                  setConditions((current) =>
-                    current.map((condition) =>
-                      condition.source.kind === "current" && condition.preview
-                        ? {
-                            ...condition,
-                            preview: null,
-                            previewStatus: "idle",
-                            previewError: null,
-                          }
-                        : condition,
-                    ),
-                  );
-                }}
-              />
+              <div className="stage-editor__canvas-area">
+                <div
+                  className={`stage-editor__plane ${
+                    generating && state.kind === "img2img" && showLivePreview ? "is-obscured" : ""
+                  }`}
+                  aria-hidden={generating && state.kind === "img2img" && showLivePreview}
+                >
+                  <ImageEditor
+                    key={`${editorSession}:${editorDocumentRevision}`}
+                    ref={editorRef}
+                    source={editorSource}
+                    maskSource={editorMaskSource}
+                    width={editorDimensions.width}
+                    height={editorDimensions.height}
+                    shortcutsActive={canvasView === "editor" && !(generating && state.kind === "img2img" && showLivePreview)}
+                    onReady={handleEditorReady}
+                    onMaskChange={setEditorHasMask}
+                    onContentChange={() => {
+                      setEditorDirty(true);
+                      setConditions((current) =>
+                        current.map((condition) =>
+                          condition.source.kind === "current" && condition.preview
+                            ? {
+                                ...condition,
+                                preview: null,
+                                previewStatus: "idle",
+                                previewError: null,
+                              }
+                            : condition,
+                        ),
+                      );
+                    }}
+                  />
+                </div>
+                {generating && state.kind === "img2img" && showLivePreview && (
+                  <EditorLivePreview
+                    generation={state}
+                    activeOperation={activeEditOperation}
+                    activeInpaintScope={activeInpaintScope}
+                    defaultOutputs={draft.outputs}
+                    onTogglePreview={handleToggleLivePreview}
+                    layout="panel"
+                  />
+                )}
+                {generating && state.kind === "img2img" && !showLivePreview && (
+                  <div className="focused-edit__live-status-pill stage-editor__live-status-pill">
+                    <span>Generating ({Math.round(state.progress * 100)}%)</span>
+                    <button
+                      type="button"
+                      onClick={handleToggleLivePreview}
+                    >
+                      Show preview
+                    </button>
+                  </div>
+                )}
+              </div>
               <EditorVariationTray
                 variations={editorVariations}
                 activeId={activeEditorVariationId}
@@ -1359,6 +1427,9 @@ export default function App() {
           generating={generating}
           canGenerate={canGenerate}
           hasMask={editorHasMask}
+          showLivePreview={showLivePreview}
+          onToggleLivePreview={handleToggleLivePreview}
+          onTogglePresentation={handleTogglePresentation}
           activeOperation={activeEditOperation}
           activeInpaintScope={activeInpaintScope}
           variations={editorVariations}

@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useEffect } from "react";
 
 import type {
   ForgeCatalog,
@@ -22,6 +22,7 @@ import { EditorVariationTray } from "./EditorVariationTray";
 import { NumberInput } from "./NumberInput";
 import { PromptTools } from "./PromptTools";
 import { CatalogRefreshButton } from "./CatalogRefreshButton";
+import { EditorLivePreview } from "./EditorLivePreview";
 import { profileForCheckpoint } from "../domain/modelProfiles";
 import { adjustPromptAttention } from "../domain/promptAttention";
 import type { ActiveLora } from "../domain/loras";
@@ -42,6 +43,9 @@ interface FocusedEditWorkspaceProps {
   generating: boolean;
   canGenerate: boolean;
   hasMask: boolean;
+  showLivePreview?: boolean;
+  onToggleLivePreview?: () => void;
+  onTogglePresentation?: () => void;
   activeOperation: EditOperation | null;
   activeInpaintScope: "masked" | "whole" | null;
   variations: EditorVariation[];
@@ -127,6 +131,9 @@ export const FocusedEditWorkspace = forwardRef<
     onReady,
     onContentChange,
     onMaskChange,
+    showLivePreview,
+    onToggleLivePreview,
+    onTogglePresentation,
     onDraftChange,
     onCheckpointChange,
     onSaveModelDefault,
@@ -159,9 +166,25 @@ export const FocusedEditWorkspace = forwardRef<
   const modelProfile = catalog
     ? profileForCheckpoint(catalog, draft.checkpoint)
     : null;
-  const showingLiveEdit = generating && generation.kind === "img2img";
-  const liveOutputs = generation.job?.outputs ?? draft.outputs;
+  const isGeneratingImg2Img = generating && generation.kind === "img2img";
+  const livePreviewVisible = showLivePreview ?? true;
+  const showingLiveEdit = isGeneratingImg2Img && livePreviewVisible;
   const liveProgress = Math.round(generation.progress * 100);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (onTogglePresentation) {
+          onTogglePresentation();
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onTogglePresentation, onClose]);
 
   return (
     <section
@@ -180,6 +203,16 @@ export const FocusedEditWorkspace = forwardRef<
           <span>{checkpointLabel(draft.checkpoint)}</span>
           {dirty && <strong>Local paint not yet rendered</strong>}
         </div>
+        {onTogglePresentation && (
+          <button
+            type="button"
+            className="presentation-toggle-button"
+            onClick={onTogglePresentation}
+            title="Collapse to panel view"
+          >
+            ⤡ Panel view
+          </button>
+        )}
         <button type="button" className="close-editor" onClick={onClose}>
           Close editor
         </button>
@@ -213,63 +246,24 @@ export const FocusedEditWorkspace = forwardRef<
             />
           </div>
           {showingLiveEdit && (
-            <section
-              className="focused-edit__live-render"
-              aria-label="Live edit render"
-              aria-live="polite"
-            >
-              <header>
-                <div>
-                  <p className="eyebrow">Live edit</p>
-                  <h3>
-                    {activeOperation === "inpaint"
-                      ? activeInpaintScope === "masked"
-                        ? "Regenerating the masked crop"
-                        : "Regenerating with whole-frame context"
-                      : "Building image variations"}
-                  </h3>
-                </div>
-                <span>
-                  {liveOutputs} candidate{liveOutputs === 1 ? "" : "s"} · every
-                  3 steps
-                </span>
-              </header>
-              <div className="focused-edit__live-plate">
-                {generation.preview ? (
-                  <img
-                    key={generation.previewId}
-                    src={generation.preview}
-                    alt={
-                      liveOutputs > 1
-                        ? `Live contact sheet for ${liveOutputs} image variations`
-                        : "Live image variation preview"
-                    }
-                  />
-                ) : (
-                  <div
-                    className="focused-edit__live-placeholders"
-                    data-count={Math.min(liveOutputs, 8)}
-                    aria-label="Waiting for the first three-step preview"
-                  >
-                    {Array.from({ length: Math.min(liveOutputs, 8) }, (_, index) => (
-                      <span key={index}>{index + 1}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <footer>
-                <div className="progress-track" aria-hidden="true">
-                  <span style={{ width: `${liveProgress}%` }} />
-                </div>
-                <div>
-                  <strong>{liveProgress}%</strong>
-                  <span>{generation.text}</span>
-                  {generation.eta !== null && (
-                    <span>{Math.max(0, generation.eta).toFixed(1)}s ETA</span>
-                  )}
-                </div>
-              </footer>
-            </section>
+            <EditorLivePreview
+              generation={generation}
+              activeOperation={activeOperation}
+              activeInpaintScope={activeInpaintScope}
+              defaultOutputs={draft.outputs}
+              onTogglePreview={onToggleLivePreview}
+              layout="dialog"
+            />
+          )}
+          {isGeneratingImg2Img && !livePreviewVisible && (
+            <div className="focused-edit__live-status-pill">
+              <span>Generating ({liveProgress}%)</span>
+              {onToggleLivePreview && (
+                <button type="button" onClick={onToggleLivePreview}>
+                  Show live preview
+                </button>
+              )}
+            </div>
           )}
           <EditorVariationTray
             variations={variations}
