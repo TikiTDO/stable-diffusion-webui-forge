@@ -976,9 +976,10 @@ h2 {
 
 .region-cell-prompts {
   display: grid;
-  gap: 6px;
+  grid-template-columns: 1fr;
+  gap: 8px;
   min-width: 0;
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -996,6 +997,7 @@ h2 {
 
 .region-cell-prompts textarea,
 .region-background-prompt textarea {
+  box-sizing: border-box;
   width: 100%;
   min-height: 54px;
   resize: vertical;
@@ -1033,7 +1035,7 @@ h2 {
 
 .region-plan dl {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin: 9px 0 0;
 }

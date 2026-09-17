@@ -72,7 +72,7 @@ export function RegionComposer({
           <span>Common to every region</span>
           <p>{commonPrompt.trim() || "Add the shared scene in the main prompt above."}</p>
         </div>
-        <div className="region-cell-prompts" style={{ gridTemplateColumns: `repeat(${Math.min(value.columns.length, 2)}, minmax(0, 1fr))` }}>
+        <div className="region-cell-prompts">
           {plan.cells.map((cell, index) => (
             <label key={cell.id} style={{ "--region-color": CELL_COLORS[index % CELL_COLORS.length] } as CSSProperties}>
               <span>{cell.id.toUpperCase()}</span>
