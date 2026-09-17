@@ -784,7 +784,11 @@ class Api:
             try:
                 from modules_forge.main_entry import refresh_models
                 refresh_models()
-            except Exception:
+            except ImportError:
+                shared.refresh_checkpoints()
+            except Exception as e:
+                from modules import errors
+                errors.display(e, "refreshing forge model components")
                 shared.refresh_checkpoints()
 
     def refresh_vae(self):

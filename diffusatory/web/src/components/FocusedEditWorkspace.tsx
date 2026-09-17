@@ -60,7 +60,7 @@ interface FocusedEditWorkspaceProps {
   onRestoreModelDefault: () => void;
   onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
   onRefreshLoras: () => Promise<number>;
-  onRefreshCheckpoints: () => Promise<number>;
+  onRefreshCheckpoints: () => Promise<number | string>;
   onEditSettingsChange: (patch: Partial<ImageEditSettings>) => void;
   onPromptModeChange: (mode: PromptExpansionMode) => void;
   onExpansionSeedChange: (seed: number) => void;

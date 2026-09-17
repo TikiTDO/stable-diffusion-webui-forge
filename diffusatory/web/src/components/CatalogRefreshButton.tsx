@@ -2,13 +2,13 @@ import { useState } from "react";
 
 interface CatalogRefreshButtonProps {
   label: string;
-  noun: string;
-  onRefresh: () => Promise<number>;
+  noun?: string;
+  onRefresh: () => Promise<number | string>;
 }
 
 export function CatalogRefreshButton({
   label,
-  noun,
+  noun = "item",
   onRefresh,
 }: CatalogRefreshButtonProps) {
   const [refreshing, setRefreshing] = useState(false);
@@ -21,8 +21,12 @@ export function CatalogRefreshButton({
     setStatus(null);
     setFailed(false);
     try {
-      const count = await onRefresh();
-      setStatus(`${count} ${noun}${count === 1 ? "" : "s"} found`);
+      const result = await onRefresh();
+      if (typeof result === "string") {
+        setStatus(result);
+      } else {
+        setStatus(`${result} ${noun}${result === 1 ? "" : "s"} found`);
+      }
     } catch (error) {
       setFailed(true);
       setStatus(error instanceof Error ? error.message : `${label} failed.`);

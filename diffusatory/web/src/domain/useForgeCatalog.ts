@@ -44,7 +44,9 @@ export function useForgeCatalog(client: ForgeClient) {
   const refreshCheckpoints = useCallback(async () => {
     const refreshed = await client.refreshCheckpoints();
     setCatalog((current) => (current ? { ...current, ...refreshed } : current));
-    return refreshed.checkpoints.length;
+    const ckptCount = refreshed.checkpoints.length;
+    const modCount = refreshed.modules.length;
+    return `${ckptCount} checkpoint${ckptCount === 1 ? "" : "s"}, ${modCount} module${modCount === 1 ? "" : "s"} found`;
   }, [client]);
 
   return {

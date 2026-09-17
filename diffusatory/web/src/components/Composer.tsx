@@ -42,7 +42,7 @@ interface ComposerProps {
   onRestoreModelDefault: () => void;
   onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
   onRefreshLoras: () => Promise<number>;
-  onRefreshCheckpoints: () => Promise<number>;
+  onRefreshCheckpoints: () => Promise<number | string>;
   onGenerate: (
     operation?: EditOperation,
     inpaintOnlyMasked?: boolean,
