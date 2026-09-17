@@ -781,7 +781,11 @@ class Api:
 
     def refresh_checkpoints(self):
         with self.queue_lock:
-            shared.refresh_checkpoints()
+            try:
+                from modules_forge.main_entry import refresh_models
+                refresh_models()
+            except Exception:
+                shared.refresh_checkpoints()
 
     def refresh_vae(self):
         with self.queue_lock:

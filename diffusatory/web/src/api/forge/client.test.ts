@@ -40,11 +40,13 @@ describe("ForgeClient", () => {
     expect(await new ForgeClient("", fetcher).refreshCheckpoints()).toEqual({
       checkpoints: [],
       modelProfiles: [],
+      modules: [],
     });
     expect(calls.map(([url]) => url)).toEqual([
       "/sdapi/v1/refresh-checkpoints",
       "/sdapi/v1/sd-models",
       "/diffusatory/api/v1/model-profiles",
+      "/sdapi/v1/sd-modules",
     ]);
     expect(calls[0]?.[1]?.method).toBe("POST");
   });

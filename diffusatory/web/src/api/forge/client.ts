@@ -204,17 +204,21 @@ export class ForgeClient {
   async refreshCheckpoints(signal?: AbortSignal): Promise<{
     checkpoints: Checkpoint[];
     modelProfiles: ModelProfile[];
+    modules: ModelModule[];
   }> {
     const response = await this.fetcher(
       `${this.baseUrl}/sdapi/v1/refresh-checkpoints`,
       { method: "POST", signal },
     );
     await readJson<null>(response);
-    const [checkpoints, modelProfiles] = await Promise.all([
+    const [checkpoints, modelProfiles, modules] = await Promise.all([
       this.get<Checkpoint[]>("/sdapi/v1/sd-models", signal),
       this.get<ModelProfile[]>("/diffusatory/api/v1/model-profiles", signal),
+      this.get<ModelModule[]>("/sdapi/v1/sd-modules", signal).catch(
+        () => [] as ModelModule[],
+      ),
     ]);
-    return { checkpoints, modelProfiles };
+    return { checkpoints, modelProfiles, modules };
   }
 
   async controlNetCatalog(signal?: AbortSignal): Promise<ControlNetCatalog> {
