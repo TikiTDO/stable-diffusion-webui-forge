@@ -11,6 +11,7 @@ DIFFUSATORY_PORT=7865
 # DIFFUSATORY_TLS_KEYFILE=/path/to/key.pem
 
 # Optional local paths and runtime choices.
+# DIFFUSATORY_API_TOKEN=your-static-token-here
 # DIFFUSATORY_PYTHON=python3.14
 # DIFFUSATORY_LOG_FILE=/path/to/server.log
 # DIFFUSATORY_EXTRA_ARGS=(--xformers)

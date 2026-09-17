@@ -117,7 +117,13 @@ mkdir -p "$runtime_dir"
 chmod 700 "$runtime_dir"
 
 if [[ "$access_mode" == "api" || "$access_mode" == "both" ]]; then
-    if [[ ! -s "$token_file" ]]; then
+    if [[ -n "${DIFFUSATORY_API_TOKEN:-}" ]]; then
+        mkdir -p "$(dirname -- "$token_file")"
+        previous_umask=$(umask)
+        umask 077
+        printf '%s\n' "$DIFFUSATORY_API_TOKEN" > "$token_file"
+        umask "$previous_umask"
+    elif [[ ! -s "$token_file" ]]; then
         mkdir -p "$(dirname -- "$token_file")"
         previous_umask=$(umask)
         umask 077
