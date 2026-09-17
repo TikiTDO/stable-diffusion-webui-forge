@@ -109,6 +109,48 @@ export class ForgeClient {
     return this.get<ServerActivity>("/diffusatory/api/v1/status", signal);
   }
 
+  /**
+   * Subscribes to the server's activity stream and resolves when the stream
+   * ends or the signal aborts. Each `activity` event is handed to `onActivity`
+   * as it arrives; a non-2xx response rejects so the caller can fall back to
+   * polling.
+   */
+  async activityStream(
+    onActivity: (activity: ServerActivity) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const response = await this.fetcher(
+      `${this.baseUrl}/diffusatory/api/v1/status/stream`,
+      { headers: { Accept: "text/event-stream" }, signal },
+    );
+    if (!response.ok || !response.body) {
+      throw new ForgeApiError(
+        response.status,
+        `The server activity stream answered ${response.status}.`,
+      );
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffered = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      buffered += decoder.decode(value, { stream: true });
+      let boundary = buffered.indexOf("\n\n");
+      while (boundary !== -1) {
+        const frame = buffered.slice(0, boundary);
+        buffered = buffered.slice(boundary + 2);
+        const data = frame
+          .split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart())
+          .join("\n");
+        if (data) onActivity(JSON.parse(data) as ServerActivity);
+        boundary = buffered.indexOf("\n\n");
+      }
+    }
+  }
+
   async expandPrompts(
     input: PromptExpansionInput,
     signal?: AbortSignal,

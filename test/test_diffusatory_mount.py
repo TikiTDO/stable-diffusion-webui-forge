@@ -222,6 +222,51 @@ class DiffusatoryMountTests(unittest.TestCase):
         self.assertEqual(2, body["queue_size"])
         self.assertEqual("story-xl.safetensors", body["checkpoint"])
 
+    def test_status_stream_sends_a_frame_only_when_the_descriptor_changes(self) -> None:
+        import asyncio
+        import itertools
+        import json
+
+        from diffusatory.server import mount as mount_module
+
+        idle = mount_module.ServerActivityDescriptor(
+            phase="idle", busy=False, task_id=None, queue_size=0,
+            progress=None, sampling_step=0, sampling_steps=0,
+            job_index=0, job_count=0, operation=None,
+            checkpoint=None, detail=None,
+        )
+        rendering = idle.model_copy(
+            update={"phase": "rendering", "busy": True, "task_id": "task(1)", "progress": 0.5}
+        )
+        descriptors = itertools.chain([idle] * 3, itertools.repeat(rendering))
+        polls = itertools.count()
+
+        async def is_disconnected() -> bool:
+            # Idle x3, then rendering x2, then the client goes away.
+            return next(polls) >= 5
+
+        async def collect() -> list[str]:
+            with (
+                patch.object(mount_module, "server_activity_descriptor", lambda: next(descriptors)),
+                patch.object(mount_module, "STATUS_STREAM_TICK_SECONDS", 0.0),
+            ):
+                return [frame async for frame in mount_module.server_activity_events(is_disconnected)]
+
+        frames = asyncio.run(collect())
+
+        # Three identical idle samples produced one frame; the change produced the next.
+        self.assertEqual(2, len(frames))
+        phases = [json.loads(frame.split("data: ", 1)[1])["phase"] for frame in frames]
+        self.assertEqual(["idle", "rendering"], phases)
+        self.assertTrue(all(frame.startswith("event: activity\n") for frame in frames))
+
+    def test_status_stream_route_is_an_event_stream(self) -> None:
+        app = FastAPI()
+        mount_diffusatory(app, dist=Path(tempfile.gettempdir()) / "missing")
+        # Included routers resolve lazily on this FastAPI; the schema forces it.
+        paths = app.openapi()["paths"]
+        self.assertIn("/diffusatory/api/v1/status/stream", paths)
+        self.assertEqual(["get"], list(paths["/diffusatory/api/v1/status/stream"]))
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,45 @@ describe("ForgeClient", () => {
     expect(calls[0]?.[1]?.method).toBe("POST");
   });
 
+  it("delivers each activity frame from the status stream, however it is chunked", async () => {
+    const idle = { phase: "idle", busy: false, progress: null };
+    const rendering = { phase: "rendering", busy: true, progress: 0.5 };
+    const chunks = [
+      `event: activity\ndata: ${JSON.stringify(idle)}\n\n: keep-alive\n\nevent: activ`,
+      `ity\ndata: ${JSON.stringify(rendering)}\n\n`,
+    ];
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+        controller.close();
+      },
+    });
+    const fetcher: typeof fetch = async (input, request) => {
+      expect(input).toBe("/diffusatory/api/v1/status/stream");
+      expect(request?.headers).toEqual({ Accept: "text/event-stream" });
+      return new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    };
+
+    const received: unknown[] = [];
+    await new ForgeClient("", fetcher).activityStream(
+      (activity) => received.push(activity),
+      new AbortController().signal,
+    );
+
+    expect(received).toEqual([idle, rendering]);
+  });
+
+  it("rejects a status stream the server refuses so the caller can poll instead", async () => {
+    const fetcher: typeof fetch = async () => new Response("no", { status: 503 });
+
+    await expect(
+      new ForgeClient("", fetcher).activityStream(() => {}, new AbortController().signal),
+    ).rejects.toBeInstanceOf(ForgeApiError);
+  });
+
   it("maps a Diffusatory draft onto the existing txt2img contract", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {

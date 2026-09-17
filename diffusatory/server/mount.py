@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import platform
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -146,6 +147,31 @@ def _process_rss_bytes() -> int | None:
         return None
 
 
+# The stream samples Forge's in-process state at this cadence and sends a
+# frame only when the descriptor changed; a comment keeps proxies from
+# closing an idle connection.
+STATUS_STREAM_TICK_SECONDS = 0.15
+STATUS_STREAM_HEARTBEAT_SECONDS = 15.0
+
+
+async def server_activity_events(is_disconnected):
+    """Yield one SSE frame per change of the activity descriptor."""
+    last: str | None = None
+    quiet = 0.0
+    while not await is_disconnected():
+        payload = server_activity_descriptor().model_dump_json()
+        if payload != last:
+            last = payload
+            quiet = 0.0
+            yield f"event: activity\ndata: {payload}\n\n"
+        else:
+            quiet += STATUS_STREAM_TICK_SECONDS
+            if quiet >= STATUS_STREAM_HEARTBEAT_SECONDS:
+                quiet = 0.0
+                yield ": keep-alive\n\n"
+        await asyncio.sleep(STATUS_STREAM_TICK_SECONDS)
+
+
 def server_activity_descriptor() -> ServerActivityDescriptor:
     from modules import progress as forge_progress
     from modules import shared
@@ -222,6 +248,14 @@ def mount_diffusatory(
     @router.get("/status", response_model=ServerActivityDescriptor)
     async def get_status() -> ServerActivityDescriptor:
         return server_activity_descriptor()
+
+    @router.get("/status/stream")
+    async def stream_status(request: Request) -> StreamingResponse:
+        return StreamingResponse(
+            server_activity_events(request.is_disconnected),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @router.get("/model-profiles", response_model=list[ModelProfile])
     async def get_model_profiles() -> list[ModelProfile]:
