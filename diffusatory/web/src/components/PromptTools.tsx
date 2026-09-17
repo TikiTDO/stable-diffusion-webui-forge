@@ -1,17 +1,20 @@
-import { useMemo, useState } from "react";
+import { useEffect, useDeferredValue, useMemo, useState } from "react";
 
-import type { ForgeCatalog, Lora } from "../api/forge/types";
+import type { ForgeCatalog, Lora, LoraDefaults } from "../api/forge/types";
 import {
   activeLoraFromCatalog,
+  indexLora,
   loraSearchMatch,
   restoreLoraDefaults,
+  searchLoraCatalog,
   visibleLoraKeywordIndexes,
   type ActiveLora,
   type LoraSearchGroup,
   type LoraSearchMatch,
 } from "../domain/loras";
+import { LoraDetailModal } from "./LoraDetailModal";
 
-interface PromptToolsProps {
+export interface PromptToolsProps {
   catalog: ForgeCatalog;
   selectedStyles: string[];
   activeLoras: ActiveLora[];
@@ -21,6 +24,8 @@ interface PromptToolsProps {
   onInsertEmbedding: (targetId: string, text: string) => void;
   onSaveDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
   onRefreshLibrary: () => Promise<number>;
+  onUpdateLoraDefaults?: (lora: Lora, defaults: LoraDefaults) => Promise<void>;
+  onUploadLoraPreview?: (lora: Lora, file: File) => Promise<void>;
 }
 
 function matches(candidate: string, query: string): boolean {
@@ -93,9 +98,12 @@ export function PromptTools({
   onInsertEmbedding,
   onSaveDefaults,
   onRefreshLibrary,
+  onUpdateLoraDefaults,
+  onUploadLoraPreview,
 }: PromptToolsProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [secondarySearch, setSecondarySearch] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -106,7 +114,17 @@ export function PromptTools({
     () => new Set(),
   );
   const [pendingEmbedding, setPendingEmbedding] = useState<string | null>(null);
-  const query = search.trim();
+  const [inspectingLora, setInspectingLora] = useState<Lora | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const deferredSearch = useDeferredValue(debouncedSearch);
+  const query = deferredSearch.trim();
   const secondaryQuery = secondarySearch.trim().toLocaleLowerCase();
   const activeIds = useMemo(
     () => new Set(activeLoras.map((lora) => lora.id)),
@@ -114,6 +132,10 @@ export function PromptTools({
   );
   const catalogById = useMemo(
     () => new Map(catalog.loras.map((lora) => [lora.id, lora])),
+    [catalog.loras],
+  );
+  const indexedLoras = useMemo(
+    () => catalog.loras.map(indexLora),
     [catalog.loras],
   );
 
@@ -131,18 +153,17 @@ export function PromptTools({
             (randomRank.get(right.lora.id) ?? Number.MAX_SAFE_INTEGER)
           : left.lora.name.localeCompare(right.lora.name),
       );
-      return [{
-        key: randomOrder.length ? "random" : "all",
-        label: randomOrder.length ? "Random selection" : "All LoRAs",
-        total: catalog.loras.length,
-        results: results.slice(0, 48),
-      }];
+      return [
+        {
+          key: randomOrder.length ? "random" : "all",
+          label: randomOrder.length ? "Random selection" : "All LoRAs",
+          total: catalog.loras.length,
+          results: results.slice(0, 48),
+        },
+      ];
     }
 
-    const matches = catalog.loras.flatMap((lora) => {
-      const match = loraSearchMatch(lora, query);
-      return match ? [{ lora, match, score: match.score }] : [];
-    });
+    const matches = searchLoraCatalog(indexedLoras, query);
     return SEARCH_GROUPS.flatMap(({ key, label }) => {
       const results = matches
         .filter((result) => result.match.group === key)
@@ -155,7 +176,7 @@ export function PromptTools({
         ? [{ key, label, total: results.length, results: results.slice(0, 24) }]
         : [];
     });
-  }, [catalog.loras, query, randomOrder]);
+  }, [catalog.loras, indexedLoras, query, randomOrder]);
 
   const styles = useMemo(
     () =>
@@ -267,170 +288,233 @@ export function PromptTools({
                 className={`active-lora ${active.enabled ? "" : "is-disabled"}`}
                 key={active.id}
               >
-                <header>
-                  <button
-                    type="button"
-                    className="active-lora__toggle"
-                    aria-pressed={active.enabled}
-                    onClick={() =>
-                      changeActive(active.id, (lora) => ({
-                        ...lora,
-                        enabled: !lora.enabled,
-                      }))
-                    }
-                    title={active.enabled ? "Disable this LoRA" : "Enable this LoRA"}
-                  >
-                    {active.enabled ? "On" : "Off"}
-                  </button>
-                  <strong>{source ? loraTitle(source) : active.name}</strong>
-                  <label>
-                    <span>Strength</span>
-                    <input
-                      type="number"
-                      min="-10"
-                      max="10"
-                      step="0.05"
-                      value={active.strength}
-                      onChange={(event) =>
-                        changeActive(active.id, (lora) => ({
-                          ...lora,
-                          strength: Number.isFinite(event.target.valueAsNumber)
-                            ? event.target.valueAsNumber
-                            : lora.strength,
-                        }))
-                      }
+                <div className="active-lora__body">
+                  {source?.preview_url ? (
+                    <img
+                      src={source.preview_url}
+                      alt=""
+                      className="active-lora__thumbnail"
+                      loading="lazy"
+                      onClick={() => source && setInspectingLora(source)}
+                      style={{ cursor: source ? "pointer" : "default" }}
+                      title={source ? "Click to inspect / edit" : undefined}
                     />
-                  </label>
-                  <button
-                    type="button"
-                    className="active-lora__remove"
-                    onClick={() =>
-                      onLorasChange(
-                        activeLoras.filter((lora) => lora.id !== active.id),
-                      )
-                    }
-                    aria-label={`Unpin ${active.name}`}
-                    title="Unpin this LoRA"
-                  >
-                    ×
-                  </button>
-                </header>
-                <div
-                  className="lora-keywords"
-                  aria-label={`${active.name} activation terms`}
-                >
-                  {active.keywords.length ? (
-                    visibleKeywordIndexes.map((index) => {
-                      const keyword = active.keywords[index];
-                      return (
-                        <div
-                          className={keyword.enabled ? "" : "is-disabled"}
-                          key={`${keyword.text}-${index}`}
-                        >
-                          <button
-                            type="button"
-                            aria-pressed={keyword.enabled}
-                            onClick={() =>
-                              changeActive(active.id, (lora) => ({
-                                ...lora,
-                                keywords: lora.keywords.map(
-                                  (candidate, candidateIndex) =>
-                                    candidateIndex === index
-                                      ? {
-                                          ...candidate,
-                                          enabled: !candidate.enabled,
-                                        }
-                                      : candidate,
-                                ),
-                              }))
-                            }
-                          >
-                            {keyword.text}
-                          </button>
-                          <input
-                            type="number"
-                            min="-10"
-                            max="10"
-                            step="0.1"
-                            value={keyword.weight}
-                            aria-label={`${keyword.text} prompt weight`}
-                            onChange={(event) =>
-                              changeActive(active.id, (lora) => ({
-                                ...lora,
-                                keywords: lora.keywords.map(
-                                  (candidate, candidateIndex) =>
-                                    candidateIndex === index &&
-                                    Number.isFinite(event.target.valueAsNumber)
-                                      ? {
-                                          ...candidate,
-                                          weight: event.target.valueAsNumber,
-                                        }
-                                      : candidate,
-                                ),
-                              }))
-                            }
-                          />
-                        </div>
-                      );
-                    })
                   ) : (
-                    <small>No activation terms saved.</small>
-                  )}
-                  {active.keywords.length > 10 && (
-                    <button
-                      type="button"
-                      className="lora-keywords__more"
-                      aria-expanded={keywordsExpanded}
-                      onClick={() =>
-                        setExpandedKeywordIds((current) => {
-                          const next = new Set(current);
-                          if (next.has(active.id)) next.delete(active.id);
-                          else next.add(active.id);
-                          return next;
-                        })
-                      }
+                    <span
+                      className="active-lora__placeholder"
+                      aria-hidden="true"
+                      onClick={() => source && setInspectingLora(source)}
+                      style={{ cursor: source ? "pointer" : "default" }}
+                      title={source ? "Click to inspect / edit" : undefined}
                     >
-                      {keywordsExpanded
-                        ? "Show fewer"
-                        : `Show ${hiddenKeywordCount} more`}
-                    </button>
+                      L
+                    </span>
                   )}
+                  <div className="active-lora__details">
+                    <header>
+                      <button
+                        type="button"
+                        className="active-lora__toggle"
+                        aria-pressed={active.enabled}
+                        onClick={() =>
+                          changeActive(active.id, (lora) => ({
+                            ...lora,
+                            enabled: !lora.enabled,
+                          }))
+                        }
+                        title={
+                          active.enabled
+                            ? "Disable this LoRA"
+                            : "Enable this LoRA"
+                        }
+                      >
+                        {active.enabled ? "On" : "Off"}
+                      </button>
+                      <strong>{source ? loraTitle(source) : active.name}</strong>
+                      {source?.base_model && (
+                        <span className="active-lora__model-badge">
+                          {source.base_model}
+                        </span>
+                      )}
+                      <label>
+                        <span>Strength</span>
+                        <input
+                          type="number"
+                          min="-10"
+                          max="10"
+                          step="0.05"
+                          value={active.strength}
+                          onChange={(event) =>
+                            changeActive(active.id, (lora) => ({
+                              ...lora,
+                              strength: Number.isFinite(
+                                event.target.valueAsNumber,
+                              )
+                                ? event.target.valueAsNumber
+                                : lora.strength,
+                            }))
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="active-lora__remove"
+                        onClick={() =>
+                          onLorasChange(
+                            activeLoras.filter((lora) => lora.id !== active.id),
+                          )
+                        }
+                        aria-label={`Unpin ${active.name}`}
+                        title="Unpin this LoRA"
+                      >
+                        ×
+                      </button>
+                    </header>
+                    {source?.description && (
+                      <p
+                        className="active-lora__description"
+                        title={source.description}
+                      >
+                        {source.description}
+                      </p>
+                    )}
+                    {source?.defaults.notes && (
+                      <p
+                        className="active-lora__notes"
+                        title={source.defaults.notes}
+                      >
+                        {source.defaults.notes}
+                      </p>
+                    )}
+                    <div
+                      className="lora-keywords"
+                      aria-label={`${active.name} activation terms`}
+                    >
+                      {active.keywords.length ? (
+                        visibleKeywordIndexes.map((index) => {
+                          const keyword = active.keywords[index];
+                          return (
+                            <div
+                              className={keyword.enabled ? "" : "is-disabled"}
+                              key={`${keyword.text}-${index}`}
+                            >
+                              <button
+                                type="button"
+                                aria-pressed={keyword.enabled}
+                                onClick={() =>
+                                  changeActive(active.id, (lora) => ({
+                                    ...lora,
+                                    keywords: lora.keywords.map(
+                                      (candidate, candidateIndex) =>
+                                        candidateIndex === index
+                                          ? {
+                                              ...candidate,
+                                              enabled: !candidate.enabled,
+                                            }
+                                          : candidate,
+                                    ),
+                                  }))
+                                }
+                              >
+                                {keyword.text}
+                              </button>
+                              <input
+                                type="number"
+                                min="-10"
+                                max="10"
+                                step="0.1"
+                                value={keyword.weight}
+                                aria-label={`${keyword.text} prompt weight`}
+                                onChange={(event) =>
+                                  changeActive(active.id, (lora) => ({
+                                    ...lora,
+                                    keywords: lora.keywords.map(
+                                      (candidate, candidateIndex) =>
+                                        candidateIndex === index &&
+                                        Number.isFinite(
+                                          event.target.valueAsNumber,
+                                        )
+                                          ? {
+                                              ...candidate,
+                                              weight: event.target.valueAsNumber,
+                                            }
+                                          : candidate,
+                                    ),
+                                  }))
+                                }
+                              />
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <small>No activation terms saved.</small>
+                      )}
+                      {active.keywords.length > 10 && (
+                        <button
+                          type="button"
+                          className="lora-keywords__more"
+                          aria-expanded={keywordsExpanded}
+                          onClick={() =>
+                            setExpandedKeywordIds((current) => {
+                              const next = new Set(current);
+                              if (next.has(active.id)) next.delete(active.id);
+                              else next.add(active.id);
+                              return next;
+                            })
+                          }
+                        >
+                          {keywordsExpanded
+                            ? "Show fewer"
+                            : `Show ${hiddenKeywordCount} more`}
+                        </button>
+                      )}
+                    </div>
+                    <footer>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          changeActive(active.id, (lora) => ({
+                            ...lora,
+                            keywords: lora.keywords.map((keyword) => ({
+                              ...keyword,
+                              enabled: false,
+                            })),
+                          }))
+                        }
+                      >
+                        Clear terms
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!source}
+                        onClick={() =>
+                          source &&
+                          changeActive(active.id, (lora) =>
+                            restoreLoraDefaults(lora, source),
+                          )
+                        }
+                      >
+                        Defaults
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!source || savingId !== null}
+                        onClick={() => void saveDefaults(active)}
+                      >
+                        {savingId === active.id ? "Saving…" : "Save defaults"}
+                      </button>
+                      {source && (
+                        <button
+                          type="button"
+                          onClick={() => setInspectingLora(source)}
+                          title="Edit LoRA defaults and preview"
+                        >
+                          Edit / Inspect
+                        </button>
+                      )}
+                    </footer>
+                  </div>
                 </div>
-                <footer>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changeActive(active.id, (lora) => ({
-                        ...lora,
-                        keywords: lora.keywords.map((keyword) => ({
-                          ...keyword,
-                          enabled: false,
-                        })),
-                      }))
-                    }
-                  >
-                    Clear terms
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!source}
-                    onClick={() =>
-                      source &&
-                      changeActive(active.id, (lora) =>
-                        restoreLoraDefaults(lora, source),
-                      )
-                    }
-                  >
-                    Defaults
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!source || savingId !== null}
-                    onClick={() => void saveDefaults(active)}
-                  >
-                    {savingId === active.id ? "Saving…" : "Save defaults"}
-                  </button>
-                </footer>
               </article>
             );
           })}
@@ -545,18 +629,28 @@ export function PromptTools({
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    disabled={pinned}
-                    onClick={() =>
-                      onLorasChange([
-                        ...activeLoras,
-                        activeLoraFromCatalog(lora),
-                      ])
-                    }
-                  >
-                    {pinned ? "Pinned" : "Pin"}
-                  </button>
+                  <div className="lora-library__actions">
+                    <button
+                      type="button"
+                      className="lora-library__edit-btn"
+                      onClick={() => setInspectingLora(lora)}
+                      title="Edit LoRA defaults and preview"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pinned}
+                      onClick={() =>
+                        onLorasChange([
+                          ...activeLoras,
+                          activeLoraFromCatalog(lora),
+                        ])
+                      }
+                    >
+                      {pinned ? "Pinned" : "Pin"}
+                    </button>
+                  </div>
                 </article>
               );
             })}
@@ -664,6 +758,21 @@ export function PromptTools({
           </section>
         </div>
       </details>
+
+      <LoraDetailModal
+        lora={inspectingLora}
+        onClose={() => setInspectingLora(null)}
+        onSaveDefaults={async (lora, defaults) => {
+          if (onUpdateLoraDefaults) {
+            await onUpdateLoraDefaults(lora, defaults);
+          } else {
+            const active = activeLoraFromCatalog({ ...lora, defaults });
+            await onSaveDefaults(lora, active);
+          }
+          setInspectingLora((curr) => (curr ? { ...curr, defaults } : null));
+        }}
+        onUploadPreview={onUploadLoraPreview}
+      />
     </section>
   );
 }

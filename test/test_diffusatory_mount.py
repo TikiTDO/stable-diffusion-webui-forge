@@ -68,6 +68,50 @@ class DiffusatoryMountTests(unittest.TestCase):
             self.assertEqual("fresh", response.json()[0]["name"])
             discover_mock.assert_called_once_with()
 
+    def test_put_lora_preview_saves_and_returns_updated_catalog_item(self) -> None:
+        from diffusatory.server.lora_catalog import lora_id
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "portrait.safetensors"
+            path.write_bytes(b"model")
+            network = SimpleNamespace(
+                filename=str(path),
+                metadata={},
+                name="portrait",
+                alias="portrait",
+                sd_version=SimpleNamespace(name="SDXL"),
+                get_alias=lambda: "portrait",
+            )
+            fake_networks = SimpleNamespace(
+                available_networks={"portrait": network},
+                list_available_networks=Mock(),
+            )
+            fake_shared = SimpleNamespace(
+                cmd_opts=SimpleNamespace(lora_dir=directory),
+            )
+            app = FastAPI()
+            mount_diffusatory(app, dist=Path(directory) / "missing")
+            with (
+                patch.dict(sys.modules, {"networks": fake_networks}),
+                patch.object(modules, "shared", fake_shared, create=True),
+            ):
+                client = TestClient(app)
+                identifier = lora_id(path)
+
+                put_resp = client.put(
+                    f"/diffusatory/api/v1/loras/{identifier}/preview",
+                    content=b"png-image-bytes",
+                    headers={"Content-Type": "image/png"},
+                )
+                self.assertEqual(200, put_resp.status_code)
+                body = put_resp.json()
+                self.assertIn("preview_url", body)
+                self.assertIsNotNone(body["preview_url"])
+
+                get_resp = client.get(f"/diffusatory/api/v1/loras/{identifier}/preview")
+                self.assertEqual(200, get_resp.status_code)
+                self.assertEqual(b"png-image-bytes", get_resp.content)
+
     def test_instance_descriptor_reflects_available_routes(self) -> None:
         with (
             tempfile.TemporaryDirectory() as directory,

@@ -1397,6 +1397,448 @@ h2 {
   font-size: 13px;
 }
 
+.active-lora__body {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.active-lora__thumbnail {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.active-lora__placeholder {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px dashed var(--line);
+  font-weight: 700;
+  color: var(--quiet);
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+}
+
+.active-lora__details {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.active-lora__model-badge {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.active-lora__description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--quiet);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-lora__notes {
+  margin: 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--quiet);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lora-library__actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lora-library__edit-btn {
+  border: 1px solid var(--line-strong) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--quiet) !important;
+  padding: 5px 8px !important;
+  font-size: 12px !important;
+}
+
+.lora-library__edit-btn:hover {
+  color: var(--ink) !important;
+  border-color: var(--ink) !important;
+}
+
+/* LoRA Detail / Large Edit Modal */
+.lora-detail-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 4, 9, 0.85);
+  backdrop-filter: blur(12px);
+}
+
+.lora-detail-modal {
+  width: min(840px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: #111019;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.lora-detail-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lora-detail-modal__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.lora-detail-modal__family-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(121, 215, 172, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(121, 215, 172, 0.3);
+}
+
+.lora-detail-modal__base-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+}
+
+.lora-detail-modal__header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.lora-detail-modal__path {
+  color: var(--quiet);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.lora-detail-modal__close {
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 18px;
+}
+
+.lora-detail-modal__body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
+
+.lora-detail-modal__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lora-detail-modal__preview-box {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background: #09080e;
+  display: grid;
+  place-items: center;
+}
+
+.lora-detail-modal__preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lora-detail-modal__preview-placeholder {
+  color: var(--quiet);
+  font-size: 13px;
+  text-align: center;
+  padding: 16px;
+}
+
+.lora-detail-modal__upload-btn {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.lora-detail-modal__meta {
+  font-size: 12px;
+  color: var(--quiet);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lora-detail-modal__meta p {
+  margin: 0;
+}
+
+.lora-detail-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lora-detail-modal__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.lora-detail-modal__row label,
+.lora-detail-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.lora-detail-modal__row label span,
+.lora-detail-modal__field span,
+.lora-detail-modal__section-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--quiet);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lora-detail-modal__form input[type="text"],
+.lora-detail-modal__form input[type="number"],
+.lora-detail-modal__form select,
+.lora-detail-modal__form textarea {
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: rgba(10, 9, 15, 0.9);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.lora-detail-modal__form textarea {
+  resize: vertical;
+}
+
+.lora-detail-modal__keywords-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lora-detail-modal__keywords-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.lora-detail-modal__keyword-item {
+  display: flex;
+  align-items: center;
+}
+
+.lora-detail-modal__keyword-toggle {
+  border-radius: 6px 0 0 6px;
+  border: 1px solid var(--line-strong);
+  padding: 4px 8px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--quiet);
+  cursor: pointer;
+}
+
+.lora-detail-modal__keyword-toggle.is-enabled {
+  color: var(--amber-bright);
+}
+
+.lora-detail-modal__keyword-item input {
+  width: 50px;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+.lora-detail-modal__keyword-remove {
+  border-radius: 0 6px 6px 0;
+  border: 1px solid var(--line-strong);
+  padding: 4px 7px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--quiet);
+  cursor: pointer;
+}
+
+.lora-detail-modal__keyword-remove:hover {
+  color: #ffaaa2;
+}
+
+.lora-detail-modal__add-keyword {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.lora-detail-modal__add-keyword input[type="text"] {
+  flex: 1;
+}
+
+.lora-detail-modal__add-keyword input[type="number"] {
+  width: 60px;
+}
+
+.lora-detail-modal__add-keyword button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.lora-detail-modal__recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.lora-detail-modal__recommendations small {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.lora-detail-modal__rec-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lora-detail-modal__rec-chip {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--quiet);
+  cursor: pointer;
+}
+
+.lora-detail-modal__rec-chip:hover {
+  border-color: var(--amber-bright);
+  color: var(--amber-bright);
+}
+
+.lora-detail-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lora-detail-modal__status {
+  font-size: 13px;
+  color: var(--green);
+}
+
+.lora-detail-modal__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.lora-detail-modal__footer-actions button {
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+}
+
+.lora-detail-modal__save-btn {
+  background: var(--amber-bright) !important;
+  color: #111019 !important;
+  font-weight: 600;
+  border-color: transparent !important;
+}
+
+@media (max-width: 640px) {
+  .lora-detail-modal__body {
+    grid-template-columns: 1fr;
+  }
+}
+
 .lora-shelf__empty {
   margin: 0;
   border: 1px dashed var(--line);

@@ -4,9 +4,11 @@ import type { Lora } from "../api/forge/types";
 import {
   activeLoraFromCatalog,
   compilePromptWithLoras,
+  indexLora,
   loraSearchMatch,
   loraSearchScore,
   promptContainsTerm,
+  searchLoraCatalog,
   visibleLoraKeywordIndexes,
 } from "./loras";
 
@@ -149,5 +151,22 @@ describe("LoRA prompt composition", () => {
     expect(visibleLoraKeywordIndexes(keywords, false)).toEqual([
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
     ]);
+  });
+
+  it("pre-indexes catalog and searches matching records efficiently", () => {
+    const first = catalogLora;
+    const second: Lora = {
+      ...catalogLora,
+      id: "lora-two",
+      name: "vivid-palette",
+      relative_path: "styles/vivid-palette.safetensors",
+      tags: ["vibrant", "color"],
+      recommended_keywords: ["vivid colors"],
+    };
+    const indexed = [indexLora(first), indexLora(second)];
+    const matches = searchLoraCatalog(indexed, "vivid");
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.lora.id).toBe("lora-two");
+    expect(matches[0]?.match.field).toBe("Title");
   });
 });

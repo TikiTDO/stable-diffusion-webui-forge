@@ -27,6 +27,7 @@ from diffusatory.server.lora_catalog import (
     find_registered_lora,
     registered_lora_preview,
     save_lora_defaults,
+    save_lora_preview,
 )
 
 
@@ -294,6 +295,30 @@ def mount_diffusatory(
         if preview is None:
             raise HTTPException(status_code=404, detail="LoRA preview not found")
         return FileResponse(preview, headers={"Accept-Ranges": "bytes"})
+
+    @router.put("/loras/{identifier}/preview", response_model=LoraCatalogItem)
+    async def put_lora_preview(
+        identifier: str, request: Request
+    ) -> LoraCatalogItem:
+        networks, root = current_loras()
+        network = find_registered_lora(networks, identifier)
+        if network is None:
+            raise HTTPException(status_code=404, detail="LoRA not found")
+        content_type = request.headers.get("content-type", "").lower()
+        extension = ".png"
+        if "jpeg" in content_type or "jpg" in content_type:
+            extension = ".jpg"
+        elif "webp" in content_type:
+            extension = ".webp"
+        data = await request.body()
+        if not data:
+            raise HTTPException(status_code=400, detail="Empty preview image")
+        if len(data) > 20 * 1024 * 1024:
+            raise HTTPException(
+                status_code=413, detail="Preview image exceeds 20MB limit"
+            )
+        save_lora_preview(network, data, extension)
+        return build_lora_item(network, root)
 
     @router.put("/loras/{identifier}/defaults", response_model=LoraCatalogItem)
     async def put_lora_defaults(

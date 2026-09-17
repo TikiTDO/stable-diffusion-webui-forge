@@ -4,6 +4,7 @@ import { ForgeClient } from "./api/forge/client";
 import type {
   InstanceDescriptor,
   Lora,
+  LoraDefaults,
   PromptExpansionInput,
   PromptExpansionMode,
   ServerActivity,
@@ -475,6 +476,30 @@ export default function App() {
       setImageImportNotice({
         kind: "success",
         message: `Saved defaults for ${lora.name}.`,
+      });
+    },
+    [client, reload],
+  );
+
+  const updateLoraDefaults = useCallback(
+    async (lora: Lora, defaults: LoraDefaults) => {
+      await client.saveLoraDefaults(lora.id, defaults);
+      reload();
+      setImageImportNotice({
+        kind: "success",
+        message: `Updated defaults for ${lora.name}.`,
+      });
+    },
+    [client, reload],
+  );
+
+  const uploadLoraPreview = useCallback(
+    async (lora: Lora, file: File) => {
+      await client.uploadLoraPreview(lora.id, file);
+      reload();
+      setImageImportNotice({
+        kind: "success",
+        message: `Updated preview for ${lora.name}.`,
       });
     },
     [client, reload],
@@ -1108,6 +1133,8 @@ export default function App() {
           onSaveModelDefault={saveCurrentModelDefault}
           onRestoreModelDefault={restoreCurrentModelDefault}
           onSaveLoraDefaults={saveCurrentLoraDefaults}
+          onUpdateLoraDefaults={updateLoraDefaults}
+          onUploadLoraPreview={uploadLoraPreview}
           onRefreshLoras={refreshLoras}
           onRefreshCheckpoints={refreshCheckpoints}
           onGenerate={(operation, inpaintOnlyMasked) =>
@@ -1352,6 +1379,8 @@ export default function App() {
           onSaveModelDefault={saveCurrentModelDefault}
           onRestoreModelDefault={restoreCurrentModelDefault}
           onSaveLoraDefaults={saveCurrentLoraDefaults}
+          onUpdateLoraDefaults={updateLoraDefaults}
+          onUploadLoraPreview={uploadLoraPreview}
           onRefreshLoras={refreshLoras}
           onRefreshCheckpoints={refreshCheckpoints}
           onEditSettingsChange={(patch) =>

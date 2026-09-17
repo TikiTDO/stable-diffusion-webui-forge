@@ -3,6 +3,7 @@ import { forwardRef } from "react";
 import type {
   ForgeCatalog,
   Lora,
+  LoraDefaults,
   PromptExpansionMode,
   PromptExpansionResponse,
 } from "../api/forge/types";
@@ -59,6 +60,8 @@ interface FocusedEditWorkspaceProps {
   onSaveModelDefault: () => void;
   onRestoreModelDefault: () => void;
   onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
+  onUpdateLoraDefaults?: (lora: Lora, defaults: LoraDefaults) => Promise<void>;
+  onUploadLoraPreview?: (lora: Lora, file: File) => Promise<void>;
   onRefreshLoras: () => Promise<number>;
   onRefreshCheckpoints: () => Promise<number | string>;
   onEditSettingsChange: (patch: Partial<ImageEditSettings>) => void;
@@ -129,6 +132,8 @@ export const FocusedEditWorkspace = forwardRef<
     onSaveModelDefault,
     onRestoreModelDefault,
     onSaveLoraDefaults,
+    onUpdateLoraDefaults,
+    onUploadLoraPreview,
     onRefreshLoras,
     onRefreshCheckpoints,
     onEditSettingsChange,
@@ -631,6 +636,8 @@ export const FocusedEditWorkspace = forwardRef<
               onLorasChange={(loras) => onDraftChange({ loras })}
               onInsertEmbedding={insertEmbedding}
               onSaveDefaults={onSaveLoraDefaults}
+              onUpdateLoraDefaults={onUpdateLoraDefaults}
+              onUploadLoraPreview={onUploadLoraPreview}
               onRefreshLibrary={onRefreshLoras}
             />
           )}

@@ -235,6 +235,25 @@ export class ForgeClient {
     return readJson<Lora>(response);
   }
 
+  async uploadLoraPreview(
+    identifier: string,
+    file: Blob | File,
+    signal?: AbortSignal,
+  ): Promise<Lora> {
+    const response = await this.fetcher(
+      `${this.baseUrl}/diffusatory/api/v1/loras/${encodeURIComponent(identifier)}/preview`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "image/png",
+        },
+        signal,
+        body: file,
+      },
+    );
+    return readJson<Lora>(response);
+  }
+
   async refreshLoras(signal?: AbortSignal): Promise<Lora[]> {
     const response = await this.fetcher(
       `${this.baseUrl}/diffusatory/api/v1/loras/refresh`,

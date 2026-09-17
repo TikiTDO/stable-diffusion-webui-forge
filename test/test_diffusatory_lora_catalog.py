@@ -11,6 +11,7 @@ from diffusatory.server.lora_catalog import (
     find_registered_lora,
     lora_id,
     save_lora_defaults,
+    save_lora_preview,
 )
 
 
@@ -168,6 +169,26 @@ class DiffusatoryLoraCatalogTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(item.defaults.preferred_strength, 1.0)
+
+    def test_saves_preview_image_atomically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            model = root / "portrait.safetensors"
+            model.write_bytes(b"weights")
+            old_preview = model.with_suffix(".jpg")
+            old_preview.write_bytes(b"old-jpg-data")
+            network = self.network(model)
+
+            preview_path = save_lora_preview(network, b"new-png-bytes", ".png")
+
+            self.assertEqual(preview_path, model.with_suffix(".png"))
+            self.assertEqual(preview_path.read_bytes(), b"new-png-bytes")
+            self.assertFalse(old_preview.exists())
+            self.assertEqual(list(root.glob(".*.tmp")), [])
+
+            item = build_lora_item(network, root)
+            self.assertIsNotNone(item.preview_url)
+            self.assertIn(item.id, item.preview_url)
 
     def test_opaque_id_resolves_only_a_registered_model(self):
         one = self.network(Path("/tmp/one.safetensors"))

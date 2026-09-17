@@ -29,6 +29,34 @@ describe("ForgeClient", () => {
     ]);
   });
 
+  it("persists LoRA defaults and uploads previews over the native API", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      return json({ id: "test-lora" });
+    };
+
+    const client = new ForgeClient("", fetcher);
+    const defaults = {
+      description: "Test desc",
+      model_family: "sdxl" as const,
+      preferred_strength: 0.9,
+      keywords: [],
+      notes: "Test note",
+    };
+    await client.saveLoraDefaults("test-lora", defaults);
+    const blob = new Blob(["preview-bytes"], { type: "image/png" });
+    await client.uploadLoraPreview("test-lora", blob);
+
+    expect(calls[0]?.[0]).toBe("/diffusatory/api/v1/loras/test-lora/defaults");
+    expect(calls[0]?.[1]?.method).toBe("PUT");
+    expect(JSON.parse(calls[0]?.[1]?.body as string)).toEqual(defaults);
+
+    expect(calls[1]?.[0]).toBe("/diffusatory/api/v1/loras/test-lora/preview");
+    expect(calls[1]?.[1]?.method).toBe("PUT");
+    expect((calls[1]?.[1]?.headers as Record<string, string>)?.["Content-Type"]).toBe("image/png");
+  });
+
   it("rescans checkpoints and returns the refreshed profiles together", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {

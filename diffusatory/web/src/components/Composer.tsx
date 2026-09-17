@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ForgeCatalog, Lora } from "../api/forge/types";
+import type { ForgeCatalog, Lora, LoraDefaults } from "../api/forge/types";
 import type { ControlNetCatalog } from "../api/forge/types";
 import type {
   PromptExpansionMode,
@@ -41,6 +41,8 @@ interface ComposerProps {
   onSaveModelDefault: () => void;
   onRestoreModelDefault: () => void;
   onSaveLoraDefaults: (lora: Lora, active: ActiveLora) => Promise<void>;
+  onUpdateLoraDefaults?: (lora: Lora, defaults: LoraDefaults) => Promise<void>;
+  onUploadLoraPreview?: (lora: Lora, file: File) => Promise<void>;
   onRefreshLoras: () => Promise<number>;
   onRefreshCheckpoints: () => Promise<number | string>;
   onGenerate: (
@@ -113,6 +115,8 @@ export function Composer({
   onSaveModelDefault,
   onRestoreModelDefault,
   onSaveLoraDefaults,
+  onUpdateLoraDefaults,
+  onUploadLoraPreview,
   onRefreshLoras,
   onRefreshCheckpoints,
   onGenerate,
@@ -672,6 +676,8 @@ export function Composer({
             onLorasChange={(loras) => onChange({ loras })}
             onInsertEmbedding={insertEmbedding}
             onSaveDefaults={onSaveLoraDefaults}
+            onUpdateLoraDefaults={onUpdateLoraDefaults}
+            onUploadLoraPreview={onUploadLoraPreview}
             onRefreshLibrary={onRefreshLoras}
           />
         )}

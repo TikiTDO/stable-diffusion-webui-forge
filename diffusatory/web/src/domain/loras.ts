@@ -202,49 +202,25 @@ function normalizedField(value: string): NormalizedField {
   return { text, sourceIndexes };
 }
 
-function matchField(value: string, search: string): { indexes: number[]; score: number } | null {
-  const candidate = normalizedField(value);
-  const query = normalizedField(search).text;
-  if (!query || !candidate.text) return null;
+export interface IndexedSearchField {
+  group: LoraSearchGroup;
+  field: LoraSearchMatch["field"];
+  value: string;
+  penalty: number;
+  normalized: NormalizedField;
+}
 
-  const direct = candidate.text.indexOf(query);
-  if (direct >= 0) {
-    return {
-      indexes: [...new Set(candidate.sourceIndexes.slice(direct, direct + query.length))],
-      score: direct * 0.01,
-    };
-  }
-  // Tiny fuzzy queries turn almost every metadata corpus into a match. Keep
-  // one- and two-character searches literal; fuzzy matching starts at three.
-  if (query.length < 3) return null;
+export interface IndexedLora {
+  lora: Lora;
+  fields: IndexedSearchField[];
+  fullIndexText: string;
+}
 
-  const normalizedIndexes: number[] = [];
-  let queryIndex = 0;
-  for (
-    let candidateIndex = 0;
-    candidateIndex < candidate.text.length && queryIndex < query.length;
-    candidateIndex += 1
-  ) {
-    if (candidate.text[candidateIndex] === query[queryIndex]) {
-      normalizedIndexes.push(candidateIndex);
-      queryIndex += 1;
-    }
-  }
-  if (queryIndex !== query.length) return null;
-
-  const first = normalizedIndexes[0];
-  const last = normalizedIndexes.at(-1) ?? first;
-  const span = last - first + 1;
-  const gaps = span - query.length;
-  if (query.length / span < 0.45 || gaps > Math.max(6, query.length)) {
-    return null;
-  }
-  return {
-    indexes: [
-      ...new Set(normalizedIndexes.map((index) => candidate.sourceIndexes[index])),
-    ],
-    score: 5 + gaps * 0.25 + first * 0.02,
-  };
+interface SearchField {
+  group: LoraSearchGroup;
+  field: LoraSearchMatch["field"];
+  value: string;
+  penalty: number;
 }
 
 function searchFields(lora: Lora): SearchField[] {
@@ -256,12 +232,22 @@ function searchFields(lora: Lora): SearchField[] {
     ...lora.defaults.keywords.map((keyword) => keyword.text),
     ...lora.recommended_keywords,
   ].filter((value, index, values) =>
-    values.findIndex((candidate) => candidate.toLocaleLowerCase() === value.toLocaleLowerCase()) === index,
+    values.findIndex(
+      (candidate) =>
+        candidate.toLocaleLowerCase() === value.toLocaleLowerCase(),
+    ) === index,
   );
   return [
     { group: "identity", field: "Title", value: lora.name, penalty: 0 },
     ...(lora.alias && lora.alias !== lora.name
-      ? [{ group: "identity" as const, field: "Alias" as const, value: lora.alias, penalty: 0.1 }]
+      ? [
+          {
+            group: "identity" as const,
+            field: "Alias" as const,
+            value: lora.alias,
+            penalty: 0.1,
+          },
+        ]
       : []),
     {
       group: "identity",
@@ -272,7 +258,14 @@ function searchFields(lora: Lora): SearchField[] {
       penalty: 0.2,
     },
     ...(lora.relative_path.includes("/")
-      ? [{ group: "identity" as const, field: "Path" as const, value: pathWithoutModelExtension, penalty: 0.3 }]
+      ? [
+          {
+            group: "identity" as const,
+            field: "Path" as const,
+            value: pathWithoutModelExtension,
+            penalty: 0.3,
+          },
+        ]
       : []),
     ...lora.tags.map((value) => ({
       group: "tags" as const,
@@ -287,23 +280,116 @@ function searchFields(lora: Lora): SearchField[] {
       penalty: 0,
     })),
     ...(lora.description
-      ? [{ group: "details" as const, field: "Description" as const, value: lora.description, penalty: 0 }]
+      ? [
+          {
+            group: "details" as const,
+            field: "Description" as const,
+            value: lora.description,
+            penalty: 0,
+          },
+        ]
       : []),
     ...(lora.defaults.notes
-      ? [{ group: "details" as const, field: "Notes" as const, value: lora.defaults.notes, penalty: 0.1 }]
+      ? [
+          {
+            group: "details" as const,
+            field: "Notes" as const,
+            value: lora.defaults.notes,
+            penalty: 0.1,
+          },
+        ]
       : []),
   ];
 }
 
-/** Return the best field in the first matching result group. */
-export function loraSearchMatch(lora: Lora, search: string): LoraSearchMatch | null {
-  if (!normalizedField(search).text) return null;
-  const fields = searchFields(lora);
+const INDEXED_LORA_CACHE = new WeakMap<Lora, IndexedLora>();
+
+export function indexLora(lora: Lora): IndexedLora {
+  let cached = INDEXED_LORA_CACHE.get(lora);
+  if (!cached) {
+    const rawFields = searchFields(lora);
+    const fields: IndexedSearchField[] = rawFields.map((field) => ({
+      ...field,
+      normalized: normalizedField(field.value),
+    }));
+    cached = {
+      lora,
+      fields,
+      fullIndexText: fields.map((field) => field.normalized.text).join(" "),
+    };
+    INDEXED_LORA_CACHE.set(lora, cached);
+  }
+  return cached;
+}
+
+function matchIndexedField(
+  candidate: IndexedSearchField,
+  query: NormalizedField,
+): { indexes: number[]; score: number } | null {
+  if (!query.text || !candidate.normalized.text) return null;
+
+  const direct = candidate.normalized.text.indexOf(query.text);
+  if (direct >= 0) {
+    return {
+      indexes: [
+        ...new Set(
+          candidate.normalized.sourceIndexes.slice(
+            direct,
+            direct + query.text.length,
+          ),
+        ),
+      ],
+      score: direct * 0.01,
+    };
+  }
+  // Tiny fuzzy queries turn almost every metadata corpus into a match. Keep
+  // one- and two-character searches literal; fuzzy matching starts at three.
+  if (query.text.length < 3) return null;
+
+  const normalizedIndexes: number[] = [];
+  let queryIndex = 0;
+  for (
+    let candidateIndex = 0;
+    candidateIndex < candidate.normalized.text.length &&
+    queryIndex < query.text.length;
+    candidateIndex += 1
+  ) {
+    if (candidate.normalized.text[candidateIndex] === query.text[queryIndex]) {
+      normalizedIndexes.push(candidateIndex);
+      queryIndex += 1;
+    }
+  }
+  if (queryIndex !== query.text.length) return null;
+
+  const first = normalizedIndexes[0];
+  const last = normalizedIndexes.at(-1) ?? first;
+  const span = last - first + 1;
+  const gaps = span - query.text.length;
+  if (query.text.length / span < 0.45 || gaps > Math.max(6, query.text.length)) {
+    return null;
+  }
+  return {
+    indexes: [
+      ...new Set(
+        normalizedIndexes.map(
+          (index) => candidate.normalized.sourceIndexes[index],
+        ),
+      ),
+    ],
+    score: 5 + gaps * 0.25 + first * 0.02,
+  };
+}
+
+export function searchIndexedLora(
+  indexed: IndexedLora,
+  query: NormalizedField,
+): LoraSearchMatch | null {
+  if (!query.text) return null;
   for (const group of SEARCH_GROUP_ORDER) {
     let best: LoraSearchMatch | null = null;
-    for (const candidate of fields) {
+    for (const candidate of indexed.fields) {
       if (candidate.group !== group || !candidate.value) continue;
-      const match = matchField(candidate.value, search);
+      const match = matchIndexedField(candidate, query);
       if (!match) continue;
       const result: LoraSearchMatch = {
         group,
@@ -319,9 +405,36 @@ export function loraSearchMatch(lora: Lora, search: string): LoraSearchMatch | n
   return null;
 }
 
+export function searchLoraCatalog(
+  indexedLoras: IndexedLora[],
+  search: string,
+): Array<{ lora: Lora; match: LoraSearchMatch; score: number }> {
+  const query = normalizedField(search);
+  if (!query.text) return [];
+  const results: Array<{ lora: Lora; match: LoraSearchMatch; score: number }> = [];
+  for (const indexed of indexedLoras) {
+    if (query.text.length < 3 && !indexed.fullIndexText.includes(query.text)) {
+      continue;
+    }
+    const match = searchIndexedLora(indexed, query);
+    if (match) {
+      results.push({ lora: indexed.lora, match, score: match.score });
+    }
+  }
+  return results;
+}
+
+/** Return the best field in the first matching result group. */
+export function loraSearchMatch(lora: Lora, search: string): LoraSearchMatch | null {
+  const query = normalizedField(search);
+  if (!query.text) return null;
+  return searchIndexedLora(indexLora(lora), query);
+}
+
 export function loraSearchScore(lora: Lora, search: string): number | null {
   if (!normalizedField(search).text) return 0;
   const match = loraSearchMatch(lora, search);
   if (!match) return null;
   return SEARCH_GROUP_ORDER.indexOf(match.group) * 100 + match.score;
 }
+

@@ -345,3 +345,39 @@ def save_lora_defaults(network: Any, defaults: LoraDefaults) -> None:
 
 def registered_lora_preview(network: Any) -> Path | None:
     return _preview_path(Path(network.filename))
+
+
+def save_lora_preview(
+    network: Any, data: bytes, extension: str = ".png"
+) -> Path:
+    normalized_ext = extension.lower()
+    if normalized_ext not in PREVIEW_EXTENSIONS:
+        normalized_ext = ".png"
+    model_path = Path(network.filename)
+    destination = model_path.with_suffix(normalized_ext)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        dir=destination.parent, prefix=f".{destination.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+        for ext in PREVIEW_EXTENSIONS:
+            if ext != normalized_ext:
+                old_candidate = model_path.with_suffix(ext)
+                if old_candidate.is_file():
+                    try:
+                        old_candidate.unlink()
+                    except OSError:
+                        pass
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
+    return destination
+
