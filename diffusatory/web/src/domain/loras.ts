@@ -438,3 +438,40 @@ export function loraSearchScore(lora: Lora, search: string): number | null {
   return SEARCH_GROUP_ORDER.indexOf(match.group) * 100 + match.score;
 }
 
+export function extractMatchExcerpt(
+  value: string,
+  indexes: number[],
+  maxChars = 80,
+): { excerpt: string; excerptIndexes: number[] } {
+  if (value.length <= maxChars) {
+    return { excerpt: value, excerptIndexes: indexes };
+  }
+  const firstIndex = indexes.length > 0 ? Math.min(...indexes) : 0;
+  const lastIndex = indexes.length > 0 ? Math.max(...indexes) : 0;
+  let start: number;
+  if (lastIndex - firstIndex < maxChars) {
+    const matchCenter = Math.floor((firstIndex + lastIndex) / 2);
+    start = Math.max(0, matchCenter - Math.floor(maxChars / 2));
+  } else {
+    start = Math.max(0, firstIndex - 10);
+  }
+  let end = Math.min(value.length, start + maxChars);
+  if (end - start < maxChars) {
+    start = Math.max(0, end - maxChars);
+  }
+
+  const prefix = start > 0 ? "…" : "";
+  const suffix = end < value.length ? "…" : "";
+  const sliced = value.slice(start, end);
+  const prefixLength = prefix.length;
+
+  const excerptIndexes = indexes
+    .filter((idx) => idx >= start && idx < end)
+    .map((idx) => idx - start + prefixLength);
+
+  return {
+    excerpt: `${prefix}${sliced}${suffix}`,
+    excerptIndexes,
+  };
+}
+

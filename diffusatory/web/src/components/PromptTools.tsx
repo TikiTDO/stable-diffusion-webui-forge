@@ -4,6 +4,7 @@ import type { ForgeCatalog, Lora, LoraDefaults } from "../api/forge/types";
 import { indexEmbeddings, searchEmbeddings } from "../domain/embeddings";
 import {
   activeLoraFromCatalog,
+  extractMatchExcerpt,
   indexLora,
   loraSearchMatch,
   restoreLoraDefaults,
@@ -240,17 +241,24 @@ function VirtualLoraGrid({
               <small>
                 {lora.model_family.toUpperCase()} · {lora.relative_path}
               </small>
-              {match && match.field !== "Title" ? (
-                <p className="lora-library__match">
-                  <span className="lora-library__match-field">
-                    {match.field}
-                  </span>
-                  <HighlightedText
-                    value={match.value}
-                    indexes={match.indexes}
-                  />
-                </p>
-              ) : (lora.defaults.keywords.length > 0 ||
+              {match && match.field !== "Title" ? (() => {
+                const { excerpt, excerptIndexes } = extractMatchExcerpt(
+                  match.value,
+                  match.indexes,
+                  80,
+                );
+                return (
+                  <p className="lora-library__match">
+                    <span className="lora-library__match-field">
+                      {match.field}
+                    </span>
+                    <HighlightedText
+                      value={excerpt}
+                      indexes={excerptIndexes}
+                    />
+                  </p>
+                );
+              })() : (lora.defaults.keywords.length > 0 ||
                 lora.recommended_keywords.length > 0) && (
                 <p>
                   {(lora.defaults.keywords.map((keyword) => keyword.text)

@@ -4,6 +4,7 @@ import type { Lora } from "../api/forge/types";
 import {
   activeLoraFromCatalog,
   compilePromptWithLoras,
+  extractMatchExcerpt,
   indexLora,
   loraSearchMatch,
   loraSearchScore,
@@ -168,5 +169,32 @@ describe("LoRA prompt composition", () => {
     expect(matches).toHaveLength(1);
     expect(matches[0]?.lora.id).toBe("lora-two");
     expect(matches[0]?.match.field).toBe("Title");
+  });
+
+  it("extracts bounded snippets around search match indices without ballooning", () => {
+    const longDescription =
+      "A very long description that goes on and on for several paragraphs describing how this adapter works in minute detail. Near the middle is an ancient artifact with mysterious runes inscribed upon its surface, and then the text continues for several more paragraphs to provide background lore and recommended negative prompts.";
+    const target = "ancient artifact";
+    const matchIndex = longDescription.indexOf(target);
+    const indexes = Array.from(
+      { length: target.length },
+      (_, i) => matchIndex + i,
+    );
+
+    const { excerpt, excerptIndexes } = extractMatchExcerpt(
+      longDescription,
+      indexes,
+      60,
+    );
+
+    expect(excerpt.length).toBeLessThanOrEqual(65); // 60 chars + ellipses
+    expect(excerpt).toContain("ancient artifact");
+    expect(excerptIndexes).toHaveLength(target.length);
+
+    // Verify highlighting matches substring in excerpt
+    const highlightedSubstring = excerptIndexes
+      .map((idx) => excerpt[idx])
+      .join("");
+    expect(highlightedSubstring).toBe("ancient artifact");
   });
 });
