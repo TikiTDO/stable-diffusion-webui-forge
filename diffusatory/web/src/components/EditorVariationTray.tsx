@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { EditorSession, EditorVariation } from "../domain/editorVariations";
 import {
+  buildSessionHierarchy,
   DEFAULT_PRIMARY_SESSION,
   PRIMARY_SESSION_ID,
   REMOVED_SESSION_ID,
+  type HierarchicalSession,
 } from "../domain/editorVariations";
 
 interface EditorVariationTrayProps {
@@ -45,6 +47,18 @@ export function EditorVariationTray({
 
   const activeSessions = sessions.filter((s) => s.id !== REMOVED_SESSION_ID);
   const trashItems = variations.filter((v) => v.sessionId === REMOVED_SESSION_ID);
+
+  const hierarchy = buildSessionHierarchy(activeSessions);
+  const orderedSessions: EditorSession[] = [];
+  const appendHierarchy = (nodes: HierarchicalSession[]) => {
+    for (const node of nodes) {
+      orderedSessions.push(node);
+      if (node.children?.length) {
+        appendHierarchy(node.children as HierarchicalSession[]);
+      }
+    }
+  };
+  appendHierarchy(hierarchy);
 
   const handleCreateSession = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,10 +112,13 @@ export function EditorVariationTray({
       )}
 
       <div className="editor-variations__sessions-list">
-        {activeSessions.map((session) => {
+        {orderedSessions.map((session) => {
           const sessionVariations = variations.filter(
             (v) => (v.sessionId ?? PRIMARY_SESSION_ID) === session.id,
           );
+          const sourceVar = session.sourceImageId
+            ? variations.find((v) => v.id === session.sourceImageId)
+            : null;
 
           return (
             <div
@@ -120,6 +137,18 @@ export function EditorVariationTray({
                   <span className="collapse-arrow">{session.collapsed ? "▶" : "▼"}</span>
                   {session.parentId && <span className="child-indicator">↳ </span>}
                   <span className="session-title">{session.label}</span>
+                  {sourceVar && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: "var(--amber-dim, #c99355)",
+                        marginLeft: "6px",
+                      }}
+                      title={`Branched from ${sourceVar.label}`}
+                    >
+                      (from {sourceVar.label})
+                    </span>
+                  )}
                 </button>
                 <div className="editor-variations__session-actions">
                   {onSelectSession && (

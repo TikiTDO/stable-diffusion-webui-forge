@@ -2522,6 +2522,18 @@ h2 {
   flex-flow: row wrap;
 }
 
+.ingredient-list--virtual {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 2px;
+}
+
+.ingredient-list--virtual button {
+  width: 100%;
+  text-align: left;
+}
+
 .embedding-target-picker {
   display: grid;
   gap: 6px;

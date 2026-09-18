@@ -98,7 +98,7 @@ interface VirtualLoraGridProps {
   setInspectingLora: (lora: Lora) => void;
 }
 
-const ESTIMATED_ITEM_HEIGHT = 88;
+const ESTIMATED_ITEM_HEIGHT = 95;
 const OVERSCAN = 6;
 const VIRTUALIZE_THRESHOLD = 20;
 
@@ -278,6 +278,126 @@ function VirtualLoraGrid({
           style={{ height: `${bottomSpacerHeight}px`, gridColumn: "1 / -1" }}
           aria-hidden="true"
         />
+      )}
+    </div>
+  );
+}
+
+interface VirtualEmbeddingListProps {
+  embeddings: string[];
+  pendingEmbedding: string | null;
+  onTogglePending: (name: string) => void;
+}
+
+const EMBEDDING_ROW_HEIGHT = 32;
+const EMBEDDING_VIRTUALIZE_THRESHOLD = 24;
+
+function VirtualEmbeddingList({
+  embeddings,
+  pendingEmbedding,
+  onTogglePending,
+}: VirtualEmbeddingListProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [visibleRange, setVisibleRange] = useState<{ start: number; end: number }>({
+    start: 0,
+    end: Math.min(embeddings.length, EMBEDDING_VIRTUALIZE_THRESHOLD),
+  });
+
+  const updateVisibleRange = useCallback(() => {
+    if (embeddings.length <= EMBEDDING_VIRTUALIZE_THRESHOLD) {
+      setVisibleRange({ start: 0, end: embeddings.length });
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) return;
+
+    const scrollTop = container.scrollTop;
+    const viewportHeight = container.clientHeight;
+
+    const start = Math.max(0, Math.floor(scrollTop / EMBEDDING_ROW_HEIGHT) - 4);
+    const end = Math.min(
+      embeddings.length,
+      Math.ceil((scrollTop + viewportHeight) / EMBEDDING_ROW_HEIGHT) + 4,
+    );
+
+    setVisibleRange((prev) => {
+      if (prev.start === start && prev.end === end) return prev;
+      return { start, end };
+    });
+  }, [embeddings.length]);
+
+  useEffect(() => {
+    updateVisibleRange();
+  }, [updateVisibleRange]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || embeddings.length <= EMBEDDING_VIRTUALIZE_THRESHOLD) return;
+
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateVisibleRange();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [embeddings.length, updateVisibleRange]);
+
+  if (embeddings.length <= EMBEDDING_VIRTUALIZE_THRESHOLD) {
+    return (
+      <div className="ingredient-list ingredient-list--wrap">
+        {embeddings.map((name) => (
+          <button
+            type="button"
+            key={name}
+            className={pendingEmbedding === name ? "is-selected" : ""}
+            aria-expanded={pendingEmbedding === name}
+            onClick={() => onTogglePending(name)}
+          >
+            + {name}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  const { start, end } = visibleRange;
+  const topSpacerHeight = start * EMBEDDING_ROW_HEIGHT;
+  const bottomSpacerHeight = Math.max(
+    0,
+    (embeddings.length - end) * EMBEDDING_ROW_HEIGHT,
+  );
+
+  return (
+    <div
+      className="ingredient-list ingredient-list--virtual"
+      ref={containerRef}
+      style={{ maxHeight: "240px", overflowY: "auto" }}
+    >
+      {topSpacerHeight > 0 && (
+        <div style={{ height: `${topSpacerHeight}px`, width: "100%" }} aria-hidden="true" />
+      )}
+      {embeddings.slice(start, end).map((name) => (
+        <button
+          type="button"
+          key={name}
+          className={pendingEmbedding === name ? "is-selected" : ""}
+          aria-expanded={pendingEmbedding === name}
+          onClick={() => onTogglePending(name)}
+        >
+          + {name}
+        </button>
+      ))}
+      {bottomSpacerHeight > 0 && (
+        <div style={{ height: `${bottomSpacerHeight}px`, width: "100%" }} aria-hidden="true" />
       )}
     </div>
   );
@@ -808,23 +928,13 @@ export function PromptTools({
           </label>
           <section>
             <h3>Embeddings</h3>
-            <div className="ingredient-list ingredient-list--wrap">
-              {embeddings.map((name) => (
-                <button
-                  type="button"
-                  key={name}
-                  className={pendingEmbedding === name ? "is-selected" : ""}
-                  aria-expanded={pendingEmbedding === name}
-                  onClick={() =>
-                    setPendingEmbedding((current) =>
-                      current === name ? null : name,
-                    )
-                  }
-                >
-                  + {name}
-                </button>
-              ))}
-            </div>
+            <VirtualEmbeddingList
+              embeddings={embeddings}
+              pendingEmbedding={pendingEmbedding}
+              onTogglePending={(name) =>
+                setPendingEmbedding((current) => (current === name ? null : name))
+              }
+            />
             {pendingEmbedding && (
               <div
                 className="embedding-target-picker"

@@ -93,6 +93,10 @@ import {
   defaultsFromActiveLora,
   type ActiveLora,
 } from "./domain/loras";
+import {
+  assembleGenerationRequest,
+  buildPromptExpansionInput,
+} from "./domain/requestAssembly";
 
 interface EditorOpenOptions {
   dimensions?: { width: number; height: number };
@@ -280,29 +284,6 @@ export default function App() {
     DEFAULT_PRIMARY_SESSION,
   ]);
   const [activeSessionId, setActiveSessionId] = useState<string>(PRIMARY_SESSION_ID);
-  const handleAddSession = useCallback(
-    (label: string, parentId?: string | null, sourceImageId?: string | null) => {
-      setEditorSessions((current) => {
-        const next = createEditorSession(label, current, parentId, sourceImageId);
-        setActiveSessionId(next.id);
-        return [...current, next];
-      });
-    },
-    [],
-  );
-  const handleToggleSessionCollapse = useCallback((sessionId: string) => {
-    setEditorSessions((current) =>
-      current.map((s) => (s.id === sessionId ? { ...s, collapsed: !s.collapsed } : s)),
-    );
-  }, []);
-  const handleMoveVariation = useCallback(
-    (variationId: string, targetSessionId: string) => {
-      setEditorVariations((current) =>
-        moveVariationToSession(current, variationId, targetSessionId),
-      );
-    },
-    [],
-  );
   const loadEditorVariation = useCallback((variation: EditorVariation) => {
     setEditorReady(false);
     setEditorHasMask(false);
@@ -321,6 +302,57 @@ export default function App() {
     setGenerationSource("editor");
     setCanvasView("editor");
   }, []);
+  const handleAddSession = useCallback(
+    (label: string, parentId?: string | null, sourceImageId?: string | null) => {
+      setEditorSessions((current) => {
+        const next = createEditorSession(label, current, parentId, sourceImageId);
+        setActiveSessionId(next.id);
+        return [...current, next];
+      });
+      if (sourceImageId) {
+        const sourceVar = editorVariations.find((v) => v.id === sourceImageId);
+        if (sourceVar) {
+          loadEditorVariation(sourceVar);
+        }
+      }
+    },
+    [editorVariations, loadEditorVariation],
+  );
+  const handleSelectSession = useCallback(
+    (sessionId: string) => {
+      setActiveSessionId(sessionId);
+      const session = editorSessions.find((s) => s.id === sessionId);
+      if (!session) return;
+      const sessionVariations = editorVariations.filter(
+        (v) => (v.sessionId ?? PRIMARY_SESSION_ID) === sessionId,
+      );
+      if (sessionVariations.length > 0) {
+        const existing = sessionVariations.find((v) => v.id === activeEditorVariationId);
+        if (!existing) {
+          loadEditorVariation(sessionVariations[sessionVariations.length - 1]);
+        }
+      } else if (session.sourceImageId) {
+        const sourceVar = editorVariations.find((v) => v.id === session.sourceImageId);
+        if (sourceVar) {
+          loadEditorVariation(sourceVar);
+        }
+      }
+    },
+    [activeEditorVariationId, editorSessions, editorVariations, loadEditorVariation],
+  );
+  const handleToggleSessionCollapse = useCallback((sessionId: string) => {
+    setEditorSessions((current) =>
+      current.map((s) => (s.id === sessionId ? { ...s, collapsed: !s.collapsed } : s)),
+    );
+  }, []);
+  const handleMoveVariation = useCallback(
+    (variationId: string, targetSessionId: string) => {
+      setEditorVariations((current) =>
+        moveVariationToSession(current, variationId, targetSessionId),
+      );
+    },
+    [],
+  );
   const [activeEditOperation, setActiveEditOperation] = useState<EditOperation | null>(null);
   const [activeInpaintScope, setActiveInpaintScope] = useState<
     "masked" | "whole" | null
@@ -459,13 +491,7 @@ export default function App() {
     setActiveInpaintScope(null);
   }, [editorSession, loadEditorVariation, state.kind, state.phase, state.results, state.taskId]);
   const promptExpansionInput = useMemo<PromptExpansionInput>(
-    () => ({
-      prompt: expandPromptGroups(draft.prompt, draft.promptGroups).trim(),
-      negativePrompt: draft.negativePrompt.trim(),
-      mode: promptMode,
-      candidateCount: draft.outputs,
-      expansionSeed,
-    }),
+    () => buildPromptExpansionInput(draft, promptMode, expansionSeed),
     [draft.negativePrompt, draft.outputs, draft.prompt, draft.promptGroups, expansionSeed, promptMode],
   );
   const promptExpansionEnabled = Boolean(
@@ -751,38 +777,13 @@ export default function App() {
       );
       return;
     }
-    const composition: DiffusatoryComposition = {
-      version: 1,
-      prompt: draft.prompt,
-      negativePrompt: draft.negativePrompt,
-      loras: draft.loras,
-      promptGroups: draft.promptGroups,
-      ...(regionalComposition.enabled
-        ? { regions: regionalComposition }
-        : {}),
-    };
-    const request = {
-      ...requestFromDraft(draft),
-      prompt: promptSet.realizations.map((item) =>
-        compilePromptWithLoras(
-          expandPromptGroups(item.prompt, draft.promptGroups),
-          draft.loras,
-        ),
-      ),
-      negativePrompt: promptSet.realizations.map((item) => item.negative_prompt),
-      outputs: promptSet.realizations.length,
+    const request = assembleGenerationRequest({
+      draft,
+      realizations: promptSet.realizations,
       controlNet,
-      composition,
-      ...(regionalComposition.enabled
-        ? {
-            spatialPlan: resolveSpatialPlan(
-              regionalComposition,
-              activeDimensions.width,
-              activeDimensions.height,
-            ),
-          }
-        : {}),
-    };
+      regionalComposition,
+      activeDimensions,
+    });
     if (!sourceActive) {
       await generate({ kind: "txt2img", input: request });
       setCanvasView("variants");
@@ -812,6 +813,7 @@ export default function App() {
           { width: editor.width, height: editor.height },
           current,
           activeEditorVariationId,
+          activeSessionId,
         ),
       ]);
       setEditorDirty(false);
@@ -982,12 +984,14 @@ export default function App() {
             current.mask,
             { width: current.width, height: current.height },
             variations,
+            activeEditorVariationId,
+            activeSessionId,
           ),
         ]);
       }
       loadEditorVariation(variation);
     },
-    [activeEditorVariationId, editorDirty, editorSession, loadEditorVariation],
+    [activeEditorVariationId, activeSessionId, editorDirty, editorSession, loadEditorVariation],
   );
   const selectVariationCandidateIndex = useCallback(
     (variation: EditorVariation, candidateIndex: number) => {
@@ -1504,7 +1508,7 @@ export default function App() {
                 onAddSession={handleAddSession}
                 onToggleSessionCollapse={handleToggleSessionCollapse}
                 onMoveToSession={handleMoveVariation}
-                onSelectSession={setActiveSessionId}
+                onSelectSession={handleSelectSession}
                 onRestore={restoreEditorVariation}
               />
             </section>
@@ -1542,7 +1546,7 @@ export default function App() {
           activeVariationId={activeEditorVariationId}
           sessions={editorSessions}
           activeSessionId={activeSessionId}
-          onSelectSession={setActiveSessionId}
+          onSelectSession={handleSelectSession}
           promptMode={promptMode}
           expansionSeed={expansionSeed}
           promptExpansion={promptExpansion.response}

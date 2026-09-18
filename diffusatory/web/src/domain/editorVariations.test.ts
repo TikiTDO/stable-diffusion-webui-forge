@@ -141,4 +141,19 @@ describe("editor variations", () => {
     expect(hierarchy[0].children[0].id).toBe(childSession.id);
     expect(hierarchy[0].children[0].sourceImageId).toBe("var-source-1");
   });
+
+  it("preserves active sessionId and sourceId on working editor snapshots", () => {
+    const working = workingEditorVariation(
+      "session-1:working-1",
+      "data:image/png;base64,working",
+      null,
+      { width: 512, height: 512 },
+      [],
+      "var-source-1",
+      "sub-session-42",
+    );
+    expect(working.sourceId).toBe("var-source-1");
+    expect(working.sessionId).toBe("sub-session-42");
+    expect(working.kind).toBe("working");
+  });
 });
