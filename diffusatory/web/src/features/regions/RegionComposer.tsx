@@ -17,6 +17,7 @@ interface RegionComposerProps {
   frameHeight: number;
   commonPrompt: string;
   stageVisible: boolean;
+  promptsOnLeft?: boolean;
   onChange: (value: RegionalComposition) => void;
   onShowStage: () => void;
 }
@@ -32,6 +33,7 @@ export function RegionComposer({
   frameHeight,
   commonPrompt,
   stageVisible,
+  promptsOnLeft,
   onChange,
   onShowStage,
 }: RegionComposerProps) {
@@ -79,113 +81,137 @@ export function RegionComposer({
         </div>
       </header>
 
-      <div className="region-prompts">
-        <div className="region-common">
-          <span>Common to every region</span>
-          <p>{commonPrompt.trim() || "Shared prompt above applies to all regions"}</p>
-        </div>
-
-        {isRegionsMode ? (
-          <>
-            <label className="region-lock-control">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span>Composition lock</span>
-                <strong>{Math.round((value.lockFraction ?? 0.25) * 100)}% steps</strong>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="0.5"
-                step="0.05"
-                value={value.lockFraction ?? 0.25}
-                onChange={(event) =>
-                  onChange({ ...value, lockFraction: event.target.valueAsNumber })
-                }
-              />
-            </label>
-
-            <div className="region-cell-prompts">
-              {(value.regions ?? []).map((region, index) => {
-                const color = CELL_COLORS[index % CELL_COLORS.length];
-                const isActive = region.id === value.activeRegionId;
-                return (
-                  <div
-                    key={region.id}
-                    className={`region-card ${isActive ? "region-card--active" : ""}`}
-                    style={{ "--region-color": color } as CSSProperties}
-                    onClick={() => onChange(setActiveMovableRegion(value, region.id))}
-                  >
-                    <div className="region-card__header">
-                      <span className="region-card__title">{region.name || `REGION ${index + 1}`}</span>
-                      <button
-                        type="button"
-                        className="region-card__remove"
-                        title="Remove region"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onChange(removeMovableRegion(value, region.id));
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <textarea
-                      rows={2}
-                      value={region.prompt}
-                      placeholder="Region prompt…"
-                      onChange={(event) =>
-                        onChange(
-                          updateMovableRegion(value, region.id, { prompt: event.target.value }),
-                        )
-                      }
-                    />
-                  </div>
-                );
-              })}
+      {promptsOnLeft && isRegionsMode ? (
+        <div className="region-prompts region-prompts--compact">
+          <label className="region-lock-control">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>Composition lock</span>
+              <strong>{Math.round((value.lockFraction ?? 0.25) * 100)}% steps</strong>
             </div>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.05"
+              value={value.lockFraction ?? 0.25}
+              onChange={(event) =>
+                onChange({ ...value, lockFraction: event.target.valueAsNumber })
+              }
+            />
+          </label>
+          <div className="region-prompts-left-note">
+            Prompts editing in left column
+          </div>
+        </div>
+      ) : (
+        <div className="region-prompts">
+          <div className="region-common">
+            <span>Common to every region</span>
+            <p>{commonPrompt.trim() || "Shared prompt above applies to all regions"}</p>
+          </div>
 
-            <button
-              type="button"
-              className="region-add-btn"
-              onClick={() => onChange(addMovableRegion(value))}
-            >
-              + Add region
-            </button>
-          </>
-        ) : (
-          <div className="region-cell-prompts">
-            {plan.cells.map((cell, index) => (
-              <label key={cell.id} style={{ "--region-color": CELL_COLORS[index % CELL_COLORS.length] } as CSSProperties}>
-                <span>{cell.id.toUpperCase()}</span>
-                <textarea
-                  rows={2}
-                  value={value.cellPrompts[cell.row][cell.column]}
-                  placeholder="Region prompt…"
-                  onChange={(event) => onChange(updateCellPrompt(value, cell.row, cell.column, event.target.value))}
+          {isRegionsMode ? (
+            <>
+              <label className="region-lock-control">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Composition lock</span>
+                  <strong>{Math.round((value.lockFraction ?? 0.25) * 100)}% steps</strong>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.5"
+                  step="0.05"
+                  value={value.lockFraction ?? 0.25}
+                  onChange={(event) =>
+                    onChange({ ...value, lockFraction: event.target.valueAsNumber })
+                  }
                 />
               </label>
-            ))}
-          </div>
-        )}
 
-        <label className="region-background-prompt">
-          <span>
-            <input
-              type="checkbox"
-              checked={value.backgroundEnabled}
-              onChange={(event) => onChange({ ...value, backgroundEnabled: event.target.checked })}
+              <div className="region-cell-prompts">
+                {(value.regions ?? []).map((region, index) => {
+                  const color = CELL_COLORS[index % CELL_COLORS.length];
+                  const isActive = region.id === value.activeRegionId;
+                  return (
+                    <div
+                      key={region.id}
+                      className={`region-card ${isActive ? "region-card--active" : ""}`}
+                      style={{ "--region-color": color } as CSSProperties}
+                      onClick={() => onChange(setActiveMovableRegion(value, region.id))}
+                    >
+                      <div className="region-card__header">
+                        <span className="region-card__title">{region.name || `REGION ${index + 1}`}</span>
+                        <button
+                          type="button"
+                          className="region-card__remove"
+                          title="Remove region"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onChange(removeMovableRegion(value, region.id));
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={region.prompt}
+                        placeholder="Region prompt…"
+                        onChange={(event) =>
+                          onChange(
+                            updateMovableRegion(value, region.id, { prompt: event.target.value }),
+                          )
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                className="region-add-btn"
+                onClick={() => onChange(addMovableRegion(value))}
+              >
+                + Add region
+              </button>
+            </>
+          ) : (
+            <div className="region-cell-prompts">
+              {plan.cells.map((cell, index) => (
+                <label key={cell.id} style={{ "--region-color": CELL_COLORS[index % CELL_COLORS.length] } as CSSProperties}>
+                  <span>{cell.id.toUpperCase()}</span>
+                  <textarea
+                    rows={2}
+                    value={value.cellPrompts[cell.row][cell.column]}
+                    placeholder="Region prompt…"
+                    onChange={(event) => onChange(updateCellPrompt(value, cell.row, cell.column, event.target.value))}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+
+          <label className="region-background-prompt">
+            <span>
+              <input
+                type="checkbox"
+                checked={value.backgroundEnabled}
+                onChange={(event) => onChange({ ...value, backgroundEnabled: event.target.checked })}
+              />
+              {isRegionsMode ? "Background (scene & camera lock)" : "Prompt ungridded background"}
+            </span>
+            <textarea
+              rows={2}
+              disabled={!value.backgroundEnabled}
+              value={value.backgroundPrompt}
+              placeholder={isRegionsMode ? "Background & camera prompt for early steps…" : "Background prompt…"}
+              onChange={(event) => onChange({ ...value, backgroundPrompt: event.target.value })}
             />
-            {isRegionsMode ? "Background (scene & camera lock)" : "Prompt ungridded background"}
-          </span>
-          <textarea
-            rows={2}
-            disabled={!value.backgroundEnabled}
-            value={value.backgroundPrompt}
-            placeholder={isRegionsMode ? "Background & camera prompt for early steps…" : "Background prompt…"}
-            onChange={(event) => onChange({ ...value, backgroundPrompt: event.target.value })}
-          />
-        </label>
-      </div>
+          </label>
+        </div>
+      )}
 
       <details className="region-plan">
         <summary>Plan geometry</summary>

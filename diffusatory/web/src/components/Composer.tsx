@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import type { ForgeCatalog, Lora, LoraDefaults } from "../api/forge/types";
 import type { ControlNetCatalog } from "../api/forge/types";
 import type {
@@ -13,6 +13,12 @@ import type {
 } from "../features/controlnet/types";
 import { RegionComposer } from "../features/regions/RegionComposer";
 import type { RegionalComposition } from "../features/regions/types";
+import {
+  addMovableRegion,
+  removeMovableRegion,
+  setActiveMovableRegion,
+  updateMovableRegion,
+} from "../features/regions/model";
 import { PromptTools } from "./PromptTools";
 import { CatalogRefreshButton } from "./CatalogRefreshButton";
 import { PromptComposition } from "./PromptComposition";
@@ -21,6 +27,11 @@ import type { EditOperation, ImageEditSettings } from "../features/editor/model"
 import { profileForCheckpoint } from "../domain/modelProfiles";
 import { adjustPromptAttention } from "../domain/promptAttention";
 import type { ActiveLora } from "../domain/loras";
+
+const CELL_COLORS = [
+  "#f7b267", "#9d8df1", "#72d6b2", "#f48498",
+  "#7cc6fe", "#f9dc5c", "#c79ced", "#86deb7",
+];
 
 interface ComposerProps {
   draft: GenerationDraft;
@@ -608,46 +619,160 @@ export function Composer({
           )}
         </div>
 
-        <label className="prompt-field">
-          <span className="sr-only">Prompt</span>
-          <textarea
-            data-shortcut-target="prompt"
-            value={draft.prompt}
-            onChange={(event) => onChange({ prompt: event.target.value })}
-            onKeyDown={(event) => {
-              if (
-                (event.metaKey || event.ctrlKey) &&
-                (event.key === "ArrowUp" || event.key === "ArrowDown")
-              ) {
-                const target = event.currentTarget;
-                const edit = adjustPromptAttention(
-                  target.value,
-                  target.selectionStart,
-                  target.selectionEnd,
-                  event.key === "ArrowUp" ? 1 : -1,
-                );
-                if (edit) {
-                  event.preventDefault();
-                  onChange({ prompt: edit.text });
-                  requestAnimationFrame(() => {
-                    target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
-                  });
+        {regionalComposition.enabled ? (
+          <div className="regional-left-column">
+            <label className="region-background-field">
+              <div className="region-field-header">
+                <span>Background prompt <small>(scene & camera lock)</small></span>
+                <label className="region-background-toggle">
+                  <input
+                    type="checkbox"
+                    checked={regionalComposition.backgroundEnabled}
+                    onChange={(e) =>
+                      onRegionalCompositionChange({
+                        ...regionalComposition,
+                        backgroundEnabled: e.target.checked,
+                      })
+                    }
+                  />
+                  Enable
+                </label>
+              </div>
+              <textarea
+                rows={3}
+                disabled={!regionalComposition.backgroundEnabled}
+                value={regionalComposition.backgroundPrompt}
+                placeholder="Background scene, environment, lighting, and camera angle (runs first to lock composition)..."
+                onChange={(e) =>
+                  onRegionalCompositionChange({
+                    ...regionalComposition,
+                    backgroundPrompt: e.target.value,
+                  })
                 }
-                return;
-              }
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                event.preventDefault();
-                onGenerate(
-                  editing ? (event.shiftKey ? "inpaint" : "img2img") : undefined,
-                  event.shiftKey ? true : undefined,
+              />
+            </label>
+
+            <div className="regional-prompts-list">
+              {(regionalComposition.regions ?? []).map((region, index) => {
+                const color = CELL_COLORS[index % CELL_COLORS.length];
+                const isActive = region.id === regionalComposition.activeRegionId;
+                return (
+                  <div
+                    key={region.id}
+                    className={`regional-block ${isActive ? "regional-block--active" : ""}`}
+                    style={{ "--region-color": color } as CSSProperties}
+                    onClick={() =>
+                      onRegionalCompositionChange(
+                        setActiveMovableRegion(regionalComposition, region.id),
+                      )
+                    }
+                  >
+                    <div className="regional-block__header">
+                      <span className="regional-block__title">
+                        <span className="regional-block__dot" />
+                        {region.name || `Region ${index + 1}`}
+                      </span>
+                      <div className="regional-block__actions">
+                        {(regionalComposition.regions?.length ?? 0) > 1 && (
+                          <button
+                            type="button"
+                            className="regional-block__remove"
+                            title="Remove region"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRegionalCompositionChange(
+                                removeMovableRegion(regionalComposition, region.id),
+                              );
+                            }}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={region.prompt}
+                      placeholder={`Prompt for ${region.name || `Region ${index + 1}`}…`}
+                      onChange={(e) =>
+                        onRegionalCompositionChange(
+                          updateMovableRegion(regionalComposition, region.id, {
+                            prompt: e.target.value,
+                          }),
+                        )
+                      }
+                    />
+                  </div>
                 );
-              }
-            }}
-            rows={9}
-            spellCheck="true"
-            autoFocus
-          />
-        </label>
+              })}
+              <button
+                type="button"
+                className="regional-add-btn"
+                onClick={() =>
+                  onRegionalCompositionChange(addMovableRegion(regionalComposition))
+                }
+              >
+                + Add region
+              </button>
+            </div>
+
+            <details className="common-prompt-strip" open>
+              <summary>
+                <span>Common prompt & LoRAs</span>
+                <small>{draft.prompt ? `${draft.prompt.slice(0, 35)}…` : "Global styles and LoRAs applied across all regions"}</small>
+              </summary>
+              <label className="common-prompt-field">
+                <textarea
+                  rows={2}
+                  value={draft.prompt}
+                  placeholder="Common styles, atmosphere, and LoRA tags applied to all regions…"
+                  onChange={(e) => onChange({ prompt: e.target.value })}
+                />
+              </label>
+            </details>
+          </div>
+        ) : (
+          <label className="prompt-field">
+            <span className="sr-only">Prompt</span>
+            <textarea
+              data-shortcut-target="prompt"
+              value={draft.prompt}
+              onChange={(event) => onChange({ prompt: event.target.value })}
+              onKeyDown={(event) => {
+                if (
+                  (event.metaKey || event.ctrlKey) &&
+                  (event.key === "ArrowUp" || event.key === "ArrowDown")
+                ) {
+                  const target = event.currentTarget;
+                  const edit = adjustPromptAttention(
+                    target.value,
+                    target.selectionStart,
+                    target.selectionEnd,
+                    event.key === "ArrowUp" ? 1 : -1,
+                  );
+                  if (edit) {
+                    event.preventDefault();
+                    onChange({ prompt: edit.text });
+                    requestAnimationFrame(() => {
+                      target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+                    });
+                  }
+                  return;
+                }
+                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  event.preventDefault();
+                  onGenerate(
+                    editing ? (event.shiftKey ? "inpaint" : "img2img") : undefined,
+                    event.shiftKey ? true : undefined,
+                  );
+                }
+              }}
+              rows={9}
+              spellCheck="true"
+              autoFocus
+            />
+          </label>
+        )}
 
         <label className="negative-field">
           <span>Negative prompt <kbd className="shortcut-chip" aria-hidden="true">Alt Shift P</kbd></span>
@@ -788,6 +913,7 @@ export function Composer({
           frameHeight={frameHeight}
           commonPrompt={draft.prompt}
           stageVisible={regionalStageVisible}
+          promptsOnLeft={true}
           onChange={onRegionalCompositionChange}
           onShowStage={onShowRegionalStage}
         />
