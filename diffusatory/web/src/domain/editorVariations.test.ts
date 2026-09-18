@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   appendGeneratedEditorVariations,
+  buildSessionHierarchy,
   createEditorSession,
   DEFAULT_PRIMARY_SESSION,
   initialEditorVariation,
@@ -119,5 +120,25 @@ describe("editor variations", () => {
     // Restore from trash back to primary
     const restored = restoreVariationFromTrash(trashed, original.id, PRIMARY_SESSION_ID);
     expect(restored[0].sessionId).toBe(PRIMARY_SESSION_ID);
+  });
+
+  it("builds a session hierarchy linking child sub-sessions to parent sessions and source images", () => {
+    const parentSession = DEFAULT_PRIMARY_SESSION;
+    const childSession = createEditorSession(
+      "Inpaint details",
+      [parentSession],
+      parentSession.id,
+      "var-source-1",
+    );
+
+    expect(childSession.parentId).toBe(parentSession.id);
+    expect(childSession.sourceImageId).toBe("var-source-1");
+
+    const hierarchy = buildSessionHierarchy([parentSession, childSession]);
+    expect(hierarchy).toHaveLength(1);
+    expect(hierarchy[0].id).toBe(parentSession.id);
+    expect(hierarchy[0].children).toHaveLength(1);
+    expect(hierarchy[0].children[0].id).toBe(childSession.id);
+    expect(hierarchy[0].children[0].sourceImageId).toBe("var-source-1");
   });
 });

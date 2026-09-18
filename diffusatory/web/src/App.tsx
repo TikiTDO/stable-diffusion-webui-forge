@@ -279,9 +279,17 @@ export default function App() {
   const [editorSessions, setEditorSessions] = useState<EditorSession[]>([
     DEFAULT_PRIMARY_SESSION,
   ]);
-  const handleAddSession = useCallback((label: string) => {
-    setEditorSessions((current) => [...current, createEditorSession(label, current)]);
-  }, []);
+  const [activeSessionId, setActiveSessionId] = useState<string>(PRIMARY_SESSION_ID);
+  const handleAddSession = useCallback(
+    (label: string, parentId?: string | null, sourceImageId?: string | null) => {
+      setEditorSessions((current) => {
+        const next = createEditorSession(label, current, parentId, sourceImageId);
+        setActiveSessionId(next.id);
+        return [...current, next];
+      });
+    },
+    [],
+  );
   const handleToggleSessionCollapse = useCallback((sessionId: string) => {
     setEditorSessions((current) =>
       current.map((s) => (s.id === sessionId ? { ...s, collapsed: !s.collapsed } : s)),
@@ -295,6 +303,24 @@ export default function App() {
     },
     [],
   );
+  const loadEditorVariation = useCallback((variation: EditorVariation) => {
+    setEditorReady(false);
+    setEditorHasMask(false);
+    setEditorError(null);
+    setEditorSource(variation.image);
+    setEditorMaskSource(variation.mask);
+    setEditorDimensions({ width: variation.width, height: variation.height });
+    setDraft((current) => ({
+      ...current,
+      width: variation.width,
+      height: variation.height,
+    }));
+    setEditorDirty(false);
+    setActiveEditorVariationId(variation.id);
+    setEditorDocumentRevision((current) => current + 1);
+    setGenerationSource("editor");
+    setCanvasView("editor");
+  }, []);
   const [activeEditOperation, setActiveEditOperation] = useState<EditOperation | null>(null);
   const [activeInpaintScope, setActiveInpaintScope] = useState<
     "masked" | "whole" | null
@@ -350,6 +376,7 @@ export default function App() {
     operation: EditOperation;
     dimensions: { width: number; height: number };
     sourceId?: string | null;
+    targetSessionId?: string;
   } | null>(null);
   const catalogApplied = useRef(false);
   const previewRuns = useRef(new Map<string, number>());
@@ -409,21 +436,28 @@ export default function App() {
     }
     if (state.phase !== "completed" || !state.taskId) return;
     if (pending.session === editorSession) {
-      setEditorVariations((current) =>
-        appendGeneratedEditorVariations(
+      const targetSessionId = pending.targetSessionId ?? PRIMARY_SESSION_ID;
+      setEditorVariations((current) => {
+        const next = appendGeneratedEditorVariations(
           current,
           state.taskId!,
           pending.operation,
           state.results,
           pending.dimensions,
           pending.sourceId,
-        ),
-      );
+          targetSessionId,
+        );
+        const newlyAdded = next.find((item) => item.id === `${state.taskId}:0`);
+        if (newlyAdded) {
+          loadEditorVariation(newlyAdded);
+        }
+        return next;
+      });
     }
     pendingEditorRun.current = null;
     setActiveEditOperation(null);
     setActiveInpaintScope(null);
-  }, [editorSession, state.kind, state.phase, state.results, state.taskId]);
+  }, [editorSession, loadEditorVariation, state.kind, state.phase, state.results, state.taskId]);
   const promptExpansionInput = useMemo<PromptExpansionInput>(
     () => ({
       prompt: expandPromptGroups(draft.prompt, draft.promptGroups).trim(),
@@ -786,6 +820,7 @@ export default function App() {
       session: editorSession,
       operation,
       sourceId: activeEditorVariationId,
+      targetSessionId: activeSessionId,
       dimensions:
         operation === "inpaint" && effectiveEditSettings.inpaintOnlyMasked
           ? { width: editor.width, height: editor.height }
@@ -929,24 +964,6 @@ export default function App() {
     },
     [editorDirty, editorSession, openEditor],
   );
-  const loadEditorVariation = useCallback((variation: EditorVariation) => {
-    setEditorReady(false);
-    setEditorHasMask(false);
-    setEditorError(null);
-    setEditorSource(variation.image);
-    setEditorMaskSource(variation.mask);
-    setEditorDimensions({ width: variation.width, height: variation.height });
-    setDraft((current) => ({
-      ...current,
-      width: variation.width,
-      height: variation.height,
-    }));
-    setEditorDirty(false);
-    setActiveEditorVariationId(variation.id);
-    setEditorDocumentRevision((current) => current + 1);
-    setGenerationSource("editor");
-    setCanvasView("editor");
-  }, []);
   const selectEditorVariation = useCallback(
     (variation: EditorVariation) => {
       if (variation.id === activeEditorVariationId && !editorDirty) return;
@@ -1480,12 +1497,14 @@ export default function App() {
                 variations={editorVariations}
                 activeId={activeEditorVariationId}
                 sessions={editorSessions}
+                activeSessionId={activeSessionId}
                 onSelect={selectEditorVariation}
                 onRemove={removeEditorVariation}
                 onSelectCandidate={selectVariationCandidateIndex}
                 onAddSession={handleAddSession}
                 onToggleSessionCollapse={handleToggleSessionCollapse}
                 onMoveToSession={handleMoveVariation}
+                onSelectSession={setActiveSessionId}
                 onRestore={restoreEditorVariation}
               />
             </section>
@@ -1522,6 +1541,8 @@ export default function App() {
           variations={editorVariations}
           activeVariationId={activeEditorVariationId}
           sessions={editorSessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={setActiveSessionId}
           promptMode={promptMode}
           expansionSeed={expansionSeed}
           promptExpansion={promptExpansion.response}

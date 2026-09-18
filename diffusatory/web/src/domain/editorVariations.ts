@@ -25,6 +25,8 @@ export interface EditorSession {
   id: string;
   label: string;
   collapsed?: boolean;
+  parentId?: string | null;
+  sourceImageId?: string | null;
 }
 
 export const PRIMARY_SESSION_ID = "primary";
@@ -149,13 +151,41 @@ export function selectVariationCandidate(
 export function createEditorSession(
   label: string,
   existingSessions: EditorSession[],
+  parentId?: string | null,
+  sourceImageId?: string | null,
 ): EditorSession {
   const number = existingSessions.length + 1;
   return {
     id: `session-${Date.now()}-${number}`,
     label: label.trim() || `Sub-variations ${number}`,
     collapsed: false,
+    parentId: parentId ?? null,
+    sourceImageId: sourceImageId ?? null,
   };
+}
+
+export interface HierarchicalSession extends EditorSession {
+  children: EditorSession[];
+}
+
+export function buildSessionHierarchy(sessions: EditorSession[]): HierarchicalSession[] {
+  const rootSessions: HierarchicalSession[] = [];
+  const sessionMap = new Map<string, HierarchicalSession>();
+
+  for (const session of sessions) {
+    sessionMap.set(session.id, { ...session, children: [] });
+  }
+
+  for (const session of sessions) {
+    const hierarchical = sessionMap.get(session.id)!;
+    if (session.parentId && sessionMap.has(session.parentId)) {
+      sessionMap.get(session.parentId)!.children.push(hierarchical);
+    } else {
+      rootSessions.push(hierarchical);
+    }
+  }
+
+  return rootSessions;
 }
 
 export function moveVariationToSession(

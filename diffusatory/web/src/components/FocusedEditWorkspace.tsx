@@ -51,10 +51,16 @@ interface FocusedEditWorkspaceProps {
   variations: EditorVariation[];
   activeVariationId: string | null;
   sessions?: EditorSession[];
+  activeSessionId?: string;
   onSelectCandidate?: (variation: EditorVariation, candidateIndex: number) => void;
-  onAddSession?: (label: string) => void;
+  onAddSession?: (
+    label: string,
+    parentId?: string | null,
+    sourceImageId?: string | null,
+  ) => void;
   onToggleSessionCollapse?: (sessionId: string) => void;
   onMoveToSession?: (variationId: string, targetSessionId: string) => void;
+  onSelectSession?: (sessionId: string) => void;
   onRestoreVariation?: (variation: EditorVariation) => void;
   promptMode: PromptExpansionMode;
   expansionSeed: number;
@@ -159,10 +165,12 @@ export const FocusedEditWorkspace = forwardRef<
     onSelectVariation,
     onRemoveVariation,
     sessions,
+    activeSessionId,
     onSelectCandidate,
     onAddSession,
     onToggleSessionCollapse,
     onMoveToSession,
+    onSelectSession,
     onRestoreVariation,
     onClose,
     onShowShortcuts,
@@ -281,12 +289,14 @@ export const FocusedEditWorkspace = forwardRef<
             variations={variations}
             activeId={activeVariationId}
             sessions={sessions}
+            activeSessionId={activeSessionId}
             onSelect={onSelectVariation}
             onRemove={onRemoveVariation}
             onSelectCandidate={onSelectCandidate}
             onAddSession={onAddSession}
             onToggleSessionCollapse={onToggleSessionCollapse}
             onMoveToSession={onMoveToSession}
+            onSelectSession={onSelectSession}
             onRestore={onRestoreVariation}
           />
         </div>

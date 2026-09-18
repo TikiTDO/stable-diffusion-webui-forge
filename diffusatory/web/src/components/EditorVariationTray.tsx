@@ -10,12 +10,18 @@ interface EditorVariationTrayProps {
   variations: EditorVariation[];
   activeId: string | null;
   sessions?: EditorSession[];
+  activeSessionId?: string;
   onSelect: (variation: EditorVariation) => void;
   onRemove: (variation: EditorVariation) => void;
   onSelectCandidate?: (variation: EditorVariation, candidateIndex: number) => void;
-  onAddSession?: (label: string) => void;
+  onAddSession?: (
+    label: string,
+    parentId?: string | null,
+    sourceImageId?: string | null,
+  ) => void;
   onToggleSessionCollapse?: (sessionId: string) => void;
   onMoveToSession?: (variationId: string, targetSessionId: string) => void;
+  onSelectSession?: (sessionId: string) => void;
   onRestore?: (variation: EditorVariation) => void;
 }
 
@@ -23,12 +29,14 @@ export function EditorVariationTray({
   variations,
   activeId,
   sessions = [DEFAULT_PRIMARY_SESSION],
+  activeSessionId = PRIMARY_SESSION_ID,
   onSelect,
   onRemove,
   onSelectCandidate,
   onAddSession,
   onToggleSessionCollapse,
   onMoveToSession,
+  onSelectSession,
   onRestore,
 }: EditorVariationTrayProps) {
   const [showTrash, setShowTrash] = useState(false);
@@ -96,7 +104,12 @@ export function EditorVariationTray({
           );
 
           return (
-            <div key={session.id} className="editor-variations__session-block">
+            <div
+              key={session.id}
+              className={`editor-variations__session-block ${
+                session.parentId ? "editor-variations__session-block--child" : ""
+              } ${session.id === activeSessionId ? "is-active-target" : ""}`}
+            >
               <header className="editor-variations__session-header">
                 <button
                   type="button"
@@ -105,9 +118,28 @@ export function EditorVariationTray({
                   title={session.collapsed ? "Expand session" : "Collapse session"}
                 >
                   <span className="collapse-arrow">{session.collapsed ? "▶" : "▼"}</span>
+                  {session.parentId && <span className="child-indicator">↳ </span>}
                   <span className="session-title">{session.label}</span>
                 </button>
-                <span className="session-count">{sessionVariations.length} available</span>
+                <div className="editor-variations__session-actions">
+                  {onSelectSession && (
+                    <button
+                      type="button"
+                      className={`session-target-pill ${
+                        session.id === activeSessionId ? "is-target" : ""
+                      }`}
+                      onClick={() => onSelectSession(session.id)}
+                      title={
+                        session.id === activeSessionId
+                          ? "Current generation target"
+                          : "Set as active generation target"
+                      }
+                    >
+                      {session.id === activeSessionId ? "● Target" : "Set target"}
+                    </button>
+                  )}
+                  <span className="session-count">{sessionVariations.length} available</span>
+                </div>
               </header>
 
               {!session.collapsed && (
@@ -190,6 +222,24 @@ export function EditorVariationTray({
                                 </option>
                               ))}
                             </select>
+                          )}
+
+                          {onAddSession && (
+                            <button
+                              type="button"
+                              className="editor-variations__branch"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddSession(
+                                  `Sub-variations · ${variation.label}`,
+                                  session.id,
+                                  variation.id,
+                                );
+                              }}
+                              title={`Branch sub-variations for ${variation.label}`}
+                            >
+                              ↳
+                            </button>
                           )}
 
                           <button
