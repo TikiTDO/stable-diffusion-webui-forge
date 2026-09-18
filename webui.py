@@ -62,6 +62,7 @@ def diffusatory_worker():
     from diffusatory.server.access import (
         install_diffusatory_access,
         read_api_token,
+        read_ui_token,
     )
     from diffusatory.server.mount import mount_diffusatory
 
@@ -69,7 +70,7 @@ def diffusatory_worker():
     api_token = read_api_token(Path(token_path)) if token_path else None
     ui_token_path = os.getenv("DIFFUSATORY_UI_TOKEN_FILE")
     ui_token = os.getenv("DIFFUSATORY_UI_TOKEN") or (
-        read_api_token(Path(ui_token_path)) if ui_token_path else None
+        read_ui_token(Path(ui_token_path)) if ui_token_path else None
     )
     install_diffusatory_access(
         app,

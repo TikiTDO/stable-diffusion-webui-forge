@@ -164,7 +164,7 @@ interface SearchField {
   penalty: number;
 }
 
-interface NormalizedField {
+export interface NormalizedField {
   text: string;
   sourceIndexes: number[];
 }
@@ -176,7 +176,7 @@ const SEARCH_GROUP_ORDER: LoraSearchGroup[] = [
   "details",
 ];
 
-function normalizedField(value: string): NormalizedField {
+export function normalizedField(value: string): NormalizedField {
   let text = "";
   const sourceIndexes: number[] = [];
   const characters = Array.from(value);

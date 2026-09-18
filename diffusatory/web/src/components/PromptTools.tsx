@@ -1,6 +1,7 @@
-import { useEffect, useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ForgeCatalog, Lora, LoraDefaults } from "../api/forge/types";
+import { indexEmbeddings, searchEmbeddings } from "../domain/embeddings";
 import {
   activeLoraFromCatalog,
   indexLora,
@@ -88,6 +89,200 @@ function HighlightedText({
   );
 }
 
+interface VirtualLoraGridProps {
+  results: SearchResult[];
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  activeIds: Set<string>;
+  activeLoras: ActiveLora[];
+  onLorasChange: (loras: ActiveLora[]) => void;
+  setInspectingLora: (lora: Lora) => void;
+}
+
+const ESTIMATED_ITEM_HEIGHT = 88;
+const OVERSCAN = 6;
+const VIRTUALIZE_THRESHOLD = 20;
+
+function VirtualLoraGrid({
+  results,
+  scrollContainerRef,
+  activeIds,
+  activeLoras,
+  onLorasChange,
+  setInspectingLora,
+}: VirtualLoraGridProps) {
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [visibleRange, setVisibleRange] = useState<{ start: number; end: number }>({
+    start: 0,
+    end: Math.min(results.length, VIRTUALIZE_THRESHOLD),
+  });
+
+  const updateVisibleRange = useCallback(() => {
+    if (results.length <= VIRTUALIZE_THRESHOLD) {
+      setVisibleRange({ start: 0, end: results.length });
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    const grid = gridRef.current;
+    if (!container || !grid) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const gridRect = grid.getBoundingClientRect();
+    const relativeTop = gridRect.top - containerRect.top;
+    const viewportHeight = container.clientHeight;
+
+    const visibleTop = Math.max(0, -relativeTop);
+    const visibleBottom = Math.max(0, -relativeTop + viewportHeight);
+
+    const start = Math.max(
+      0,
+      Math.floor(visibleTop / ESTIMATED_ITEM_HEIGHT) - OVERSCAN,
+    );
+    const end = Math.min(
+      results.length,
+      Math.ceil(visibleBottom / ESTIMATED_ITEM_HEIGHT) + OVERSCAN,
+    );
+
+    setVisibleRange((prev) => {
+      if (prev.start === start && prev.end === end) return prev;
+      return { start, end };
+    });
+  }, [results.length, scrollContainerRef]);
+
+  useEffect(() => {
+    updateVisibleRange();
+  }, [updateVisibleRange]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || results.length <= VIRTUALIZE_THRESHOLD) return;
+
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateVisibleRange();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [results.length, scrollContainerRef, updateVisibleRange]);
+
+  const { start, end } =
+    results.length <= VIRTUALIZE_THRESHOLD
+      ? { start: 0, end: results.length }
+      : visibleRange;
+
+  const topSpacerHeight = start * ESTIMATED_ITEM_HEIGHT;
+  const bottomSpacerHeight = Math.max(
+    0,
+    (results.length - end) * ESTIMATED_ITEM_HEIGHT,
+  );
+
+  return (
+    <div className="lora-library__grid" ref={gridRef}>
+      {topSpacerHeight > 0 && (
+        <div
+          style={{ height: `${topSpacerHeight}px`, gridColumn: "1 / -1" }}
+          aria-hidden="true"
+        />
+      )}
+      {results.slice(start, end).map(({ lora, match }) => {
+        const pinned = activeIds.has(lora.id);
+        return (
+          <article key={lora.id} className={pinned ? "is-pinned" : ""}>
+            {lora.preview_url ? (
+              <img src={lora.preview_url} alt="" loading="lazy" />
+            ) : (
+              <span
+                className="lora-library__placeholder"
+                aria-hidden="true"
+              >
+                L
+              </span>
+            )}
+            <div>
+              <strong>
+                {match?.field === "Title" ? (
+                  <HighlightedText
+                    value={loraTitle(lora)}
+                    indexes={match.indexes}
+                  />
+                ) : (
+                  loraTitle(lora)
+                )}
+              </strong>
+              <small>
+                {lora.model_family.toUpperCase()} · {lora.relative_path}
+              </small>
+              {match && match.field !== "Title" ? (
+                <p className="lora-library__match">
+                  <span className="lora-library__match-field">
+                    {match.field}
+                  </span>
+                  <HighlightedText
+                    value={match.value}
+                    indexes={match.indexes}
+                  />
+                </p>
+              ) : (lora.defaults.keywords.length > 0 ||
+                lora.recommended_keywords.length > 0) && (
+                <p>
+                  {(lora.defaults.keywords.map((keyword) => keyword.text)
+                    .length
+                    ? lora.defaults.keywords.map(
+                        (keyword) => keyword.text,
+                      )
+                    : lora.recommended_keywords
+                  )
+                    .slice(0, 4)
+                    .join(" · ")}
+                </p>
+              )}
+            </div>
+            <div className="lora-library__actions">
+              <button
+                type="button"
+                className="lora-library__edit-btn"
+                onClick={() => setInspectingLora(lora)}
+                title="Edit LoRA defaults and preview"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                disabled={pinned}
+                onClick={() =>
+                  onLorasChange([
+                    ...activeLoras,
+                    activeLoraFromCatalog(lora),
+                  ])
+                }
+              >
+                {pinned ? "Pinned" : "+ Pin"}
+              </button>
+            </div>
+          </article>
+        );
+      })}
+      {bottomSpacerHeight > 0 && (
+        <div
+          style={{ height: `${bottomSpacerHeight}px`, gridColumn: "1 / -1" }}
+          aria-hidden="true"
+        />
+      )}
+    </div>
+  );
+}
+
 export function PromptTools({
   catalog,
   selectedStyles,
@@ -115,6 +310,7 @@ export function PromptTools({
   );
   const [pendingEmbedding, setPendingEmbedding] = useState<string | null>(null);
   const [inspectingLora, setInspectingLora] = useState<Lora | null>(null);
+  const resultsContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -158,7 +354,7 @@ export function PromptTools({
           key: randomOrder.length ? "random" : "all",
           label: randomOrder.length ? "Random selection" : "All LoRAs",
           total: catalog.loras.length,
-          results: results.slice(0, 48),
+          results,
         },
       ];
     }
@@ -173,7 +369,7 @@ export function PromptTools({
             left.lora.name.localeCompare(right.lora.name),
         );
       return results.length
-        ? [{ key, label, total: results.length, results: results.slice(0, 24) }]
+        ? [{ key, label, total: results.length, results }]
         : [];
     });
   }, [catalog.loras, indexedLoras, query, randomOrder]);
@@ -185,12 +381,13 @@ export function PromptTools({
         .slice(0, 18),
     [catalog.styles, secondaryQuery],
   );
+  const indexedEmbeddings = useMemo(
+    () => indexEmbeddings(catalog.embeddings),
+    [catalog.embeddings],
+  );
   const embeddings = useMemo(
-    () =>
-      catalog.embeddings
-        .filter((name) => matches(name, secondaryQuery))
-        .slice(0, 30),
-    [catalog.embeddings, secondaryQuery],
+    () => searchEmbeddings(indexedEmbeddings, secondaryQuery),
+    [indexedEmbeddings, secondaryQuery],
   );
 
   const changeActive = (
@@ -568,93 +765,21 @@ export function PromptTools({
               {refreshStatus}
             </small>
           )}
-          <div className="lora-library__results">
+          <div className="lora-library__results" ref={resultsContainerRef}>
             {loraGroups.map((group) => (
               <section className="lora-library__group" key={group.key}>
                 <header>
                   <strong>{group.label}</strong>
                   <span>{group.total}</span>
                 </header>
-                <div className="lora-library__grid">
-            {group.results.map(({ lora, match }) => {
-              const pinned = activeIds.has(lora.id);
-              return (
-                <article key={lora.id} className={pinned ? "is-pinned" : ""}>
-                  {lora.preview_url ? (
-                    <img src={lora.preview_url} alt="" loading="lazy" />
-                  ) : (
-                    <span
-                      className="lora-library__placeholder"
-                      aria-hidden="true"
-                    >
-                      L
-                    </span>
-                  )}
-                  <div>
-                    <strong>
-                      {match?.field === "Title" ? (
-                        <HighlightedText
-                          value={loraTitle(lora)}
-                          indexes={match.indexes}
-                        />
-                      ) : (
-                        loraTitle(lora)
-                      )}
-                    </strong>
-                    <small>
-                      {lora.model_family.toUpperCase()} · {lora.relative_path}
-                    </small>
-                    {match && match.field !== "Title" ? (
-                      <p className="lora-library__match">
-                        <span className="lora-library__match-field">
-                          {match.field}
-                        </span>
-                        <HighlightedText
-                          value={match.value}
-                          indexes={match.indexes}
-                        />
-                      </p>
-                    ) : (lora.defaults.keywords.length > 0 ||
-                      lora.recommended_keywords.length > 0) && (
-                      <p>
-                        {(lora.defaults.keywords.map((keyword) => keyword.text)
-                          .length
-                          ? lora.defaults.keywords.map(
-                              (keyword) => keyword.text,
-                            )
-                          : lora.recommended_keywords
-                        )
-                          .slice(0, 4)
-                          .join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                  <div className="lora-library__actions">
-                    <button
-                      type="button"
-                      className="lora-library__edit-btn"
-                      onClick={() => setInspectingLora(lora)}
-                      title="Edit LoRA defaults and preview"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pinned}
-                      onClick={() =>
-                        onLorasChange([
-                          ...activeLoras,
-                          activeLoraFromCatalog(lora),
-                        ])
-                      }
-                    >
-                      {pinned ? "Pinned" : "Pin"}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-                </div>
+                <VirtualLoraGrid
+                  results={group.results}
+                  scrollContainerRef={resultsContainerRef}
+                  activeIds={activeIds}
+                  activeLoras={activeLoras}
+                  onLorasChange={onLorasChange}
+                  setInspectingLora={setInspectingLora}
+                />
               </section>
             ))}
             {loraGroups.length === 0 && (

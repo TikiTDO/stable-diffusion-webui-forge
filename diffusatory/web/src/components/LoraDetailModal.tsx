@@ -59,12 +59,70 @@ function LoraDetailModalContent({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(lora.preview_url);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLElement>(null);
+  const triggerElementRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    triggerElementRef.current = document.activeElement as HTMLElement | null;
+
+    // Shift initial focus to the first focusable element inside the modal
+    const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    firstFocusable?.focus();
+
+    return () => {
+      triggerElementRef.current?.focus();
+    };
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.stopPropagation();
+        event.preventDefault();
         onClose();
+        return;
+      }
+
+      if (event.key === "Tab") {
+        if (!modalRef.current) return;
+        const focusableElements = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter(
+          (el) =>
+            el.offsetParent !== null ||
+            (el.offsetWidth > 0 && el.offsetHeight > 0) ||
+            getComputedStyle(el).display !== "none",
+        );
+
+        if (focusableElements.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (event.shiftKey) {
+          if (
+            document.activeElement === first ||
+            !modalRef.current.contains(document.activeElement)
+          ) {
+            event.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (
+            document.activeElement === last ||
+            !modalRef.current.contains(document.activeElement)
+          ) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -164,6 +222,7 @@ function LoraDetailModalContent({
       }}
     >
       <section
+        ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Edit LoRA: ${lora.name}`}

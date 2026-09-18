@@ -11,6 +11,7 @@ from diffusatory.server.access import (
     UI_COOKIE_NAME,
     install_diffusatory_access,
     read_api_token,
+    read_ui_token,
 )
 from diffusatory.server.mount import mount_diffusatory
 
@@ -128,6 +129,13 @@ class DiffusatoryAccessTests(unittest.TestCase):
             self.assertEqual("secret-token", read_api_token(path))
             self.assertIsNone(read_api_token(Path(directory) / "missing"))
 
+    def test_ui_token_is_read_from_a_bounded_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ui-token"
+            path.write_text(" persistent-ui-token\n", encoding="utf-8")
+            self.assertEqual("persistent-ui-token", read_ui_token(path))
+            self.assertIsNone(read_ui_token(Path(directory) / "missing"))
+
     def test_static_ui_token_persists_configured_session(self) -> None:
         app = self.app_with_ping()
         install_diffusatory_access(
@@ -149,6 +157,29 @@ class DiffusatoryAccessTests(unittest.TestCase):
         # A client with an invalid cookie is rejected
         bad_client = TestClient(app, cookies={UI_COOKIE_NAME: "wrong-secret"})
         self.assertEqual(401, bad_client.get("/sdapi/v1/ping").status_code)
+
+    def test_static_ui_token_persists_session_across_app_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            token_file = Path(directory) / "ui-token"
+            token_file.write_text("restart-secret-token\n", encoding="utf-8")
+
+            # App instance 1: user opens session, cookie is set
+            token1 = read_ui_token(token_file)
+            app1 = self.app_with_ping()
+            install_diffusatory_access(app1, mode="ui", api_token=None, ui_token=token1)
+            client1 = TestClient(app1)
+            opened = client1.get("/diffusatory/api/v1/ui-session")
+            self.assertEqual(204, opened.status_code)
+            minted_cookie = client1.cookies.get(UI_COOKIE_NAME)
+            self.assertEqual("restart-secret-token", minted_cookie)
+            self.assertEqual({"ok": True}, client1.get("/sdapi/v1/ping").json())
+
+            # App instance 2: simulates server restart reading same token file
+            token2 = read_ui_token(token_file)
+            app2 = self.app_with_ping()
+            install_diffusatory_access(app2, mode="ui", api_token=None, ui_token=token2)
+            reconnected_client = TestClient(app2, cookies={UI_COOKIE_NAME: minted_cookie})
+            self.assertEqual({"ok": True}, reconnected_client.get("/sdapi/v1/ping").json())
 
 
 if __name__ == "__main__":
