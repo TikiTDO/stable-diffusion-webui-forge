@@ -1057,6 +1057,96 @@ h2 {
   opacity: 0.42;
 }
 
+.region-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.region-card--active {
+  border-color: var(--region-color, var(--line-active));
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.region-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.region-card__title {
+  color: var(--region-color, var(--ink));
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.region-card__remove {
+  background: transparent;
+  border: none;
+  color: var(--quiet);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.region-card__remove:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.15);
+}
+
+.region-lock-control {
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.region-lock-control span {
+  color: var(--quiet);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.region-lock-control strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.region-lock-control input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.region-add-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.region-add-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--line-active);
+}
+
 .region-plan {
   color: var(--quiet);
   font-size: 14px;

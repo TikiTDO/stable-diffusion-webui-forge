@@ -1,7 +1,9 @@
 import type {
+  MovableRegion,
   RegionPoint,
   RegionalComposition,
   RegionTransform,
+  ResolvedRegionCell,
   ResolvedSpatialPlan,
 } from "./types";
 
@@ -11,6 +13,10 @@ export const MAX_TRACKS = 4;
 export function createRegionalComposition(): RegionalComposition {
   return {
     enabled: false,
+    mode: "regions",
+    lockFraction: 0.25,
+    regions: [],
+    activeRegionId: null,
     columns: [1],
     rows: [1],
     transform: {
@@ -165,27 +171,171 @@ export function frameToLocal(
   };
 }
 
+export function regionPolygon(
+  transform: RegionTransform,
+  frameWidth: number,
+  frameHeight: number,
+): RegionPoint[] {
+  return [
+    localToFrame(0, 0, transform, frameWidth, frameHeight),
+    localToFrame(1, 0, transform, frameWidth, frameHeight),
+    localToFrame(1, 1, transform, frameWidth, frameHeight),
+    localToFrame(0, 1, transform, frameWidth, frameHeight),
+  ];
+}
+
+export function createMovableRegion(
+  id: string,
+  name: string,
+  transform?: Partial<RegionTransform>,
+  prompt = "",
+  start?: number,
+  end?: number,
+): MovableRegion {
+  return {
+    id,
+    name,
+    prompt,
+    start,
+    end,
+    transform: {
+      centerX: 0.5,
+      centerY: 0.5,
+      width: 0.4,
+      height: 0.4,
+      rotation: 0,
+      ...transform,
+    },
+  };
+}
+
+export function addMovableRegion(
+  composition: RegionalComposition,
+  preset?: Partial<MovableRegion>,
+): RegionalComposition {
+  const currentRegions = composition.regions ?? [];
+  const nextNum = currentRegions.length + 1;
+  const id = preset?.id || `reg_${Date.now()}_${nextNum}`;
+  const name = preset?.name || `Region ${nextNum}`;
+
+  const offset = ((nextNum - 1) % 4) * 0.08;
+  const defaultTransform: RegionTransform = {
+    centerX: Math.min(0.8, Math.max(0.2, 0.4 + offset)),
+    centerY: Math.min(0.8, Math.max(0.2, 0.4 + offset)),
+    width: 0.38,
+    height: 0.38,
+    rotation: 0,
+    ...preset?.transform,
+  };
+
+  const lock = composition.lockFraction ?? 0.25;
+  const newRegion: MovableRegion = {
+    id,
+    name,
+    prompt: preset?.prompt || "",
+    start: preset?.start ?? lock,
+    end: preset?.end ?? 1.0,
+    transform: defaultTransform,
+  };
+
+  return {
+    ...composition,
+    mode: "regions",
+    regions: [...currentRegions, newRegion],
+    activeRegionId: id,
+  };
+}
+
+export function removeMovableRegion(
+  composition: RegionalComposition,
+  regionId: string,
+): RegionalComposition {
+  const currentRegions = composition.regions ?? [];
+  const nextRegions = currentRegions.filter((r) => r.id !== regionId);
+  let nextActiveId = composition.activeRegionId;
+  if (nextActiveId === regionId) {
+    nextActiveId = nextRegions.length > 0 ? nextRegions[nextRegions.length - 1].id : null;
+  }
+  return {
+    ...composition,
+    regions: nextRegions,
+    activeRegionId: nextActiveId,
+  };
+}
+
+export function updateMovableRegion(
+  composition: RegionalComposition,
+  regionId: string,
+  patch: Partial<MovableRegion>,
+): RegionalComposition {
+  const currentRegions = composition.regions ?? [];
+  const nextRegions = currentRegions.map((r) =>
+    r.id === regionId
+      ? {
+          ...r,
+          ...patch,
+          transform: patch.transform
+            ? { ...r.transform, ...patch.transform }
+            : r.transform,
+        }
+      : r,
+  );
+  return {
+    ...composition,
+    regions: nextRegions,
+  };
+}
+
+export function setActiveMovableRegion(
+  composition: RegionalComposition,
+  regionId: string | null,
+): RegionalComposition {
+  return {
+    ...composition,
+    activeRegionId: regionId,
+  };
+}
+
 export function resolveSpatialPlan(
   composition: RegionalComposition,
   frameWidth: number,
   frameHeight: number,
 ): ResolvedSpatialPlan {
-  const columns = cumulativeTracks(composition.columns);
-  const rows = cumulativeTracks(composition.rows);
-  const cells = composition.cellPrompts.flatMap((prompts, row) =>
-    prompts.map((prompt, column) => ({
-      id: `r${row + 1}c${column + 1}`,
-      row,
-      column,
-      prompt: prompt.trim(),
-      polygon: [
-        localToFrame(columns[column], rows[row], composition.transform, frameWidth, frameHeight),
-        localToFrame(columns[column + 1], rows[row], composition.transform, frameWidth, frameHeight),
-        localToFrame(columns[column + 1], rows[row + 1], composition.transform, frameWidth, frameHeight),
-        localToFrame(columns[column], rows[row + 1], composition.transform, frameWidth, frameHeight),
-      ],
-    })),
-  );
+  const hasRegions = Boolean(composition.regions && composition.regions.length > 0);
+  const useRegions = composition.mode === "regions" ? hasRegions : (hasRegions && composition.mode !== "grid");
+
+  let cells: ResolvedRegionCell[];
+
+  if (useRegions && composition.regions && composition.regions.length > 0) {
+    const lock = composition.lockFraction ?? 0.25;
+    cells = composition.regions.map((region, index) => ({
+      id: region.id || `reg_${index + 1}`,
+      row: index,
+      column: 0,
+      prompt: region.prompt.trim(),
+      polygon: regionPolygon(region.transform, frameWidth, frameHeight),
+      start: region.start ?? lock,
+      end: region.end ?? 1.0,
+    }));
+  } else {
+    const columns = cumulativeTracks(composition.columns);
+    const rows = cumulativeTracks(composition.rows);
+    cells = composition.cellPrompts.flatMap((prompts, row) =>
+      prompts.map((prompt, column) => ({
+        id: `r${row + 1}c${column + 1}`,
+        row,
+        column,
+        prompt: prompt.trim(),
+        polygon: [
+          localToFrame(columns[column], rows[row], composition.transform, frameWidth, frameHeight),
+          localToFrame(columns[column + 1], rows[row], composition.transform, frameWidth, frameHeight),
+          localToFrame(columns[column + 1], rows[row + 1], composition.transform, frameWidth, frameHeight),
+          localToFrame(columns[column], rows[row + 1], composition.transform, frameWidth, frameHeight),
+        ],
+      })),
+    );
+  }
+
   return {
     version: 1,
     frame: { width: frameWidth, height: frameHeight },

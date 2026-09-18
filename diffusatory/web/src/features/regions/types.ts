@@ -11,8 +11,21 @@ export interface RegionTransform {
   rotation: number;
 }
 
+export interface MovableRegion {
+  id: string;
+  name: string;
+  prompt: string;
+  transform: RegionTransform;
+  start?: number;
+  end?: number;
+}
+
 export interface RegionalComposition {
   enabled: boolean;
+  mode?: "regions" | "grid";
+  regions?: MovableRegion[];
+  activeRegionId?: string | null;
+  lockFraction?: number;
   columns: number[];
   rows: number[];
   transform: RegionTransform;
@@ -28,6 +41,8 @@ export interface ResolvedRegionCell {
   column: number;
   prompt: string;
   polygon: RegionPoint[];
+  start?: number;
+  end?: number;
 }
 
 export interface ResolvedSpatialPlan {
@@ -36,5 +51,10 @@ export interface ResolvedSpatialPlan {
   transform: RegionTransform;
   softnessPixels: number;
   cells: ResolvedRegionCell[];
-  background: { enabled: boolean; prompt: string };
+  background: {
+    enabled: boolean;
+    prompt: string;
+    start?: number;
+    end?: number;
+  };
 }

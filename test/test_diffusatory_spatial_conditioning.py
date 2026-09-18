@@ -199,6 +199,90 @@ class SpatialConditioningPlanTests(unittest.TestCase):
             all(item["model_conds"]["c_crossattn"] is not base[0]["model_conds"]["c_crossattn"] for item in regional)
         )
 
+    def test_early_steps_composition_lock_activates_background_then_regions(self) -> None:
+        from modules import prompt_parser
+
+        plan = two_column_plan()
+        for cell in plan.cells:
+            cell.start = 0.35
+            cell.end = 1.0
+        plan.background.start = 0.0
+        plan.background.end = 1.0
+
+        schedules = []
+        for value in (1.0, 2.0, 3.0):
+            scheduled = prompt_parser.ScheduledPromptConditioning(
+                end_at_step=20,
+                cond=torch.full((2, 3), value),
+            )
+            schedules.append(
+                prompt_parser.MulticondLearnedConditioning(
+                    shape=(1,),
+                    batch=[
+                        [
+                            prompt_parser.ComposableScheduledPromptConditioning(
+                                [scheduled]
+                            )
+                        ]
+                    ],
+                )
+            )
+        runtime = SpatialRuntime(
+            plan=plan,
+            conditions=resolve_conditions(plan, ["scene"]),
+            learned_conditions=tuple(schedules),
+        )
+
+        base = [
+            {
+                "model_conds": {
+                    "c_crossattn": object(),
+                    "c_concat": object(),
+                },
+                "control": object(),
+            }
+        ]
+
+        # Early step (step 2 / 20 = 0.10 < 0.35): only background active, expands to full frame
+        process_early = SimpleNamespace(
+            steps=20,
+            sampler=SimpleNamespace(model_wrap_cfg=SimpleNamespace(step=2)),
+        )
+        modifier_early = _spatial_conditioning_modifier(process_early, runtime)
+        result_early = modifier_early(
+            None,
+            torch.zeros((1, 4, 12, 16)),
+            torch.tensor([1.0]),
+            [],
+            base,
+            5,
+            {},
+            1,
+        )
+        regional_early = result_early[4]
+        self.assertEqual(1, len(regional_early))
+        # Mask covers 100% of the frame
+        self.assertTrue(torch.all(regional_early[0]["mask"] == 1.0))
+
+        # Later step (step 10 / 20 = 0.50 >= 0.35): foreground regions active
+        process_late = SimpleNamespace(
+            steps=20,
+            sampler=SimpleNamespace(model_wrap_cfg=SimpleNamespace(step=10)),
+        )
+        modifier_late = _spatial_conditioning_modifier(process_late, runtime)
+        result_late = modifier_late(
+            None,
+            torch.zeros((1, 4, 12, 16)),
+            torch.tensor([1.0]),
+            [],
+            base,
+            5,
+            {},
+            1,
+        )
+        regional_late = result_late[4]
+        self.assertEqual(2, len(regional_late))
+
 
 if __name__ == "__main__":
     unittest.main()

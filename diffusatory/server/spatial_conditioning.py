@@ -47,10 +47,12 @@ class SpatialTransform(BaseModel):
 
 class SpatialCell(BaseModel):
     id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
-    row: int = Field(ge=0, le=3)
-    column: int = Field(ge=0, le=3)
+    row: int = Field(default=0, ge=0, le=64)
+    column: int = Field(default=0, ge=0, le=64)
     prompt: str = Field(default="", max_length=8000)
     polygon: list[SpatialPoint] = Field(min_length=4, max_length=4)
+    start: float = Field(default=0.0, ge=0.0, le=1.0)
+    end: float = Field(default=1.0, ge=0.0, le=1.0)
 
     @field_validator("prompt")
     @classmethod
@@ -66,6 +68,8 @@ class SpatialCell(BaseModel):
 class SpatialBackground(BaseModel):
     enabled: bool = False
     prompt: str = Field(default="", max_length=8000)
+    start: float = Field(default=0.0, ge=0.0, le=1.0)
+    end: float = Field(default=1.0, ge=0.0, le=1.0)
 
     @field_validator("prompt")
     @classmethod
@@ -123,6 +127,8 @@ class SpatialCondition:
     id: str
     prompts: tuple[str, ...]
     polygon: tuple[tuple[float, float], ...] | None
+    start: float = 0.0
+    end: float = 1.0
 
 
 @dataclass
@@ -150,6 +156,8 @@ def resolve_conditions(
             id=cell.id,
             prompts=tuple(compose_prompt(prompt, cell.prompt) for prompt in common_prompts),
             polygon=tuple((point.x, point.y) for point in cell.polygon),
+            start=cell.start,
+            end=cell.end,
         )
         for cell in plan.cells
     ]
@@ -159,6 +167,8 @@ def resolve_conditions(
             id="background",
             prompts=tuple(compose_prompt(prompt, background_fragment) for prompt in common_prompts),
             polygon=None,
+            start=plan.background.start,
+            end=plan.background.end,
         )
     )
     return tuple(cells)
@@ -300,11 +310,26 @@ def _spatial_conditioning_modifier(process, runtime: SpatialRuntime):
 
     def modifier(model, x, timestep, uncond, cond, cond_scale, model_options, seed):
         step = getattr(getattr(process.sampler, "model_wrap_cfg", None), "step", 0)
+        total_steps = getattr(process, "steps", 20) or 20
+        step_fraction = step / max(1, total_steps)
         masks = runtime.masks(x.shape[3], x.shape[2])
+
+        foreground_conditions = runtime.conditions[:-1]
+        foreground_learned = runtime.learned_conditions[:-1]
+        foreground_masks = masks[:-1]
+        bg_condition = runtime.conditions[-1]
+        bg_learned = runtime.learned_conditions[-1]
+        bg_mask = masks[-1]
+
+        active_fg_masks = []
         regional_conditions: list[dict] = []
-        for learned, mask in zip(runtime.learned_conditions, masks):
+
+        for condition, learned, mask in zip(foreground_conditions, foreground_learned, foreground_masks):
+            if not (condition.start <= step_fraction <= condition.end):
+                continue
             if not torch.any(mask):
                 continue
+            active_fg_masks.append(mask)
             composition, reconstructed = prompt_parser.reconstruct_multicond_batch(learned, step)
             compiled = compile_weighted_conditions(reconstructed, composition)
             compiled = _copy_runtime_conditioning(cond, compiled)
@@ -312,6 +337,26 @@ def _spatial_conditioning_modifier(process, runtime: SpatialRuntime):
             for item in compiled:
                 item["mask"] = device_mask
             regional_conditions.extend(compiled)
+
+        if bg_condition.start <= step_fraction <= bg_condition.end:
+            if active_fg_masks:
+                occupied = torch.clamp(torch.sum(torch.stack(active_fg_masks), dim=0), 0.0, 1.0)
+                step_bg_mask = 1.0 - occupied
+            else:
+                step_bg_mask = torch.ones_like(bg_mask)
+
+            if torch.any(step_bg_mask > 0):
+                composition, reconstructed = prompt_parser.reconstruct_multicond_batch(bg_learned, step)
+                compiled = compile_weighted_conditions(reconstructed, composition)
+                compiled = _copy_runtime_conditioning(cond, compiled)
+                device_bg_mask = step_bg_mask.to(device=x.device, dtype=x.dtype)
+                for item in compiled:
+                    item["mask"] = device_bg_mask
+                regional_conditions.extend(compiled)
+
+        if not regional_conditions:
+            return model, x, timestep, uncond, cond, cond_scale, model_options, seed
+
         # Forge interprets the sum of every conditional entry's strength as an
         # additional global CFG multiplier. Spatial entries are alternatives
         # over pixels, not additional whole-image prompt weight, so normalize
