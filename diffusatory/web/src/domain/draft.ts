@@ -1,6 +1,7 @@
 import type { ForgeCatalog, Txt2ImgInput } from "../api/forge/types";
 import { applyCheckpointProfile } from "./modelProfiles";
 import type { ActiveLora } from "./loras";
+import { expandPromptGroups, type PromptGroup } from "./promptGroups";
 
 export interface GenerationDraft {
   prompt: string;
@@ -9,6 +10,7 @@ export interface GenerationDraft {
   modules: string[];
   styles: string[];
   loras: ActiveLora[];
+  promptGroups?: PromptGroup[];
   width: number;
   height: number;
   outputs: number;
@@ -28,6 +30,7 @@ export const starterDraft: GenerationDraft = {
   modules: [],
   styles: [],
   loras: [],
+  promptGroups: [],
   width: 1024,
   height: 1024,
   outputs: 1,
@@ -77,7 +80,7 @@ export function draftFromCatalog(
 
 export function requestFromDraft(draft: GenerationDraft): Txt2ImgInput {
   return {
-    prompt: draft.prompt.trim(),
+    prompt: expandPromptGroups(draft.prompt, draft.promptGroups).trim(),
     negativePrompt: draft.negativePrompt.trim(),
     checkpoint: draft.checkpoint || undefined,
     modules: draft.modules,

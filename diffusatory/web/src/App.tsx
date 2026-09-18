@@ -713,6 +713,7 @@ export default function App() {
       prompt: draft.prompt,
       negativePrompt: draft.negativePrompt,
       loras: draft.loras,
+      promptGroups: draft.promptGroups,
       ...(regionalComposition.enabled
         ? { regions: regionalComposition }
         : {}),

@@ -19,6 +19,11 @@ import {
   setActiveMovableRegion,
   updateMovableRegion,
 } from "../features/regions/model";
+import {
+  extractPromptGroup,
+  removePromptGroup,
+  togglePromptGroup,
+} from "../domain/promptGroups";
 import { PromptTools } from "./PromptTools";
 import { CatalogRefreshButton } from "./CatalogRefreshButton";
 import { PromptComposition } from "./PromptComposition";
@@ -759,6 +764,23 @@ export function Composer({
                   }
                   return;
                 }
+                if (
+                  (event.altKey || event.metaKey || event.ctrlKey) &&
+                  event.key.toLowerCase() === "g"
+                ) {
+                  const target = event.currentTarget;
+                  if (target.selectionStart !== target.selectionEnd) {
+                    event.preventDefault();
+                    const { nextPrompt, nextGroups } = extractPromptGroup(
+                      target.value,
+                      target.selectionStart,
+                      target.selectionEnd,
+                      draft.promptGroups,
+                    );
+                    onChange({ prompt: nextPrompt, promptGroups: nextGroups });
+                    return;
+                  }
+                }
                 if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                   event.preventDefault();
                   onGenerate(
@@ -772,6 +794,64 @@ export function Composer({
               autoFocus
             />
           </label>
+        )}
+
+        {draft.promptGroups && draft.promptGroups.length > 0 && (
+          <div className="prompt-groups-bar" aria-label="Prompt groups">
+            <span className="prompt-groups-label">Groups:</span>
+            {draft.promptGroups.map((group) => (
+              <div
+                key={group.id}
+                className={`prompt-group-chip ${group.enabled ? "is-enabled" : "is-disabled"}`}
+                title={`⟦g:${group.id}⟧: "${group.text}" (Click to toggle, ↩ to inline)`}
+              >
+                <button
+                  type="button"
+                  className="prompt-group-chip__toggle"
+                  onClick={() =>
+                    onChange({
+                      promptGroups: togglePromptGroup(draft.promptGroups!, group.id),
+                    })
+                  }
+                >
+                  <span className="prompt-group-chip__status">{group.enabled ? "●" : "○"}</span>
+                  <span className="prompt-group-chip__label">{group.label}</span>
+                </button>
+                <button
+                  type="button"
+                  className="prompt-group-chip__inline"
+                  title="Inline back into prompt"
+                  onClick={() => {
+                    const { nextPrompt, nextGroups } = removePromptGroup(
+                      draft.prompt,
+                      draft.promptGroups!,
+                      group.id,
+                      true,
+                    );
+                    onChange({ prompt: nextPrompt, promptGroups: nextGroups });
+                  }}
+                >
+                  ↩
+                </button>
+                <button
+                  type="button"
+                  className="prompt-group-chip__remove"
+                  title="Remove group and token"
+                  onClick={() => {
+                    const { nextPrompt, nextGroups } = removePromptGroup(
+                      draft.prompt,
+                      draft.promptGroups!,
+                      group.id,
+                      false,
+                    );
+                    onChange({ prompt: nextPrompt, promptGroups: nextGroups });
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         )}
 
         <label className="negative-field">

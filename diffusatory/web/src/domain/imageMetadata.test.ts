@@ -210,4 +210,30 @@ describe("generation metadata import", () => {
     expect(imported.imported).toContain("prompt");
     expect(imported.imported).toContain("loras");
   });
+
+  it("restores promptGroups from Diffusatory composition", () => {
+    const composition = {
+      version: 1,
+      prompt: "portrait of ⟦g:hero_1⟧ in rain",
+      promptGroups: [
+        { id: "hero_1", label: "Hero", text: "cyberpunk detective", enabled: true },
+      ],
+    };
+
+    const imported = importImageMetadata(
+      starterDraft,
+      catalog,
+      metadata({
+        Prompt: "portrait of cyberpunk detective in rain",
+        "Diffusatory composition": JSON.stringify(composition),
+      }),
+    );
+
+    expect(imported.draft.prompt).toBe("portrait of ⟦g:hero_1⟧ in rain");
+    expect(imported.draft.promptGroups).toEqual([
+      { id: "hero_1", label: "Hero", text: "cyberpunk detective", enabled: true },
+    ]);
+    expect(imported.imported).toContain("prompt groups");
+  });
 });
+

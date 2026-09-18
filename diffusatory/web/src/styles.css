@@ -1340,6 +1340,89 @@ h2 {
   line-height: 1.35;
 }
 
+.prompt-groups-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  margin-top: 6px;
+}
+
+.prompt-groups-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--quiet);
+  margin-right: 2px;
+}
+
+.prompt-group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  padding: 2px 4px;
+  font-size: 13px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.prompt-group-chip.is-enabled {
+  border-color: rgba(157, 141, 241, 0.5);
+  background: rgba(157, 141, 241, 0.12);
+}
+
+.prompt-group-chip.is-disabled {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.prompt-group-chip__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.prompt-group-chip__status {
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.prompt-group-chip__inline,
+.prompt-group-chip__remove {
+  background: transparent;
+  border: none;
+  color: var(--quiet);
+  cursor: pointer;
+  padding: 1px 4px;
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 3px;
+}
+
+.prompt-group-chip__inline:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.prompt-group-chip__remove:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.15);
+}
+
 .region-plan {
   color: var(--quiet);
   font-size: 14px;

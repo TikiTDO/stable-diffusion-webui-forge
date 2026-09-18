@@ -6,6 +6,7 @@ import type {
 import type { ImageEditSettings } from "../features/editor/model";
 import type { RegionalComposition } from "../features/regions/types";
 import type { GenerationDraft } from "./draft";
+import type { PromptGroup } from "./promptGroups";
 import { applyCheckpointProfile } from "./modelProfiles";
 import {
   checkpointPreferenceKey,
@@ -239,6 +240,11 @@ export function importImageMetadata(
     if (Array.isArray(composition.loras)) {
       draft.loras = composition.loras;
       imported.push("loras");
+    }
+
+    if (Array.isArray(composition.promptGroups)) {
+      draft.promptGroups = composition.promptGroups as PromptGroup[];
+      imported.push("prompt groups");
     }
 
     if (composition.regions && typeof composition.regions === "object") {
