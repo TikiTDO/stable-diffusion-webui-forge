@@ -305,3 +305,16 @@ export interface ControlNetUnitInput {
     | "ControlNet is more important";
   saveDetectedMap?: boolean;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  image_count: number;
+}
+
+export interface ProjectImage {
+  name: string;
+  order: number;
+  digest: string;
+  bytes: number;
+}

@@ -118,6 +118,30 @@ describe("ForgeClient", () => {
     ).rejects.toBeInstanceOf(ForgeApiError);
   });
 
+  it("creates a project and copies a finished image into it", async () => {
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetcher: typeof fetch = async (input, request) => {
+      calls.push([input, request]);
+      if (String(input).endsWith("/projects")) {
+        return json({ id: "green-hill", name: "Green Hill", image_count: 0 }, { status: 201 });
+      }
+      return json({ name: "000000001048576-abc.png", order: 1048576, digest: "abc", bytes: 9 });
+    };
+    const client = new ForgeClient("", fetcher);
+
+    expect((await client.createProject("Green Hill")).id).toBe("green-hill");
+    expect((await client.addProjectImage("green-hill", "iVBORw0KGgo=")).order).toBe(1048576);
+
+    expect(calls.map(([url]) => url)).toEqual([
+      "/diffusatory/api/v1/projects",
+      "/diffusatory/api/v1/projects/green-hill/images",
+    ]);
+    expect(JSON.parse(String(calls[1]?.[1]?.body))).toEqual({ image: "iVBORw0KGgo=" });
+    expect(client.projectImageUrl("green-hill", "000000001048576-abc.png")).toBe(
+      "/diffusatory/api/v1/projects/green-hill/images/000000001048576-abc.png",
+    );
+  });
+
   it("maps a Diffusatory draft onto the existing txt2img contract", async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetcher: typeof fetch = async (input, request) => {

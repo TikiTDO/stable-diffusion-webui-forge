@@ -19,6 +19,15 @@ from diffusatory.server.prompt_composition import (
     compile_prompt_expansion,
 )
 from diffusatory.server.model_profiles import ModelProfile, model_profiles
+from diffusatory.server.projects import (
+    ProjectCreate,
+    ProjectDescriptor,
+    ProjectImage,
+    ProjectImageAdd,
+    ProjectImageMove,
+    ProjectStore,
+    default_projects_root,
+)
 from diffusatory.server.lora_catalog import (
     LoraCatalogItem,
     LoraDefaults,
@@ -231,7 +240,11 @@ def server_activity_descriptor() -> ServerActivityDescriptor:
 
 
 def mount_diffusatory(
-    app: FastAPI, *, dist: Path | None = None, serve_ui: bool = True
+    app: FastAPI,
+    *,
+    dist: Path | None = None,
+    serve_ui: bool = True,
+    projects_root: Path | None = None,
 ) -> bool:
     """Register the instance contract and mount a built client when present.
 
@@ -330,6 +343,70 @@ def mount_diffusatory(
             raise HTTPException(status_code=404, detail="LoRA not found")
         save_lora_defaults(network, defaults)
         return build_lora_item(network, root)
+
+    def projects() -> ProjectStore:
+        return ProjectStore(projects_root or default_projects_root())
+
+    def project_or_404(call):
+        try:
+            return call()
+        except FileNotFoundError as missing:
+            raise HTTPException(status_code=404, detail=f"not found: {missing}") from missing
+        except ValueError as invalid:
+            raise HTTPException(status_code=422, detail=str(invalid)) from invalid
+
+    @router.get("/projects", response_model=list[ProjectDescriptor])
+    async def list_projects() -> list[ProjectDescriptor]:
+        return projects().list_projects()
+
+    @router.post("/projects", response_model=ProjectDescriptor, status_code=201)
+    async def create_project(body: ProjectCreate) -> ProjectDescriptor:
+        try:
+            return projects().create_project(body.name)
+        except FileExistsError as taken:
+            raise HTTPException(status_code=409, detail=f"project exists: {taken}") from taken
+        except ValueError as invalid:
+            raise HTTPException(status_code=422, detail=str(invalid)) from invalid
+
+    @router.get("/projects/{identifier}", response_model=ProjectDescriptor)
+    async def get_project(identifier: str) -> ProjectDescriptor:
+        return project_or_404(lambda: projects().project(identifier))
+
+    @router.get("/projects/{identifier}/images", response_model=list[ProjectImage])
+    async def list_project_images(identifier: str) -> list[ProjectImage]:
+        return project_or_404(lambda: projects().images(identifier))
+
+    @router.post(
+        "/projects/{identifier}/images", response_model=ProjectImage, status_code=201
+    )
+    async def add_project_image(identifier: str, body: ProjectImageAdd) -> ProjectImage:
+        return project_or_404(
+            lambda: projects().add_image(
+                identifier,
+                body.image,
+                extension=body.extension,
+                after=body.after,
+                before=body.before,
+            )
+        )
+
+    @router.get("/projects/{identifier}/images/{name}", response_class=FileResponse)
+    async def get_project_image(identifier: str, name: str) -> FileResponse:
+        return FileResponse(project_or_404(lambda: projects().image_path(identifier, name)))
+
+    @router.post("/projects/{identifier}/images/{name}/move", response_model=ProjectImage)
+    async def move_project_image(
+        identifier: str, name: str, body: ProjectImageMove
+    ) -> ProjectImage:
+        return project_or_404(
+            lambda: projects().move_image(
+                identifier, name, after=body.after, before=body.before
+            )
+        )
+
+    @router.delete("/projects/{identifier}/images/{name}", status_code=204)
+    async def remove_project_image(identifier: str, name: str) -> None:
+        project_or_404(lambda: projects().remove_image(identifier, name))
 
     @router.get("/residency", response_model=ResidencyDescriptor)
     async def get_residency() -> ResidencyDescriptor:

@@ -50,6 +50,8 @@ import {
 import { useForgeCatalog } from "./domain/useForgeCatalog";
 import { useForgeGeneration } from "./domain/useForgeGeneration";
 import { useServerActivity } from "./domain/useServerActivity";
+import { useProject } from "./domain/useProject";
+import { ProjectPicker } from "./components/ProjectPicker";
 import { usePromptExpansion } from "./domain/usePromptExpansion";
 import {
   appendCandidates,
@@ -366,6 +368,12 @@ export default function App() {
   } = useControlNetCatalog(client);
   const { state, generate, interrupt, skip, generating } =
     useForgeGeneration(client);
+  const projectSession = useProject(client);
+  const copyResultsToProject = projectSession.copyResults;
+  useEffect(() => {
+    if (state.phase !== "completed" || !state.taskId) return;
+    void copyResultsToProject(state.taskId, state.results);
+  }, [copyResultsToProject, state.phase, state.results, state.taskId]);
   const { activity: serverActivity, error: serverActivityError } =
     useServerActivity(client, state.phase);
   const activity = serverActivityPresentation(
@@ -1215,6 +1223,15 @@ export default function App() {
 
       <main className="workspace">
         <Composer
+          projectPicker={
+            <ProjectPicker
+              projects={projectSession.projects}
+              projectId={projectSession.projectId}
+              notice={projectSession.notice}
+              onChange={projectSession.setProjectId}
+              onCreate={projectSession.createProject}
+            />
+          }
           draft={draft}
           catalog={catalog}
           catalogError={catalogError}

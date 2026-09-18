@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import type { ForgeCatalog, Lora, LoraDefaults } from "../api/forge/types";
 import type { ControlNetCatalog } from "../api/forge/types";
 import type {
@@ -40,6 +40,8 @@ const CELL_COLORS = [
 
 interface ComposerProps {
   draft: GenerationDraft;
+  /** The project picker, rendered beside the checkpoint controls. */
+  projectPicker?: ReactNode;
   catalog: ForgeCatalog | null;
   catalogError: string | null;
   catalogLoading: boolean;
@@ -114,6 +116,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
 
 export function Composer({
   draft,
+  projectPicker,
   catalog,
   catalogError,
   catalogLoading,
@@ -260,6 +263,7 @@ export function Composer({
             noun="checkpoint"
             onRefresh={onRefreshCheckpoints}
           />
+          {projectPicker}
         </div>
         <details className="model-components">
           <summary>

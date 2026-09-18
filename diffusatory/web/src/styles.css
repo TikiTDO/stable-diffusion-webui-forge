@@ -504,6 +504,21 @@ h2 {
   gap: 7px;
 }
 
+.project-picker {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.project-picker small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.project-picker small[role="alert"] {
+  color: var(--danger);
+}
+
 .catalog-refresh {
   display: flex;
   flex-wrap: wrap;

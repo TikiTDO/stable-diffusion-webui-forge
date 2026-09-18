@@ -311,6 +311,49 @@ class DiffusatoryMountTests(unittest.TestCase):
         paths = app.openapi()["paths"]
         self.assertIn("/diffusatory/api/v1/status/stream", paths)
         self.assertEqual(["get"], list(paths["/diffusatory/api/v1/status/stream"]))
+    def test_project_routes_copy_images_in_order_and_serve_them_back(self) -> None:
+        import base64
+
+        with tempfile.TemporaryDirectory() as directory:
+            app = FastAPI()
+            mount_diffusatory(
+                app, dist=Path(directory) / "missing", projects_root=Path(directory) / "projects"
+            )
+            client = TestClient(app)
+
+            created = client.post("/diffusatory/api/v1/projects", json={"name": "Green Hill"})
+            self.assertEqual(201, created.status_code)
+            self.assertEqual("green-hill", created.json()["id"])
+            self.assertEqual(409, client.post("/diffusatory/api/v1/projects", json={"name": "Green Hill"}).status_code)
+
+            png = base64.b64encode(b"\x89PNGfirst").decode("ascii")
+            added = client.post(
+                "/diffusatory/api/v1/projects/green-hill/images",
+                json={"image": f"data:image/png;base64,{png}"},
+            )
+            self.assertEqual(201, added.status_code)
+            name = added.json()["name"]
+
+            listed = client.get("/diffusatory/api/v1/projects/green-hill/images").json()
+            self.assertEqual([name], [image["name"] for image in listed])
+            served = client.get(f"/diffusatory/api/v1/projects/green-hill/images/{name}")
+            self.assertEqual(200, served.status_code)
+            self.assertEqual(b"\x89PNGfirst", served.content)
+
+            self.assertEqual(
+                404,
+                client.post(
+                    "/diffusatory/api/v1/projects/green-hill/images",
+                    json={"image": png, "after": "000000000009-abcdefabcdef.png"},
+                ).status_code,
+            )
+            self.assertEqual(404, client.get("/diffusatory/api/v1/projects/nope").status_code)
+            self.assertEqual(
+                204,
+                client.delete(f"/diffusatory/api/v1/projects/green-hill/images/{name}").status_code,
+            )
+            self.assertEqual([], client.get("/diffusatory/api/v1/projects/green-hill/images").json())
+
 
 if __name__ == "__main__":
     unittest.main()

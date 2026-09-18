@@ -13,6 +13,8 @@ import type {
   Lora,
   LoraDefaults,
   ModelModule,
+  Project,
+  ProjectImage,
   ModelProfile,
   PromptExpansionInput,
   PromptExpansionResponse,
@@ -280,6 +282,49 @@ export class ForgeClient {
       ),
     ]);
     return { checkpoints, modelProfiles, modules };
+  }
+
+  async projects(signal?: AbortSignal): Promise<Project[]> {
+    return this.get<Project[]>("/diffusatory/api/v1/projects", signal);
+  }
+
+  async createProject(name: string, signal?: AbortSignal): Promise<Project> {
+    const response = await this.fetcher(`${this.baseUrl}/diffusatory/api/v1/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+      signal,
+    });
+    return readJson<Project>(response);
+  }
+
+  async projectImages(projectId: string, signal?: AbortSignal): Promise<ProjectImage[]> {
+    return this.get<ProjectImage[]>(
+      `/diffusatory/api/v1/projects/${encodeURIComponent(projectId)}/images`,
+      signal,
+    );
+  }
+
+  /** Copies one generated image (as Forge returned it) to the end of a project. */
+  async addProjectImage(
+    projectId: string,
+    image: string,
+    signal?: AbortSignal,
+  ): Promise<ProjectImage> {
+    const response = await this.fetcher(
+      `${this.baseUrl}/diffusatory/api/v1/projects/${encodeURIComponent(projectId)}/images`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image }),
+        signal,
+      },
+    );
+    return readJson<ProjectImage>(response);
+  }
+
+  projectImageUrl(projectId: string, name: string): string {
+    return `${this.baseUrl}/diffusatory/api/v1/projects/${encodeURIComponent(projectId)}/images/${encodeURIComponent(name)}`;
   }
 
   async controlNetCatalog(signal?: AbortSignal): Promise<ControlNetCatalog> {
