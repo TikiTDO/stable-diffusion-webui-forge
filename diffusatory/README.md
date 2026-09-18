@@ -39,12 +39,15 @@ inherited engine still contains Gradio-coupled internals to unwind only when
 their surviving API behavior has a native owner; Git retains the prior UI.
 
 Access is selected with `DIFFUSATORY_ACCESS_MODE=ui|api|both` (default `both` in
-the launcher). UI access receives a process-local HttpOnly session cookie. API
-access requires the bearer token stored at
-`.diffusatory/runtime/api-token`; unauthenticated API requests return `401`.
-`api` mode does not mount the browser application. The cookie boundary is meant
-to stop opportunistic API use, not to resist a client deliberately loading and
-driving the UI.
+the launcher). UI access receives an HttpOnly session cookie backed by a
+persistent token stored at `.diffusatory/runtime/ui-token` (or configured via
+`DIFFUSATORY_UI_TOKEN` / `DIFFUSATORY_UI_TOKEN_FILE`), surviving server restarts
+without logging the browser out. API access requires the bearer token stored at
+`.diffusatory/runtime/api-token` (or configured via `DIFFUSATORY_API_TOKEN` /
+`DIFFUSATORY_API_TOKEN_FILE`); unauthenticated API requests return `401`. `api`
+mode does not mount the browser application. The cookie boundary is meant to stop
+opportunistic API use, not to resist a client deliberately loading and driving the
+UI.
 
 The server is plain HTTP unless both `DIFFUSATORY_TLS_CERTFILE` and
 `DIFFUSATORY_TLS_KEYFILE` are configured. Put persistent host, port, access,
@@ -76,7 +79,7 @@ Open or drop a PNG, JPEG, or WebP, or choose **Edit** from any generated result.
 Compatible Forge metadata restores the model and render recipe. The focused
 editor keeps paint and inpaint-mask layers available at the same time:
 
-- **Generate variation** submits the visible source and paint without a mask.
+- **Generate edit** submits the visible source and paint without a mask.
 - **Generate inpaint** submits the same source plus the current mask and refuses
   an empty mask.
 - The session variation tray keeps the original, saved working composites, and

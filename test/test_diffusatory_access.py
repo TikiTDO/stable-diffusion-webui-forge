@@ -128,6 +128,28 @@ class DiffusatoryAccessTests(unittest.TestCase):
             self.assertEqual("secret-token", read_api_token(path))
             self.assertIsNone(read_api_token(Path(directory) / "missing"))
 
+    def test_static_ui_token_persists_configured_session(self) -> None:
+        app = self.app_with_ping()
+        install_diffusatory_access(
+            app,
+            mode="ui",
+            api_token=None,
+            ui_token="persistent-ui-secret",
+        )
+        client = TestClient(app)
+        opened = client.get("/diffusatory/api/v1/ui-session")
+        self.assertEqual(204, opened.status_code)
+        self.assertEqual("persistent-ui-secret", client.cookies.get(UI_COOKIE_NAME))
+        self.assertEqual({"ok": True}, client.get("/sdapi/v1/ping").json())
+
+        # An independent client with that same cookie is already authenticated
+        peer_client = TestClient(app, cookies={UI_COOKIE_NAME: "persistent-ui-secret"})
+        self.assertEqual({"ok": True}, peer_client.get("/sdapi/v1/ping").json())
+
+        # A client with an invalid cookie is rejected
+        bad_client = TestClient(app, cookies={UI_COOKIE_NAME: "wrong-secret"})
+        self.assertEqual(401, bad_client.get("/sdapi/v1/ping").status_code)
+
 
 if __name__ == "__main__":
     unittest.main()

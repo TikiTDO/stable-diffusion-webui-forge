@@ -17,6 +17,7 @@ host=${DIFFUSATORY_HOST:-127.0.0.1}
 port=${DIFFUSATORY_PORT:-7865}
 runtime_dir=${DIFFUSATORY_RUNTIME_DIR:-$local_root/runtime}
 token_file=${DIFFUSATORY_API_TOKEN_FILE:-$runtime_dir/api-token}
+ui_token_file=${DIFFUSATORY_UI_TOKEN_FILE:-$runtime_dir/ui-token}
 log_file=${DIFFUSATORY_LOG_FILE:-$runtime_dir/server.log}
 tls_cert=${DIFFUSATORY_TLS_CERTFILE:-}
 tls_key=${DIFFUSATORY_TLS_KEYFILE:-}
@@ -132,6 +133,24 @@ if [[ "$access_mode" == "api" || "$access_mode" == "both" ]]; then
     fi
     chmod 600 "$token_file"
     export DIFFUSATORY_API_TOKEN_FILE="$token_file"
+fi
+
+if [[ "$access_mode" == "ui" || "$access_mode" == "both" ]]; then
+    if [[ -n "${DIFFUSATORY_UI_TOKEN:-}" ]]; then
+        mkdir -p "$(dirname -- "$ui_token_file")"
+        previous_umask=$(umask)
+        umask 077
+        printf '%s\n' "$DIFFUSATORY_UI_TOKEN" > "$ui_token_file"
+        umask "$previous_umask"
+    elif [[ ! -s "$ui_token_file" ]]; then
+        mkdir -p "$(dirname -- "$ui_token_file")"
+        previous_umask=$(umask)
+        umask 077
+        "$python_cmd" -c 'import secrets; print(secrets.token_urlsafe(32))' > "$ui_token_file"
+        umask "$previous_umask"
+    fi
+    chmod 600 "$ui_token_file"
+    export DIFFUSATORY_UI_TOKEN_FILE="$ui_token_file"
 fi
 
 mkdir -p "$(dirname -- "$log_file")"

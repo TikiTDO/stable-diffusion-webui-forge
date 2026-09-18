@@ -67,10 +67,15 @@ def diffusatory_worker():
 
     token_path = os.getenv("DIFFUSATORY_API_TOKEN_FILE")
     api_token = read_api_token(Path(token_path)) if token_path else None
+    ui_token_path = os.getenv("DIFFUSATORY_UI_TOKEN_FILE")
+    ui_token = os.getenv("DIFFUSATORY_UI_TOKEN") or (
+        read_api_token(Path(ui_token_path)) if ui_token_path else None
+    )
     install_diffusatory_access(
         app,
         mode=cmd_opts.diffusatory_access,
         api_token=api_token,
+        ui_token=ui_token,
         secure_cookie=bool(cmd_opts.tls_keyfile and cmd_opts.tls_certfile),
     )
     mount_diffusatory(app, serve_ui=cmd_opts.diffusatory_access != "api")

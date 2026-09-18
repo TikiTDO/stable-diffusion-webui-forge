@@ -126,11 +126,17 @@ class DiffusatoryAccessMiddleware(BaseHTTPMiddleware):
         )
 
 
+def read_ui_token(path: Path | None) -> str | None:
+    """Read a persistent UI session token from a bounded file."""
+    return read_api_token(path)
+
+
 def install_diffusatory_access(
     app: FastAPI,
     *,
     mode: AccessMode,
     api_token: str | None,
+    ui_token: str | None = None,
     secure_cookie: bool = False,
 ) -> None:
     """Install the UI-session and explicit-client admission boundary."""
@@ -138,7 +144,13 @@ def install_diffusatory_access(
     if mode == "api" and api_token is None:
         raise RuntimeError("Diffusatory API mode requires an API token file")
 
-    ui_token = secrets.token_urlsafe(32) if mode in {"ui", "both"} else None
+    if mode in {"ui", "both"}:
+        if ui_token is None or not ui_token.strip():
+            ui_token = secrets.token_urlsafe(32)
+        else:
+            ui_token = ui_token.strip()
+    else:
+        ui_token = None
 
     if ui_token is not None:
         async def open_ui_session() -> Response:
