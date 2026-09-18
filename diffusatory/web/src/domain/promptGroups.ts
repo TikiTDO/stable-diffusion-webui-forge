@@ -21,6 +21,7 @@ export function expandPromptGroups(
     })
     .replace(/\s{2,}/g, " ")
     .replace(/,\s*,/g, ",")
+    .replace(/^[\s,]+|[\s,]+$/g, "")
     .trim();
 }
 
@@ -93,4 +94,35 @@ export function updatePromptGroup(
   patch: Partial<PromptGroup>,
 ): PromptGroup[] {
   return groups.map((g) => (g.id === groupId ? { ...g, ...patch } : g));
+}
+
+export function findGroupSigils(text: string): string[] {
+  const matches: string[] = [];
+  const regex = /⟦g:([^⟧]+)⟧/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    matches.push(match[1]);
+  }
+  return matches;
+}
+
+export function moveGroupSigil(
+  text: string,
+  groupId: string,
+  targetIndex: number,
+): string {
+  const sigil = `⟦g:${groupId}⟧`;
+  let without = text;
+  let insertAt = targetIndex;
+  if (text.includes(sigil)) {
+    const oldIdx = text.indexOf(sigil);
+    without = text.slice(0, oldIdx) + text.slice(oldIdx + sigil.length);
+    if (insertAt > oldIdx) {
+      insertAt = Math.max(0, insertAt - sigil.length);
+    }
+  }
+  insertAt = Math.max(0, Math.min(insertAt, without.length));
+  return `${without.slice(0, insertAt)} ${sigil} ${without.slice(insertAt)}`
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }

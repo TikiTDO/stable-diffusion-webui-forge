@@ -21,6 +21,8 @@ import {
 } from "../features/regions/model";
 import {
   extractPromptGroup,
+  findGroupSigils,
+  moveGroupSigil,
   removePromptGroup,
   togglePromptGroup,
 } from "../domain/promptGroups";
@@ -185,6 +187,26 @@ export function Composer({
     const current = draft[key];
     const separator = current.trim() ? ", " : "";
     onChange({ [key]: `${current.trimEnd()}${separator}${text}` });
+  };
+
+  const handleDropGroupSigil = (
+    event: React.DragEvent<HTMLTextAreaElement>,
+    currentPrompt: string,
+  ) => {
+    const groupId = event.dataTransfer.getData("application/x-diffusatory-group-id");
+    if (!groupId) return;
+    event.preventDefault();
+    const textarea = event.currentTarget;
+    let insertIndex = textarea.selectionStart;
+    if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(event.clientX, event.clientY);
+      if (pos) insertIndex = pos.offset;
+    } else if ((document as any).caretRangeFromPoint) {
+      const range = (document as any).caretRangeFromPoint(event.clientX, event.clientY);
+      if (range) insertIndex = range.startOffset;
+    }
+    const nextPrompt = moveGroupSigil(currentPrompt, groupId, insertIndex);
+    onChange({ prompt: nextPrompt });
   };
 
   return (
@@ -736,68 +758,160 @@ export function Composer({
                   value={draft.prompt}
                   placeholder="Common styles, atmosphere, and LoRA tags applied to all regions…"
                   onChange={(e) => onChange({ prompt: e.target.value })}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(event) => handleDropGroupSigil(event, draft.prompt)}
+                  onKeyDown={(event) => {
+                    if (
+                      (event.metaKey || event.ctrlKey) &&
+                      (event.key === "ArrowUp" || event.key === "ArrowDown")
+                    ) {
+                      const target = event.currentTarget;
+                      const edit = adjustPromptAttention(
+                        target.value,
+                        target.selectionStart,
+                        target.selectionEnd,
+                        event.key === "ArrowUp" ? 1 : -1,
+                      );
+                      if (edit) {
+                        event.preventDefault();
+                        onChange({ prompt: edit.text });
+                        requestAnimationFrame(() => {
+                          target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+                        });
+                      }
+                      return;
+                    }
+                    if (
+                      (event.altKey || event.metaKey || event.ctrlKey) &&
+                      event.key.toLowerCase() === "g"
+                    ) {
+                      const target = event.currentTarget;
+                      if (target.selectionStart !== target.selectionEnd) {
+                        event.preventDefault();
+                        const { nextPrompt, nextGroups } = extractPromptGroup(
+                          target.value,
+                          target.selectionStart,
+                          target.selectionEnd,
+                          draft.promptGroups,
+                        );
+                        onChange({ prompt: nextPrompt, promptGroups: nextGroups });
+                        return;
+                      }
+                    }
+                  }}
                 />
               </label>
             </details>
           </div>
         ) : (
-          <label className="prompt-field">
-            <span className="sr-only">Prompt</span>
-            <textarea
-              data-shortcut-target="prompt"
-              value={draft.prompt}
-              onChange={(event) => onChange({ prompt: event.target.value })}
-              onKeyDown={(event) => {
-                if (
-                  (event.metaKey || event.ctrlKey) &&
-                  (event.key === "ArrowUp" || event.key === "ArrowDown")
-                ) {
-                  const target = event.currentTarget;
-                  const edit = adjustPromptAttention(
-                    target.value,
-                    target.selectionStart,
-                    target.selectionEnd,
-                    event.key === "ArrowUp" ? 1 : -1,
+          <div className="prompt-field-wrapper">
+            {findGroupSigils(draft.prompt).length > 0 && (
+              <div className="prompt-active-tokens" aria-label="Tokens in active prompt">
+                <span className="prompt-active-tokens__label">In prompt:</span>
+                {findGroupSigils(draft.prompt).map((groupId) => {
+                  const group = draft.promptGroups?.find((g) => g.id === groupId);
+                  if (!group) return null;
+                  return (
+                    <div
+                      key={groupId}
+                      className={`prompt-sigil-chip ${group.enabled ? "is-enabled" : "is-disabled"}`}
+                      title={`⟦g:${group.id}⟧: "${group.text}" (Drag to reposition within prompt)`}
+                      draggable={true}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("text/plain", `⟦g:${group.id}⟧`);
+                        event.dataTransfer.setData("application/x-diffusatory-group-id", group.id);
+                        event.dataTransfer.effectAllowed = "move";
+                      }}
+                    >
+                      <span className="prompt-sigil-chip__grip" aria-hidden="true">⋮⋮</span>
+                      <span className="prompt-sigil-chip__name">{group.label}</span>
+                      <button
+                        type="button"
+                        className="prompt-sigil-chip__remove"
+                        title="Remove from prompt"
+                        onClick={() => {
+                          const { nextPrompt, nextGroups } = removePromptGroup(
+                            draft.prompt,
+                            draft.promptGroups!,
+                            group.id,
+                            false,
+                          );
+                          onChange({ prompt: nextPrompt, promptGroups: nextGroups });
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
                   );
-                  if (edit) {
-                    event.preventDefault();
-                    onChange({ prompt: edit.text });
-                    requestAnimationFrame(() => {
-                      target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
-                    });
-                  }
-                  return;
-                }
-                if (
-                  (event.altKey || event.metaKey || event.ctrlKey) &&
-                  event.key.toLowerCase() === "g"
-                ) {
-                  const target = event.currentTarget;
-                  if (target.selectionStart !== target.selectionEnd) {
-                    event.preventDefault();
-                    const { nextPrompt, nextGroups } = extractPromptGroup(
+                })}
+              </div>
+            )}
+            <label className="prompt-field">
+              <span className="sr-only">Prompt</span>
+              <textarea
+                data-shortcut-target="prompt"
+                value={draft.prompt}
+                onChange={(event) => onChange({ prompt: event.target.value })}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(event) => handleDropGroupSigil(event, draft.prompt)}
+                onKeyDown={(event) => {
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    (event.key === "ArrowUp" || event.key === "ArrowDown")
+                  ) {
+                    const target = event.currentTarget;
+                    const edit = adjustPromptAttention(
                       target.value,
                       target.selectionStart,
                       target.selectionEnd,
-                      draft.promptGroups,
+                      event.key === "ArrowUp" ? 1 : -1,
                     );
-                    onChange({ prompt: nextPrompt, promptGroups: nextGroups });
+                    if (edit) {
+                      event.preventDefault();
+                      onChange({ prompt: edit.text });
+                      requestAnimationFrame(() => {
+                        target.setSelectionRange(edit.selectionStart, edit.selectionEnd);
+                      });
+                    }
                     return;
                   }
-                }
-                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                  event.preventDefault();
-                  onGenerate(
-                    editing ? (event.shiftKey ? "inpaint" : "img2img") : undefined,
-                    event.shiftKey ? true : undefined,
-                  );
-                }
-              }}
-              rows={9}
-              spellCheck="true"
-              autoFocus
-            />
-          </label>
+                  if (
+                    (event.altKey || event.metaKey || event.ctrlKey) &&
+                    event.key.toLowerCase() === "g"
+                  ) {
+                    const target = event.currentTarget;
+                    if (target.selectionStart !== target.selectionEnd) {
+                      event.preventDefault();
+                      const { nextPrompt, nextGroups } = extractPromptGroup(
+                        target.value,
+                        target.selectionStart,
+                        target.selectionEnd,
+                        draft.promptGroups,
+                      );
+                      onChange({ prompt: nextPrompt, promptGroups: nextGroups });
+                      return;
+                    }
+                  }
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    onGenerate(
+                      editing ? (event.shiftKey ? "inpaint" : "img2img") : undefined,
+                      event.shiftKey ? true : undefined,
+                    );
+                  }
+                }}
+                rows={9}
+                spellCheck="true"
+                autoFocus
+              />
+            </label>
+          </div>
         )}
 
         {draft.promptGroups && draft.promptGroups.length > 0 && (
@@ -807,7 +921,13 @@ export function Composer({
               <div
                 key={group.id}
                 className={`prompt-group-chip ${group.enabled ? "is-enabled" : "is-disabled"}`}
-                title={`⟦g:${group.id}⟧: "${group.text}" (Click to toggle, ↩ to inline)`}
+                title={`⟦g:${group.id}⟧: "${group.text}" (Drag into prompt, click to toggle, ↩ to inline)`}
+                draggable={true}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("text/plain", `⟦g:${group.id}⟧`);
+                  event.dataTransfer.setData("application/x-diffusatory-group-id", group.id);
+                  event.dataTransfer.effectAllowed = "copyMove";
+                }}
               >
                 <button
                   type="button"

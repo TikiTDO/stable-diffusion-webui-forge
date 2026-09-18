@@ -47,6 +47,7 @@ import {
   requestFromDraft,
   starterDraft,
 } from "./domain/draft";
+import { expandPromptGroups } from "./domain/promptGroups";
 import { useForgeCatalog } from "./domain/useForgeCatalog";
 import { useForgeGeneration } from "./domain/useForgeGeneration";
 import { useServerActivity } from "./domain/useServerActivity";
@@ -425,13 +426,13 @@ export default function App() {
   }, [editorSession, state.kind, state.phase, state.results, state.taskId]);
   const promptExpansionInput = useMemo<PromptExpansionInput>(
     () => ({
-      prompt: draft.prompt.trim(),
+      prompt: expandPromptGroups(draft.prompt, draft.promptGroups).trim(),
       negativePrompt: draft.negativePrompt.trim(),
       mode: promptMode,
       candidateCount: draft.outputs,
       expansionSeed,
     }),
-    [draft.negativePrompt, draft.outputs, draft.prompt, expansionSeed, promptMode],
+    [draft.negativePrompt, draft.outputs, draft.prompt, draft.promptGroups, expansionSeed, promptMode],
   );
   const promptExpansionEnabled = Boolean(
     instance?.capabilities.includes("prompt-expansion"),
@@ -729,7 +730,10 @@ export default function App() {
     const request = {
       ...requestFromDraft(draft),
       prompt: promptSet.realizations.map((item) =>
-        compilePromptWithLoras(item.prompt, draft.loras),
+        compilePromptWithLoras(
+          expandPromptGroups(item.prompt, draft.promptGroups),
+          draft.loras,
+        ),
       ),
       negativePrompt: promptSet.realizations.map((item) => item.negative_prompt),
       outputs: promptSet.realizations.length,

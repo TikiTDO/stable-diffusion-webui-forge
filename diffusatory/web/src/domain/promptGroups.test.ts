@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   expandPromptGroups,
   extractPromptGroup,
+  findGroupSigils,
+  moveGroupSigil,
   removePromptGroup,
   togglePromptGroup,
   updatePromptGroup,
@@ -83,5 +85,22 @@ describe("promptGroups", () => {
 
     expect(groups[0].label).toBe("Veteran Hero");
     expect(groups[0].text).toBe("scarred battle-hardened knight");
+  });
+
+  it("finds group sigils in prompt text", () => {
+    const prompt = "hello ⟦g:alpha⟧ and ⟦g:beta⟧ world";
+    expect(findGroupSigils(prompt)).toEqual(["alpha", "beta"]);
+    expect(findGroupSigils("plain text without groups")).toEqual([]);
+  });
+
+  it("moves a group sigil to a new position", () => {
+    const prompt = "portrait of ⟦g:hero⟧ in a ancient forest";
+    // Move hero to the end
+    const moved = moveGroupSigil(prompt, "hero", prompt.length);
+    expect(moved).toBe("portrait of in a ancient forest ⟦g:hero⟧");
+
+    // Move to start
+    const movedStart = moveGroupSigil(moved, "hero", 0);
+    expect(movedStart).toBe("⟦g:hero⟧ portrait of in a ancient forest");
   });
 });
