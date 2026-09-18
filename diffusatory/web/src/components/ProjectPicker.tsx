@@ -44,8 +44,7 @@ export function ProjectPicker({
       </select>
       {active && (
         <small>
-          {active.image_count} {active.image_count === 1 ? "image" : "images"} so far;
-          finished images are copied here
+          {active.image_count} {active.image_count === 1 ? "image" : "images"} · New results copy here.
         </small>
       )}
       {notice && <small role="alert">{notice}</small>}

@@ -1629,11 +1629,6 @@ export default function App() {
           </button>
         </div>
       )}
-
-      <footer className="footer">
-        <span>Diffusatory client · existing Forge engine</span>
-        <span>Built for the active visual-story workflow</span>
-      </footer>
     </div>
   );
 }

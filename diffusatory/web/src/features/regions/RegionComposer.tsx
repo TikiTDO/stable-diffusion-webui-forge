@@ -83,7 +83,10 @@ export function RegionComposer({
 
       {promptsOnLeft && isRegionsMode ? (
         <div className="region-prompts region-prompts--compact">
-          <label className="region-lock-control">
+          <label
+            className="region-lock-control"
+            title="Background establishes the frame for these early steps; regions enter afterward."
+          >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>Composition lock</span>
               <strong>{Math.round((value.lockFraction ?? 0.25) * 100)}% steps</strong>
@@ -99,9 +102,6 @@ export function RegionComposer({
               }
             />
           </label>
-          <div className="region-prompts-left-note">
-            Prompts editing in left column
-          </div>
         </div>
       ) : (
         <div className="region-prompts">
@@ -112,7 +112,10 @@ export function RegionComposer({
 
           {isRegionsMode ? (
             <>
-              <label className="region-lock-control">
+              <label
+                className="region-lock-control"
+                title="Background establishes the frame for these early steps; regions enter afterward."
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>Composition lock</span>
                   <strong>{Math.round((value.lockFraction ?? 0.25) * 100)}% steps</strong>

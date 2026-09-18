@@ -528,7 +528,7 @@ export function Composer({
               disabled={!canGenerate}
               onClick={() => onGenerate("img2img")}
             >
-              <span>{generating ? "Forge is working" : "Generate edit"}</span>
+              <span>{generating ? "Generating…" : "Generate edit"}</span>
               <kbd>Ctrl ↵</kbd>
             </button>
             <button
@@ -538,7 +538,7 @@ export function Composer({
               title={!hasMask ? "No mask" : "Regenerate only the masked area"}
               onClick={() => onGenerate("inpaint", true)}
             >
-              <span>{generating ? "Forge is working" : "Inpaint masked"}</span>
+              <span>{generating ? "Generating…" : "Inpaint masked"}</span>
               <kbd>Ctrl Shift ↵</kbd>
             </button>
             <button
@@ -548,7 +548,7 @@ export function Composer({
               title={!hasMask ? "No mask" : "Regenerate using the whole frame as context"}
               onClick={() => onGenerate("inpaint", false)}
             >
-              <span>{generating ? "Forge is working" : "Inpaint whole"}</span>
+              <span>{generating ? "Generating…" : "Inpaint whole"}</span>
             </button>
           </>
         ) : (
@@ -559,7 +559,7 @@ export function Composer({
             disabled={!canGenerate}
             onClick={() => onGenerate()}
           >
-            <span>{generating ? "Forge is working" : "Generate"}</span>
+            <span>{generating ? "Generating…" : "Generate"}</span>
             <kbd>Ctrl ↵</kbd>
           </button>
         )}
@@ -584,7 +584,7 @@ export function Composer({
         </div>
 
         <div className="catalog-status">
-        <span>{catalogLoading ? "Reading this instrument…" : "Current instrument"}</span>
+        <span>{catalogLoading ? "Loading models…" : "Models ready"}</span>
         <button type="button" className="shortcut-map-button" onClick={onShowShortcuts}>
           Keys <kbd>Alt /</kbd>
         </button>
@@ -1043,10 +1043,7 @@ export function Composer({
 
       <aside className="tool-dock" aria-label="Image and conditioning tools">
         <header className="tool-dock__heading">
-          <div>
-            <p className="eyebrow">Spatial & guides</p>
-            <h2>Tools <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></h2>
-          </div>
+          <h2>Tools <kbd className="shortcut-chip" aria-hidden="true">Alt T</kbd></h2>
           <span>{conditions.length} condition{conditions.length === 1 ? "" : "s"}</span>
         </header>
 

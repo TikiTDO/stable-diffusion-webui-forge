@@ -65,7 +65,7 @@ export function ConditionStack({
         </button>
       </header>
 
-      {loading && <p className="condition-stack__notice">Reading ControlNet tools…</p>}
+      {loading && <p className="condition-stack__notice">Loading ControlNet…</p>}
       {error && (
         <div className="condition-stack__notice is-error" role="alert">
           <span>ControlNet is unavailable: {error}</span>
@@ -240,7 +240,7 @@ export function ConditionStack({
                     disabled={Boolean(issue) || condition.previewStatus === "loading"}
                     onClick={() => onPreview(condition)}
                   >
-                    {condition.previewStatus === "loading" ? "Reading…" : "Inspect guide"}
+                    {condition.previewStatus === "loading" ? "Reading…" : "Preview guide"}
                   </button>
                 </div>
 

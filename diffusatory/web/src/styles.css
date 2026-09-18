@@ -4409,7 +4409,7 @@ h1 {
 }
 
 .stage__canvas {
-  min-height: min(62vh, 680px);
+  min-height: min(48vh, 520px);
 }
 
 .stage__status {
@@ -5027,12 +5027,12 @@ h1 {
   font-size: 16px;
 }
 
-@media (max-width: 1380px) {
+@media (max-width: 1540px) {
   .workbench-rack {
     grid-template-columns:
-      minmax(160px, 0.5fr)
-      minmax(315px, 0.95fr)
-      minmax(440px, 1.25fr);
+      minmax(140px, 0.45fr)
+      minmax(280px, 0.95fr)
+      minmax(380px, 1.25fr);
   }
 
   .workbench-rack > .source-context,
