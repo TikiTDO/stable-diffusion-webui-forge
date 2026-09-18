@@ -131,17 +131,34 @@ function VirtualLoraGrid({
     const relativeTop = gridRect.top - containerRect.top;
     const viewportHeight = container.clientHeight;
 
-    const visibleTop = Math.max(0, -relativeTop);
-    const visibleBottom = Math.max(0, -relativeTop + viewportHeight);
+    const totalHeight = results.length * ESTIMATED_ITEM_HEIGHT;
 
-    const start = Math.max(
-      0,
-      Math.floor(visibleTop / ESTIMATED_ITEM_HEIGHT) - OVERSCAN,
-    );
-    const end = Math.min(
-      results.length,
-      Math.ceil(visibleBottom / ESTIMATED_ITEM_HEIGHT) + OVERSCAN,
-    );
+    // If grid is completely below the viewport
+    if (relativeTop >= viewportHeight) {
+      setVisibleRange((prev) => {
+        if (prev.start === 0 && prev.end === 0) return prev;
+        return { start: 0, end: 0 };
+      });
+      return;
+    }
+
+    // If grid is completely above the viewport
+    if (-relativeTop >= totalHeight) {
+      setVisibleRange((prev) => {
+        if (prev.start === results.length && prev.end === results.length) return prev;
+        return { start: results.length, end: results.length };
+      });
+      return;
+    }
+
+    const visibleTop = Math.max(0, -relativeTop);
+    const visibleBottom = Math.min(totalHeight, -relativeTop + viewportHeight);
+
+    const rawStart = Math.floor(visibleTop / ESTIMATED_ITEM_HEIGHT) - OVERSCAN;
+    const start = Math.max(0, Math.min(results.length, rawStart));
+
+    const rawEnd = Math.ceil(visibleBottom / ESTIMATED_ITEM_HEIGHT) + OVERSCAN;
+    const end = Math.min(results.length, Math.max(start, rawEnd));
 
     setVisibleRange((prev) => {
       if (prev.start === start && prev.end === end) return prev;
@@ -313,12 +330,20 @@ function VirtualEmbeddingList({
 
     const scrollTop = container.scrollTop;
     const viewportHeight = container.clientHeight;
+    const totalHeight = embeddings.length * EMBEDDING_ROW_HEIGHT;
 
-    const start = Math.max(0, Math.floor(scrollTop / EMBEDDING_ROW_HEIGHT) - 4);
-    const end = Math.min(
-      embeddings.length,
-      Math.ceil((scrollTop + viewportHeight) / EMBEDDING_ROW_HEIGHT) + 4,
-    );
+    if (scrollTop >= totalHeight) {
+      setVisibleRange((prev) => {
+        if (prev.start === embeddings.length && prev.end === embeddings.length) return prev;
+        return { start: embeddings.length, end: embeddings.length };
+      });
+      return;
+    }
+
+    const rawStart = Math.floor(scrollTop / EMBEDDING_ROW_HEIGHT) - 4;
+    const start = Math.max(0, Math.min(embeddings.length, rawStart));
+    const rawEnd = Math.ceil((scrollTop + viewportHeight) / EMBEDDING_ROW_HEIGHT) + 4;
+    const end = Math.min(embeddings.length, Math.max(start, rawEnd));
 
     setVisibleRange((prev) => {
       if (prev.start === start && prev.end === end) return prev;
