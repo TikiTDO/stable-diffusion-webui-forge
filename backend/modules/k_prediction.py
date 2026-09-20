@@ -297,7 +297,9 @@ class PredictionFlux(AbstractPrediction):
         else:
             self.mu = mu
         sigmas = torch.arange(1, self.pseudo_timestep_range + 1, 1) / self.pseudo_timestep_range
-        sigmas = FlowMatchEulerDiscreteScheduler.time_shift(None, self.mu, 1.0, sigmas)
+        # diffusers >= 0.33 dispatches time_shift on self.config; call the exponential form directly
+        # (the pre-0.33 behaviour: exp(mu) / (exp(mu) + (1/t - 1) ** sigma)).
+        sigmas = FlowMatchEulerDiscreteScheduler._time_shift_exponential(None, self.mu, 1.0, sigmas)
         self.register_buffer('sigmas', sigmas)
 
     @property

@@ -817,6 +817,11 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     if p.scripts is not None:
         p.scripts.before_process(p)
         
+    # a caller who names a checkpoint but not its preset/modules gets them from the checkpoint's profile
+    # (black plates and VAE-mismatch 500s otherwise); explicit values always win
+    from modules_forge import checkpoint_profiles
+    checkpoint_profiles.fill_override_settings(p.override_settings)
+
     stored_opts = {k: opts.data[k] if k in opts.data else opts.get_default(k) for k in p.override_settings.keys() if k in opts.data}
 
     try:
