@@ -177,3 +177,54 @@ def profile_checkpoint(checkpoint: CheckpointLike) -> ModelProfile:
 
 def model_profiles(checkpoints: Iterable[CheckpointLike]) -> list[ModelProfile]:
     return [profile_checkpoint(checkpoint) for checkpoint in checkpoints]
+
+
+# ---- API autofill --------------------------------------------------------------------------------
+# A raw ``/sdapi/v1/txt2img`` caller who names ``sd_model_checkpoint`` and nothing else gets a black plate
+# (a Flux checkpoint with no VAE/text encoders) or ``You do not have CLIP state dict!``. The profile above
+# already knows what the checkpoint needs; this fills only the keys the caller left unset.
+
+FLUX_VAE_ALIASES = ["diffusion_pytorch_model.safetensors", "ae-flux.safetensors", "ae.safetensors"]
+
+
+def _resolve_module_names(recommended: list[str], available: dict[str, str]) -> list[str]:
+    resolved: list[str] = []
+    for name in recommended:
+        if name in available:
+            resolved.append(name)
+            continue
+        if name in FLUX_VAE_ALIASES:
+            alias = next((a for a in FLUX_VAE_ALIASES if a in available), None)
+            if alias:
+                resolved.append(alias)
+    return resolved
+
+
+def fill_override_settings(override: dict) -> dict:
+    """Fill ``forge_preset`` / ``forge_additional_modules`` from the named checkpoint's profile.
+
+    Explicit values always win. Returns what was filled, for logging."""
+    if not override or "sd_model_checkpoint" not in override:
+        return {}
+    from modules import sd_models
+    from modules_forge import main_entry
+
+    info = sd_models.get_closet_checkpoint_match(override.get("sd_model_checkpoint"))
+    if info is None:
+        return {}
+    profile = profile_checkpoint(info)
+    if not main_entry.module_list:
+        try:
+            main_entry.refresh_models()
+        except Exception:
+            pass
+    filled: dict = {}
+    if "forge_preset" not in override and profile.family in ("flux", "sdxl"):
+        override["forge_preset"] = {"flux": "flux", "sdxl": "xl"}[profile.family]
+        filled["forge_preset"] = override["forge_preset"]
+    if "forge_additional_modules" not in override:
+        override["forge_additional_modules"] = _resolve_module_names(profile.recommended_modules, main_entry.module_list)
+        filled["forge_additional_modules"] = override["forge_additional_modules"]
+    if filled:
+        print(f"[diffusatory.model_profiles] {info.title}: filled {filled}")
+    return filled

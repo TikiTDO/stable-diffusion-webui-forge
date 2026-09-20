@@ -818,6 +818,11 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     if p.scripts is not None:
         p.scripts.before_process(p)
         
+    # a raw API caller who names a checkpoint but not its preset/modules gets them from its profile;
+    # explicit values always win (black plates and "no CLIP state dict" otherwise)
+    from diffusatory.server.model_profiles import fill_override_settings
+    fill_override_settings(p.override_settings)
+
     stored_opts = {k: opts.data[k] if k in opts.data else opts.get_default(k) for k in p.override_settings.keys() if k in opts.data}
 
     try:
