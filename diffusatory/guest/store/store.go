@@ -10,7 +10,6 @@ package store
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -19,6 +18,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -80,17 +81,34 @@ type Take struct {
 // Store is the studio rooted at one directory. All methods are safe for concurrent use.
 type Store struct {
 	root string
+	boot int
+	lock *os.File
 	mu   sync.Mutex
 }
 
 // Open opens or creates a studio at root. A new studio gets a default project, scene
 // and cut, so every generation has somewhere to land from the first call.
-func Open(root string) (*Store, error) {
-	s := &Store{root: root}
-	if err := os.MkdirAll(filepath.Join(root, "documents"), 0o755); err != nil {
+//
+// Only one process may hold a studio open: a second Open fails until the first is
+// closed or its process exits. Each Open also counts one boot, so ids minted per boot
+// (job ids) never repeat across restarts.
+func Open(root string) (s *Store, err error) {
+	for _, dir := range []string{"documents", "takes", "requests", "jobs"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			return nil, err
+		}
+	}
+	lock, err := lockStudio(filepath.Join(root, "lock"))
+	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Join(root, "takes"), 0o755); err != nil {
+	s = &Store{root: root, lock: lock}
+	defer func() {
+		if err != nil {
+			lock.Close()
+		}
+	}()
+	if s.boot, err = s.nextBoot(); err != nil {
 		return nil, err
 	}
 	if _, err := os.Stat(s.studioPath()); errors.Is(err, os.ErrNotExist) {
@@ -109,6 +127,29 @@ func Open(root string) (*Store, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+// Close releases the studio for another process.
+func (s *Store) Close() error { return s.lock.Close() }
+
+// Boot is this Open's number: 1 for the first Open of a studio, then counting up.
+func (s *Store) Boot() int { return s.boot }
+
+// nextBoot reads, increments and durably records the boot counter.
+func (s *Store) nextBoot() (int, error) {
+	path := filepath.Join(s.root, "boot")
+	n := 0
+	b, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		if n, err = strconv.Atoi(strings.TrimSpace(string(b))); err != nil {
+			return 0, fmt.Errorf("boot counter %s is unreadable: %w", path, err)
+		}
+	case !errors.Is(err, os.ErrNotExist):
+		return 0, err
+	}
+	n++
+	return n, writeAtomic(path, []byte(strconv.Itoa(n)+"\n"))
 }
 
 func newID(prefix string) string {
@@ -146,7 +187,8 @@ func (s *Store) writeStudio(st Studio) error {
 }
 
 // writeAtomic replaces path in one rename, so a crash mid-write never leaves a torn
-// file behind.
+// file behind, then syncs the directory so the rename itself survives a crash. An
+// error after the rename means the new file may or may not be what a restart finds.
 func writeAtomic(path string, b []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
 	if err != nil {
@@ -166,7 +208,20 @@ func writeAtomic(path string, b []byte) error {
 		os.Remove(tmp.Name())
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		os.Remove(tmp.Name())
+		return err
+	}
+	return syncDir(filepath.Dir(path))
+}
+
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Sync()
 }
 
 // FindCut returns a cut by id.
@@ -367,29 +422,4 @@ func (s *Store) AddCut(scene, name string) (Cut, error) {
 		}
 	}
 	return Cut{}, fmt.Errorf("scene %q: %w", scene, ErrNotFound)
-}
-
-// requestFile names the stored reply for one request id. The id is hashed so any client
-// string is a safe file name.
-func (s *Store) requestFile(request string) string {
-	sum := sha256.Sum256([]byte(request))
-	return filepath.Join(s.root, "requests", hex.EncodeToString(sum[:])+".json")
-}
-
-// SaveReply records the reply to a mutating request, so a retry of the same request id
-// gets that reply back however long afterwards, instead of doing the work again.
-func (s *Store) SaveReply(request string, reply json.RawMessage) error {
-	if err := os.MkdirAll(filepath.Join(s.root, "requests"), 0o755); err != nil {
-		return err
-	}
-	return writeAtomic(s.requestFile(request), reply)
-}
-
-// LoadReply returns the recorded reply for a request id, or ErrNotFound.
-func (s *Store) LoadReply(request string) (json.RawMessage, error) {
-	b, err := os.ReadFile(s.requestFile(request))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, ErrNotFound
-	}
-	return b, err
 }

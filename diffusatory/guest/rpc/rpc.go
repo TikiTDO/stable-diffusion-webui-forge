@@ -7,7 +7,8 @@
 //
 // A job (one generate call) is bound to exactly what was submitted: a cut, a saved
 // document revision, an explicit operation and the layers it reads. It always ends with
-// exactly one "ended" event: done, cancelled, skipped or failed with a named reason.
+// exactly one "ended" event: done, cancelled, skipped or failed with a named reason. A
+// job the guest was restarted under ends "interrupted"; work doesn't survive a restart.
 // Its result becomes a take in the cut it came from and never changes what that cut has
 // chosen. Jobs run one at a time because one GPU serves them all.
 package rpc
@@ -15,12 +16,13 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -29,9 +31,10 @@ import (
 )
 
 // Call is one client request. ID is chosen by the client and echoed in the reply.
-// Request is required on calls that change something: a retry with the same Request
-// gets the original reply instead of doing the work again, so a reply lost in a
-// disconnect can't start a second generation or save twice.
+// Request is required on calls that change something, and names one attempt at one
+// effect forever: a retry with the same Request gets the original reply, or "uncertain"
+// if the guest can't tell whether the first attempt took effect, but never a second
+// effect. So a reply lost in a disconnect or a restart can't start a second generation.
 type Call struct {
 	ID      string          `json:"id"`
 	Method  string          `json:"method"`
@@ -89,6 +92,8 @@ const (
 	EndedCancelled = "cancelled"
 	EndedSkipped   = "skipped"
 	EndedFailed    = "failed"
+	// EndedInterrupted is a job that was queued or running when the guest stopped.
+	EndedInterrupted = "interrupted"
 )
 
 // Operations a generate call can ask for. The canvas never infers one from which
@@ -105,12 +110,11 @@ var (
 	errSkipped   = errors.New("skipped by the client")
 )
 
-// keepEnded bounds the ended jobs kept in memory for reconnecting tabs; keepReplies
-// bounds the in-memory reply cache. Replies to mutating calls are also stored on disk,
-// so a retry still finds its reply after the cache has moved on.
+// A "jobs" page holds pageJobs jobs unless the call asks for fewer, and never more than
+// maxPageJobs.
 const (
-	keepEnded   = 200
-	keepReplies = 4096
+	pageJobs    = 50
+	maxPageJobs = 200
 )
 
 // Sink receives every message the hub broadcasts. A connection is a sink.
@@ -136,10 +140,12 @@ type generateParams struct {
 	Request json.RawMessage `json:"request"`
 }
 
-// JobInfo is one job as "jobs" reports it.
+// JobInfo is one job as "jobs" and "job.get" report it, and as its record on disk keeps
+// it. Request is the request id of the generate call that made it.
 type JobInfo struct {
 	ID         string     `json:"id"`
 	State      string     `json:"state"` // "queued", "running" or "ended"
+	Request    string     `json:"request,omitempty"`
 	Submission Submission `json:"submission"`
 	Outcome    string     `json:"outcome,omitempty"`
 	Reason     string     `json:"reason,omitempty"`
@@ -155,25 +161,23 @@ type Hub struct {
 	sinks    map[Sink]struct{}
 	queue    []*job
 	running  *job
-	ended    []JobInfo
 	nextJob  int
-	replies  map[string]Message
-	replyLog []string
 	inflight map[string]chan struct{}
 	wake     chan struct{}
 }
 
 type job struct {
-	id     string
-	sub    Submission
-	req    *api.GenerateRequest
-	ctx    context.Context
-	cancel context.CancelCauseFunc
+	id      string
+	request string
+	sub     Submission
+	req     *api.GenerateRequest
+	ctx     context.Context
+	cancel  context.CancelCauseFunc
 }
 
 // NewHub starts the job runner. Cancel ctx to stop it.
 func NewHub(ctx context.Context, engine Engine, st *store.Store) *Hub {
-	h := &Hub{engine: engine, store: st, sinks: map[Sink]struct{}{}, replies: map[string]Message{}, inflight: map[string]chan struct{}{}, wake: make(chan struct{}, 1)}
+	h := &Hub{engine: engine, store: st, sinks: map[Sink]struct{}{}, inflight: map[string]chan struct{}{}, wake: make(chan struct{}, 1)}
 	go h.run(ctx)
 	return h
 }
@@ -226,23 +230,9 @@ func (h *Hub) Handle(raw []byte) Message {
 		return failure(c.ID, "bad_call", c.Method+" needs a request id, so a retry can't do the work twice")
 	}
 	// The same request may arrive twice at once, from a tab and its reconnected self.
-	// The first one does the work; the other waits for it and gets the same reply.
+	// The first one does the work; the other waits for it, then reads its outcome.
 	for {
 		h.mu.Lock()
-		if prev, seen := h.replies[c.Request]; seen {
-			h.mu.Unlock()
-			prev.ID = c.ID
-			return prev
-		}
-		if stored, err := h.store.LoadReply(c.Request); err == nil {
-			h.mu.Unlock()
-			var prev Message
-			if err := json.Unmarshal(stored, &prev); err != nil {
-				return failure(c.ID, "bad_request", "stored reply for this request id is unreadable: "+err.Error())
-			}
-			prev.ID = c.ID
-			return prev
-		}
 		wait, busy := h.inflight[c.Request]
 		if !busy {
 			h.inflight[c.Request] = make(chan struct{})
@@ -252,27 +242,64 @@ func (h *Hub) Handle(raw []byte) Message {
 		h.mu.Unlock()
 		<-wait
 	}
-	m := h.dispatch(c)
-	if b, err := json.Marshal(m); err == nil {
-		if err := h.store.SaveReply(c.Request, b); err != nil {
-			log.Printf("diffusatory: store reply for request %q: %v", c.Request, err)
+	defer h.release(c.Request)
+
+	hash := paramsHash(c.Params)
+	prev, err := h.store.LoadEntry(c.Request)
+	switch {
+	case err == nil:
+		if prev.Method != c.Method || prev.ParamsHash != hash {
+			return failure(c.ID, "request_reused", "request id "+c.Request+" was already used for a different call; use a new one")
 		}
+		if prev.State == store.Pending {
+			return failure(c.ID, "uncertain", "an earlier attempt with this request id may or may not have taken effect; "+
+				"read studio, jobs or job.get to see, and use a new request id to try again")
+		}
+		var m Message
+		if err := json.Unmarshal(prev.Reply, &m); err != nil {
+			return failure(c.ID, "storage_error", "the recorded reply for this request id is unreadable: "+err.Error())
+		}
+		m.ID = c.ID
+		return m
+	case !errors.Is(err, store.ErrNotFound):
+		return failure(c.ID, "storage_error", "can't tell whether this request id was used before: "+err.Error())
 	}
-	h.remember(c.Request, m)
+
+	entry := store.Entry{Request: c.Request, Method: c.Method, ParamsHash: hash, State: store.Pending}
+	if err := h.store.SaveEntry(entry); err != nil {
+		return failure(c.ID, "storage_error", "can't record the request before acting on it: "+err.Error())
+	}
+	m := h.dispatch(c)
+	reply, err := json.Marshal(m)
+	if err == nil {
+		entry.State, entry.Reply = store.Complete, reply
+		err = h.store.SaveEntry(entry)
+	}
+	if err != nil {
+		// The caller still gets its reply. A later retry finds pending or complete,
+		// whichever reached the disk, and gets uncertain or this reply: never a re-run.
+		log.Printf("diffusatory: record reply for request %q: %v", c.Request, err)
+	}
 	return m
 }
 
-func (h *Hub) remember(request string, m Message) {
+func (h *Hub) release(request string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	close(h.inflight[request])
 	delete(h.inflight, request)
-	h.replies[request] = m
-	h.replyLog = append(h.replyLog, request)
-	if len(h.replyLog) > keepReplies {
-		delete(h.replies, h.replyLog[0])
-		h.replyLog = h.replyLog[1:]
+}
+
+// paramsHash identifies a call's parameters, so a reused request id with different
+// work is caught. Whitespace doesn't count; key order does.
+func paramsHash(params json.RawMessage) string {
+	var b bytes.Buffer
+	if err := json.Compact(&b, params); err != nil {
+		b.Reset()
+		b.Write(params)
 	}
+	sum := sha256.Sum256(b.Bytes())
+	return hex.EncodeToString(sum[:])
 }
 
 func success(id string, result any) Message { return Message{Type: "reply", ID: id, Result: result} }
@@ -303,7 +330,32 @@ func (h *Hub) dispatch(c Call) Message {
 		}
 		return success(c.ID, st)
 	case "jobs":
-		return success(c.ID, h.jobs())
+		var p struct {
+			Before string `json:"before"`
+			Limit  int    `json:"limit"`
+		}
+		if len(c.Params) > 0 {
+			if err := json.Unmarshal(c.Params, &p); err != nil || p.Limit < 0 {
+				return failure(c.ID, "bad_request", "jobs takes an optional before job id and a limit")
+			}
+		}
+		page, err := h.jobs(p.Before, p.Limit)
+		if err != nil {
+			return storeFailure(c.ID, err)
+		}
+		return success(c.ID, page)
+	case "job.get":
+		var p struct {
+			Job string `json:"job"`
+		}
+		if err := json.Unmarshal(c.Params, &p); err != nil || p.Job == "" {
+			return failure(c.ID, "bad_request", "job.get needs a job id")
+		}
+		info, err := h.job(p.Job)
+		if err != nil {
+			return storeFailure(c.ID, err)
+		}
+		return success(c.ID, info)
 	case "document.get":
 		var p struct {
 			Document string `json:"document"`
@@ -468,15 +520,26 @@ func (h *Hub) generate(c Call) Message {
 	if p.Reference == nil {
 		p.Reference = []string{}
 	}
-	return success(c.ID, map[string]string{"job": h.enqueue(p.Submission, req)})
+	id, err := h.enqueue(c.Request, p.Submission, req)
+	if err != nil {
+		return failure(c.ID, "storage_error", "can't record the job: "+err.Error())
+	}
+	return success(c.ID, map[string]string{"job": id})
 }
 
-func (h *Hub) enqueue(sub Submission, req *api.GenerateRequest) string {
+// enqueue records the job on disk, then queues it. Its id names this boot, so it can't
+// collide with a job a saved reply from an earlier boot names.
+func (h *Hub) enqueue(request string, sub Submission, req *api.GenerateRequest) (string, error) {
 	h.mu.Lock()
 	h.nextJob++
-	id := "j" + strconv.Itoa(h.nextJob)
+	id := h.store.JobID(h.nextJob)
+	h.mu.Unlock()
+	if err := h.saveJob(JobInfo{ID: id, State: "queued", Request: request, Submission: sub}); err != nil {
+		return "", err
+	}
 	ctx, cancel := context.WithCancelCause(context.Background())
-	h.queue = append(h.queue, &job{id: id, sub: sub, req: req, ctx: ctx, cancel: cancel})
+	h.mu.Lock()
+	h.queue = append(h.queue, &job{id: id, request: request, sub: sub, req: req, ctx: ctx, cancel: cancel})
 	queued := len(h.queue)
 	h.mu.Unlock()
 	h.event("status", "", map[string]int{"queued": queued})
@@ -484,31 +547,107 @@ func (h *Hub) enqueue(sub Submission, req *api.GenerateRequest) string {
 	case h.wake <- struct{}{}:
 	default:
 	}
-	return id
+	return id, nil
 }
 
-func (h *Hub) jobs() []JobInfo {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	out := make([]JobInfo, 0, len(h.queue)+1+len(h.ended))
-	if h.running != nil {
-		out = append(out, JobInfo{ID: h.running.id, State: "running", Submission: h.running.sub})
+func (h *Hub) saveJob(info JobInfo) error {
+	b, err := json.Marshal(info)
+	if err != nil {
+		return err
 	}
-	for _, j := range h.queue {
-		out = append(out, JobInfo{ID: j.id, State: "queued", Submission: j.sub})
-	}
-	return append(out, slices.Clone(h.ended)...)
+	return h.store.SaveJob(info.ID, b)
 }
 
-// finish records a job's ending for reconnecting tabs and broadcasts it.
-func (h *Hub) finish(j *job, outcome, reason, take string) {
-	info := JobInfo{ID: j.id, State: "ended", Submission: j.sub, Outcome: outcome, Reason: reason, Take: take}
-	h.mu.Lock()
-	h.ended = append(h.ended, info)
-	if len(h.ended) > keepEnded {
-		h.ended = h.ended[len(h.ended)-keepEnded:]
+// job reports one job by exact id, from any boot. Its ending on disk wins; otherwise
+// it's queued or running in this guest; otherwise an earlier boot left it unfinished,
+// so it was interrupted.
+func (h *Hub) job(id string) (JobInfo, error) {
+	var info JobInfo
+	rec, err := h.store.LoadJob(id)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return info, err
 	}
+	if err == nil {
+		if err := json.Unmarshal(rec, &info); err != nil {
+			return info, fmt.Errorf("job %s record is unreadable: %w", id, err)
+		}
+		if info.State == "ended" {
+			return info, nil
+		}
+	}
+	h.mu.Lock()
+	live := h.running
+	if live == nil || live.id != id {
+		live = nil
+		for _, j := range h.queue {
+			if j.id == id {
+				live = j
+				break
+			}
+		}
+	}
+	running := live != nil && live == h.running
 	h.mu.Unlock()
+	if live != nil {
+		state := "queued"
+		if running {
+			state = "running"
+		}
+		return JobInfo{ID: id, State: state, Request: live.request, Submission: live.sub}, nil
+	}
+	if errors.Is(err, store.ErrNotFound) {
+		return info, store.ErrNotFound
+	}
+	if boot, _ := store.JobBoot(id); boot < h.store.Boot() {
+		info.State, info.Outcome, info.Reason = "ended", EndedInterrupted, "guest restarted"
+	}
+	return info, nil
+}
+
+// jobPage is one page of "jobs", newest first. Next, when set, is the before value for
+// the following page.
+type jobPage struct {
+	Jobs []JobInfo `json:"jobs"`
+	Next string    `json:"next,omitempty"`
+}
+
+func (h *Hub) jobs(before string, limit int) (jobPage, error) {
+	if limit == 0 {
+		limit = pageJobs
+	}
+	limit = min(limit, maxPageJobs)
+	ids, err := h.store.JobIDs()
+	if err != nil {
+		return jobPage{}, err
+	}
+	if before != "" {
+		i := slices.Index(ids, before)
+		if i < 0 {
+			return jobPage{}, store.ErrNotFound
+		}
+		ids = ids[i+1:]
+	}
+	page := jobPage{Jobs: []JobInfo{}}
+	for _, id := range ids {
+		if len(page.Jobs) == limit {
+			page.Next = page.Jobs[len(page.Jobs)-1].ID
+			break
+		}
+		info, err := h.job(id)
+		if err != nil {
+			return jobPage{}, err
+		}
+		page.Jobs = append(page.Jobs, info)
+	}
+	return page, nil
+}
+
+// finish records a job's ending on disk and broadcasts it.
+func (h *Hub) finish(j *job, outcome, reason, take string) {
+	info := JobInfo{ID: j.id, State: "ended", Request: j.request, Submission: j.sub, Outcome: outcome, Reason: reason, Take: take}
+	if err := h.saveJob(info); err != nil {
+		log.Printf("diffusatory: record the ending of job %s: %v", j.id, err)
+	}
 	data := map[string]string{"outcome": outcome, "cut": j.sub.Cut}
 	if reason != "" {
 		data["reason"] = reason

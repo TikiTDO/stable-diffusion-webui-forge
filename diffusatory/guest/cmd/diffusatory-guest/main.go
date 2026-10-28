@@ -40,6 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("diffusatory-guest: open studio: %v", err)
 	}
+	defer st.Close()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

@@ -344,14 +344,14 @@ func TestAReconnectedRetryDoesNotDuplicateAndRecoversTheResult(t *testing.T) {
 	again.next(event("ended"))
 	again.call("j", "jobs", "")
 	var mine []any
-	for _, j := range again.next(reply("j"))["result"].([]any) {
+	for _, j := range again.next(reply("j"))["result"].(map[string]any)["jobs"].([]any) {
 		if j.(map[string]any)["id"] == job {
 			mine = append(mine, j)
 		}
 	}
 	all := again
 	all.call("k", "jobs", "")
-	if n := len(all.next(reply("k"))["result"].([]any)); n != 1 || len(mine) != 1 {
+	if n := len(all.next(reply("k"))["result"].(map[string]any)["jobs"].([]any)); n != 1 || len(mine) != 1 {
 		t.Fatalf("jobs: %d in total, %d for this request; want exactly one", n, len(mine))
 	}
 	if j := mine[0].(map[string]any); j["state"] != "ended" || j["outcome"] != EndedDone || j["take"] == nil {

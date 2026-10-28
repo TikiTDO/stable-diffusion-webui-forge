@@ -44,7 +44,11 @@ func TestMiraSubmissionMustPinANumberedRevision(t *testing.T) {
 	if m.Error != nil {
 		return
 	} // explicit refusal is a valid admission policy
-	for _, j := range h.jobs() {
+	page, err := h.jobs("", maxPageJobs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, j := range page.Jobs {
 		if j.Submission.Revision < 0 {
 			t.Fatalf("accepted job %s with mutable revision alias %d, not a pinned numbered revision", j.ID, j.Submission.Revision)
 		}
@@ -92,7 +96,7 @@ func TestMiraRetryMustNotBecomeNewWorkAfterReplyEviction(t *testing.T) {
 		t.Fatal(m.Error)
 	}
 	original := m.Result.(map[string]string)["job"]
-	for i := 0; i < keepReplies; i++ {
+	for i := 0; i < 4096; i++ { // the size of the reply cache this check was written against
 		miraCall(h, "fill", "fill-"+stringID(i), "cancel", `{"job":"does-not-exist"}`)
 	}
 	retry := miraCall(h, "retry", "original-request", "generate", p)
@@ -101,7 +105,7 @@ func TestMiraRetryMustNotBecomeNewWorkAfterReplyEviction(t *testing.T) {
 	} // explicit expiry/refusal is better than duplicate generation
 	// A retry answered from disk carries the decoded JSON reply, so compare via JSON.
 	if got := jobOf(t, retry); got != original {
-		t.Fatalf("retry became new work after %d intervening mutations: old=%s new=%s", keepReplies, original, got)
+		t.Fatalf("retry became new work after %d intervening mutations: old=%s new=%s", 4096, original, got)
 	}
 }
 func jobOf(t *testing.T, m Message) string {
