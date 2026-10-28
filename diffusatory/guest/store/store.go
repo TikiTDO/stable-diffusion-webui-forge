@@ -31,6 +31,15 @@ var ErrStale = errors.New("document changed since that revision")
 // ErrNotFound is returned for an id the studio doesn't have.
 var ErrNotFound = errors.New("not found")
 
+// ErrInvalid is returned for a request the studio refuses on its content, such as a
+// document body that isn't JSON. Nothing is written.
+var ErrInvalid = errors.New("invalid")
+
+// ErrUncertain is returned when a change was renamed into place but the directory
+// sync after it failed: the change is visible now and may or may not survive a crash.
+// Any other storage error from a mutating method means nothing visible changed.
+var ErrUncertain = errors.New("the change may or may not have been saved")
+
 var idPattern = regexp.MustCompile(`^[a-z][0-9a-f]{12}$`)
 
 // Studio is the tree of everything in the guest's output root.
@@ -187,8 +196,8 @@ func (s *Store) writeStudio(st Studio) error {
 }
 
 // writeAtomic replaces path in one rename, so a crash mid-write never leaves a torn
-// file behind, then syncs the directory so the rename itself survives a crash. An
-// error after the rename means the new file may or may not be what a restart finds.
+// file behind, then syncs the directory so the rename itself survives a crash. A failure
+// before or at the rename leaves the old file; a failure after it is ErrUncertain.
 func writeAtomic(path string, b []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
 	if err != nil {
@@ -212,7 +221,10 @@ func writeAtomic(path string, b []byte) error {
 		os.Remove(tmp.Name())
 		return err
 	}
-	return syncDir(filepath.Dir(path))
+	if err := syncDir(filepath.Dir(path)); err != nil {
+		return fmt.Errorf("%w: %s renamed into place, directory sync failed: %v", ErrUncertain, filepath.Base(path), err)
+	}
+	return nil
 }
 
 func syncDir(dir string) error {
@@ -308,7 +320,7 @@ func (s *Store) GetDocument(id string, rev int) (Document, error) {
 // nothing is written and ErrStale is returned.
 func (s *Store) PutDocument(id string, base int, body json.RawMessage) (int, error) {
 	if !json.Valid(body) {
-		return 0, errors.New("document body is not valid JSON")
+		return 0, fmt.Errorf("document body is not valid JSON: %w", ErrInvalid)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -337,7 +349,7 @@ func (s *Store) AddTake(cut, kind, job string, asset []byte, manifest, receipt j
 	t := Take{ID: newID("t"), Cut: cut, Kind: kind, Job: job, Created: time.Now().UTC(), Manifest: manifest, Receipt: receipt}
 	ext := map[string]string{"image": ".png", "clip": ".mp4"}[kind]
 	if ext == "" {
-		return Take{}, fmt.Errorf("unknown take kind %q", kind)
+		return Take{}, fmt.Errorf("unknown take kind %q: %w", kind, ErrInvalid)
 	}
 	if err := writeAtomic(filepath.Join(s.root, "takes", t.ID+ext), asset); err != nil {
 		return Take{}, err
@@ -373,7 +385,7 @@ func (s *Store) Choose(cut, take string) error {
 		return err
 	}
 	if t.Cut != cut {
-		return fmt.Errorf("take %q belongs to cut %q, not %q", take, t.Cut, cut)
+		return fmt.Errorf("take %q belongs to cut %q, not %q: %w", take, t.Cut, cut, ErrInvalid)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

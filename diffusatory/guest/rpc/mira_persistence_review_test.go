@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/TikiTDO/stable-diffusion-webui-forge/diffusatory/guest/api"
@@ -17,7 +18,7 @@ import (
 // these exercise admission and identity, not inference or a real process crash.
 
 func miraDormantHub(st *store.Store) *Hub {
-	return &Hub{engine: &miraEngine{api.Stage1()}, store: st, sinks: map[Sink]struct{}{}, inflight: map[string]chan struct{}{}, wake: make(chan struct{}, 1)}
+	return &Hub{engine: &miraEngine{api.Stage1()}, store: st, sinks: map[Sink]struct{}{}, starting: map[string]bool{}, unsaved: map[string]JobInfo{}, inflight: map[string]chan struct{}{}, wake: make(chan struct{}, 1)}
 }
 
 func openStudio(t *testing.T, root string) (*store.Store, store.Cut) {
@@ -216,4 +217,119 @@ func TestASecondGuestCannotOpenTheSameStudio(t *testing.T) {
 		t.Fatalf("boots %d then %d; want consecutive", st.Boot(), st2.Boot())
 	}
 	st2.Close()
+}
+
+// Mira's check at eef32a82: the cut's rename lands, the directory sync after it fails.
+// The reply must say uncertain, and so must every retry.
+func TestMiraPostRenameSyncFailureMustReportUncertain(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the permission boundary")
+	}
+	root := t.TempDir()
+	st, _ := openStudio(t, root)
+	p, _ := json.Marshal(map[string]string{"scene": sceneOf(t, st), "name": "Committed but not confirmed durable"})
+	// Search and write let the temp file be created and renamed; without read, the
+	// directory can't be opened for its sync.
+	if err := os.Chmod(root, 0o300); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(root, 0o700) })
+	h := miraDormantHub(st)
+	m := miraCall(h, "1", "uncertain-cut-write", "cut.create", string(p))
+	if n := cutCount(t, st); n != 2 {
+		t.Fatalf("fixture did not reach the post-rename state: cuts=%d reply=%+v", n, m)
+	}
+	if m.Error == nil || m.Error.Code != "uncertain" {
+		t.Fatalf("reply = %+v; want uncertain", m)
+	}
+	entry, err := st.LoadEntry("uncertain-cut-write")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.State != store.Pending {
+		t.Fatalf("ledger state = %s; want pending, so a retry can't replay a possibly wrong reply", entry.State)
+	}
+	retry := miraCall(h, "2", "uncertain-cut-write", "cut.create", string(p))
+	if retry.Error == nil || retry.Error.Code != "uncertain" || cutCount(t, st) != 2 {
+		t.Fatalf("retry = %+v, cuts=%d; want uncertain and still 2 cuts", retry, cutCount(t, st))
+	}
+}
+
+// A failure before the rename changes nothing: storage_error, final, and a retry
+// replays it rather than trying again under the same id.
+func TestAStorageFailureBeforeTheRenameChangesNothing(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	root := t.TempDir()
+	st, c := openStudio(t, root)
+	docDir := filepath.Join(root, "documents", c.Document)
+	if err := os.Chmod(docDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(docDir, 0o755) })
+	h := miraDormantHub(st)
+	p := `{"document": "` + c.Document + `", "base": 0, "body": {"layers": ["x"]}}`
+	for i, id := range []string{"1", "2"} {
+		m := miraCall(h, id, "unwritable-doc", "document.put", p)
+		if m.Error == nil || m.Error.Code != "storage_error" {
+			t.Fatalf("attempt %d: reply = %+v; want storage_error", i+1, m)
+		}
+	}
+	if d, err := st.GetDocument(c.Document, -1); err != nil || d.Revision != 0 {
+		t.Fatalf("newest revision = %d (%v); want 0", d.Revision, err)
+	}
+	if entry, err := st.LoadEntry("unwritable-doc"); err != nil || entry.State != store.Complete {
+		t.Fatalf("ledger = %+v (%v); want complete", entry, err)
+	}
+}
+
+// A job record from this boot that never reached the queue reads as never started.
+func TestAJobRecordedButNeverQueuedReadsNeverStarted(t *testing.T) {
+	st, c := openStudio(t, t.TempDir())
+	h := miraDormantHub(st)
+	id := st.JobID(7)
+	b, _ := json.Marshal(JobInfo{ID: id, State: "queued", Request: "r", Submission: Submission{Cut: c.ID}})
+	if err := st.SaveJob(id, b); err != nil {
+		t.Fatal(err)
+	}
+	info, err := h.job(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State != "ended" || info.Outcome != EndedFailed || !strings.Contains(info.Reason, "never started") {
+		t.Fatalf("job = %+v; want ended, failed, never started", info)
+	}
+}
+
+// An ending the guest couldn't write is still reported truly for the rest of this boot.
+func TestAnEndingThatCannotBeRecordedIsStillReported(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	root := t.TempDir()
+	st, c := openStudio(t, root)
+	h := miraDormantHub(st)
+	m := miraCall(h, "1", "will-end", "generate", text(c, 0))
+	if m.Error != nil {
+		t.Fatal(m.Error)
+	}
+	id := jobOf(t, m)
+	jobs := filepath.Join(root, "jobs")
+	if err := os.Chmod(jobs, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(jobs, 0o755) })
+	h.mu.Lock()
+	j := h.queue[0]
+	h.queue = h.queue[1:]
+	h.mu.Unlock()
+	h.finish(j, EndedSkipped, "", "")
+	info, err := h.job(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State != "ended" || info.Outcome != EndedSkipped {
+		t.Fatalf("job = %+v; want the unrecorded ending, skipped", info)
+	}
 }

@@ -162,6 +162,8 @@ type Hub struct {
 	queue    []*job
 	running  *job
 	nextJob  int
+	starting map[string]bool    // job ids being recorded, not yet queued
+	unsaved  map[string]JobInfo // endings this boot couldn't record on disk
 	inflight map[string]chan struct{}
 	wake     chan struct{}
 }
@@ -177,7 +179,7 @@ type job struct {
 
 // NewHub starts the job runner. Cancel ctx to stop it.
 func NewHub(ctx context.Context, engine Engine, st *store.Store) *Hub {
-	h := &Hub{engine: engine, store: st, sinks: map[Sink]struct{}{}, inflight: map[string]chan struct{}{}, wake: make(chan struct{}, 1)}
+	h := &Hub{engine: engine, store: st, sinks: map[Sink]struct{}{}, starting: map[string]bool{}, unsaved: map[string]JobInfo{}, inflight: map[string]chan struct{}{}, wake: make(chan struct{}, 1)}
 	go h.run(ctx)
 	return h
 }
@@ -270,6 +272,11 @@ func (h *Hub) Handle(raw []byte) Message {
 		return failure(c.ID, "storage_error", "can't record the request before acting on it: "+err.Error())
 	}
 	m := h.dispatch(c)
+	if m.Error != nil && m.Error.Code == "uncertain" {
+		// The effect may have landed. Leaving the entry pending makes every retry
+		// answer uncertain too, rather than replaying a reply that might be wrong.
+		return m
+	}
 	reply, err := json.Marshal(m)
 	if err == nil {
 		entry.State, entry.Reply = store.Complete, reply
@@ -308,14 +315,21 @@ func failure(id, code, msg string) Message {
 	return Message{Type: "reply", ID: id, Error: &Error{Code: code, Message: msg}}
 }
 
+// storeFailure turns a store error into a reply. Refusals name what was wrong. A
+// storage failure means nothing visible changed, so the client may try again with a new
+// request id; uncertain means the change may have landed, and the client must look.
 func storeFailure(id string, err error) Message {
 	switch {
 	case errors.Is(err, store.ErrStale):
 		return failure(id, "stale", err.Error())
 	case errors.Is(err, store.ErrNotFound):
 		return failure(id, "not_found", err.Error())
-	default:
+	case errors.Is(err, store.ErrInvalid):
 		return failure(id, "bad_request", err.Error())
+	case errors.Is(err, store.ErrUncertain):
+		return failure(id, "uncertain", err.Error()+"; read the studio to see whether it did")
+	default:
+		return failure(id, "storage_error", err.Error())
 	}
 }
 
@@ -383,6 +397,9 @@ func (h *Hub) dispatch(c Call) Message {
 			return failure(c.ID, "bad_request", "document.put needs a document id, the base revision and a body")
 		}
 		rev, err := h.store.PutDocument(p.Document, *p.Base, p.Body)
+		if errors.Is(err, store.ErrUncertain) {
+			h.event("document", "", map[string]any{"document": p.Document, "revision": rev})
+		}
 		if err != nil {
 			return storeFailure(c.ID, err)
 		}
@@ -397,6 +414,9 @@ func (h *Hub) dispatch(c Call) Message {
 			return failure(c.ID, "bad_request", "choose needs a cut and a take")
 		}
 		if err := h.store.Choose(p.Cut, p.Take); err != nil {
+			if errors.Is(err, store.ErrUncertain) {
+				h.event("chosen", "", map[string]string{"cut": p.Cut, "take": p.Take})
+			}
 			return storeFailure(c.ID, err)
 		}
 		h.event("chosen", "", map[string]string{"cut": p.Cut, "take": p.Take})
@@ -410,6 +430,9 @@ func (h *Hub) dispatch(c Call) Message {
 			return failure(c.ID, "bad_request", "cut.create needs a scene and a name")
 		}
 		cut, err := h.store.AddCut(p.Scene, p.Name)
+		if errors.Is(err, store.ErrUncertain) {
+			h.event("studio", "", map[string]string{"cut": cut.ID})
+		}
 		if err != nil {
 			return storeFailure(c.ID, err)
 		}
@@ -522,7 +545,9 @@ func (h *Hub) generate(c Call) Message {
 	}
 	id, err := h.enqueue(c.Request, p.Submission, req)
 	if err != nil {
-		return failure(c.ID, "storage_error", "can't record the job: "+err.Error())
+		// Not queued either way. If the record may have landed, job.get reports that
+		// job as never started.
+		return storeFailure(c.ID, fmt.Errorf("can't record the job: %w", err))
 	}
 	return success(c.ID, map[string]string{"job": id})
 }
@@ -533,12 +558,17 @@ func (h *Hub) enqueue(request string, sub Submission, req *api.GenerateRequest) 
 	h.mu.Lock()
 	h.nextJob++
 	id := h.store.JobID(h.nextJob)
+	h.starting[id] = true // so job() doesn't call it never-started while it's recorded
 	h.mu.Unlock()
-	if err := h.saveJob(JobInfo{ID: id, State: "queued", Request: request, Submission: sub}); err != nil {
-		return "", err
-	}
+	err := h.saveJob(JobInfo{ID: id, State: "queued", Request: request, Submission: sub})
 	ctx, cancel := context.WithCancelCause(context.Background())
 	h.mu.Lock()
+	delete(h.starting, id)
+	if err != nil {
+		h.mu.Unlock()
+		cancel(nil)
+		return "", err
+	}
 	h.queue = append(h.queue, &job{id: id, request: request, sub: sub, req: req, ctx: ctx, cancel: cancel})
 	queued := len(h.queue)
 	h.mu.Unlock()
@@ -558,9 +588,10 @@ func (h *Hub) saveJob(info JobInfo) error {
 	return h.store.SaveJob(info.ID, b)
 }
 
-// job reports one job by exact id, from any boot. Its ending on disk wins; otherwise
-// it's queued or running in this guest; otherwise an earlier boot left it unfinished,
-// so it was interrupted.
+// job reports one job by exact id, from any boot. Its ending on disk wins, then an
+// ending this guest couldn't write; otherwise it's queued or running here. A record left
+// unfinished by an earlier boot was interrupted; one from this boot that isn't live was
+// never queued, because recording it failed.
 func (h *Hub) job(id string) (JobInfo, error) {
 	var info JobInfo
 	rec, err := h.store.LoadJob(id)
@@ -576,6 +607,14 @@ func (h *Hub) job(id string) (JobInfo, error) {
 		}
 	}
 	h.mu.Lock()
+	if unsaved, ok := h.unsaved[id]; ok {
+		h.mu.Unlock()
+		return unsaved, nil
+	}
+	if h.starting[id] {
+		h.mu.Unlock()
+		return JobInfo{ID: id, State: "queued", Request: info.Request, Submission: info.Submission}, nil
+	}
 	live := h.running
 	if live == nil || live.id != id {
 		live = nil
@@ -598,8 +637,11 @@ func (h *Hub) job(id string) (JobInfo, error) {
 	if errors.Is(err, store.ErrNotFound) {
 		return info, store.ErrNotFound
 	}
+	info.State = "ended"
 	if boot, _ := store.JobBoot(id); boot < h.store.Boot() {
-		info.State, info.Outcome, info.Reason = "ended", EndedInterrupted, "guest restarted"
+		info.Outcome, info.Reason = EndedInterrupted, "guest restarted"
+	} else {
+		info.Outcome, info.Reason = EndedFailed, "never started: recording the job failed"
 	}
 	return info, nil
 }
@@ -646,7 +688,12 @@ func (h *Hub) jobs(before string, limit int) (jobPage, error) {
 func (h *Hub) finish(j *job, outcome, reason, take string) {
 	info := JobInfo{ID: j.id, State: "ended", Request: j.request, Submission: j.sub, Outcome: outcome, Reason: reason, Take: take}
 	if err := h.saveJob(info); err != nil {
+		// Keep the true ending for this boot. After a restart the job reads
+		// interrupted, even if its take exists.
 		log.Printf("diffusatory: record the ending of job %s: %v", j.id, err)
+		h.mu.Lock()
+		h.unsaved[j.id] = info
+		h.mu.Unlock()
 	}
 	data := map[string]string{"outcome": outcome, "cut": j.sub.Cut}
 	if reason != "" {
@@ -713,7 +760,11 @@ func (h *Hub) runJob(j *job) {
 		receipt, _ := json.Marshal(res.Receipt)
 		take, err := h.store.AddTake(j.sub.Cut, "image", j.id, res.PNG, manifest, receipt)
 		if err != nil {
-			h.finish(j, EndedFailed, "store_error: "+err.Error(), "")
+			reason := "store_error: "
+			if errors.Is(err, store.ErrUncertain) {
+				reason = "store_uncertain: the take may exist: "
+			}
+			h.finish(j, EndedFailed, reason+err.Error(), "")
 			return
 		}
 		h.finish(j, EndedDone, "", take.ID)
