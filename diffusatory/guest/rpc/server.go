@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"path/filepath"
+	"regexp"
 	"sync"
 
 	"github.com/TikiTDO/stable-diffusion-webui-forge/diffusatory/guest/ws"
@@ -82,4 +84,19 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		c.Send(h.Handle(raw))
 	}
+}
+
+var takeFile = regexp.MustCompile(`^/takes/(t[0-9a-f]{12})\.(png|mp4)$`)
+
+// TakeFiles serves finished takes by id, so results travel as a take id in the ended
+// event and the page fetches the file itself instead of every tab receiving the bytes.
+func TakeFiles(studio string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		m := takeFile.FindStringSubmatch(r.URL.Path)
+		if m == nil || r.Method != http.MethodGet {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join(studio, "takes", m[1]+"."+m[2]))
+	})
 }

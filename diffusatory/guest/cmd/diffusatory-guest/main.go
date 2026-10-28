@@ -15,6 +15,7 @@ import (
 
 	"github.com/TikiTDO/stable-diffusion-webui-forge/diffusatory/guest/api"
 	"github.com/TikiTDO/stable-diffusion-webui-forge/diffusatory/guest/rpc"
+	"github.com/TikiTDO/stable-diffusion-webui-forge/diffusatory/guest/store"
 )
 
 // noEngine advertises nothing, so Validate refuses every checkpoint by name.
@@ -32,13 +33,20 @@ func main() {
 	// Loopback by default: the socket has no authentication yet, so it must not be
 	// reachable from the network until the access check lands.
 	listen := flag.String("listen", "127.0.0.1:7871", "address to serve the socket on")
+	studio := flag.String("studio", "studio", "directory holding projects, documents and takes")
 	flag.Parse()
+
+	st, err := store.Open(*studio)
+	if err != nil {
+		log.Fatalf("diffusatory-guest: open studio: %v", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	mux := http.NewServeMux()
-	mux.Handle("/socket", rpc.NewHub(ctx, noEngine{}))
+	mux.Handle("/socket", rpc.NewHub(ctx, noEngine{}, st))
+	mux.Handle("/takes/", rpc.TakeFiles(*studio))
 	srv := &http.Server{Addr: *listen, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
