@@ -38,10 +38,11 @@ type GenerateRequest struct {
 	Scheduler         string   `json:"scheduler"`
 	CFGScale          float64  `json:"cfgScale"`
 	DistilledCFGScale *float64 `json:"distilledCfgScale,omitempty"`
-	// Seed is required: a receipt without the seed cannot be reproduced. -1 is refused
-	// rather than randomised here; the client picks and records a seed.
-	Seed    int64 `json:"seed"`
-	Outputs int   `json:"outputs,omitempty"`
+	// Seed is required: a receipt without the seed cannot be reproduced. A pointer keeps
+	// an omitted seed apart from an explicit 0. -1 is refused rather than randomised
+	// here; the client picks and records a seed.
+	Seed    *int64 `json:"seed"`
+	Outputs int    `json:"outputs,omitempty"`
 
 	PreviewEvery *int            `json:"previewEvery,omitempty"`
 	LoRAs        []LoRA          `json:"loras,omitempty"`
@@ -173,7 +174,7 @@ func Validate(req *GenerateRequest, caps Capabilities) error {
 	if strings.TrimSpace(req.Prompt) == "" {
 		refuse("prompt", "required")
 	}
-	if req.Seed < 0 {
+	if req.Seed == nil || *req.Seed < 0 {
 		refuse("seed", "required and non-negative; the client chooses and records the seed")
 	}
 	if req.Outputs < 0 || req.Outputs > caps.MaxOutputs {

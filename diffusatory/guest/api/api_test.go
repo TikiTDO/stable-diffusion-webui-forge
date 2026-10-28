@@ -112,11 +112,25 @@ func TestSettingsOutsideTheCheckpointAreRefused(t *testing.T) {
 	req := decode(t, reference)
 	req.Width, req.Height, req.Steps = 1024, 1024, 20
 	req.Sampler, req.Scheduler, req.CFGScale = "DPM++ 2M", "Karras", 7
-	req.Seed, req.Outputs, req.Prompt = -1, 4, " "
+	seed := int64(-1)
+	req.Seed, req.Outputs, req.Prompt = &seed, 4, " "
 	got := refusedFields(t, Validate(req, Stage1()))
 	want := "prompt,seed,outputs,width,steps,sampler,scheduler,cfgScale"
 	if strings.Join(got, ",") != want {
 		t.Fatalf("refused %v, want %s", got, want)
+	}
+}
+
+// An omitted seed must not decode to 0 and pass: the receipt would claim a seed nobody chose.
+func TestSeedIsRequiredButZeroIsAValidSeed(t *testing.T) {
+	missing := strings.Replace(reference, `, "seed": 19`, ``, 1)
+	got := refusedFields(t, Validate(decode(t, missing), Stage1()))
+	if strings.Join(got, ",") != "seed" {
+		t.Fatalf("refused %v, want [seed]", got)
+	}
+	zero := strings.Replace(reference, `"seed": 19`, `"seed": 0`, 1)
+	if err := Validate(decode(t, zero), Stage1()); err != nil {
+		t.Fatalf("explicit seed 0 refused: %v", err)
 	}
 }
 
