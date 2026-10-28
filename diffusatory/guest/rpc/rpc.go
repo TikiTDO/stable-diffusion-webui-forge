@@ -18,8 +18,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/TikiTDO/stable-diffusion-webui-forge/diffusatory/guest/api"
@@ -103,7 +105,9 @@ var (
 	errSkipped   = errors.New("skipped by the client")
 )
 
-// keepEnded and keepReplies bound the memory the hub uses for reconnects and retries.
+// keepEnded bounds the ended jobs kept in memory for reconnecting tabs; keepReplies
+// bounds the in-memory reply cache. Replies to mutating calls are also stored on disk,
+// so a retry still finds its reply after the cache has moved on.
 const (
 	keepEnded   = 200
 	keepReplies = 4096
@@ -230,6 +234,15 @@ func (h *Hub) Handle(raw []byte) Message {
 			prev.ID = c.ID
 			return prev
 		}
+		if stored, err := h.store.LoadReply(c.Request); err == nil {
+			h.mu.Unlock()
+			var prev Message
+			if err := json.Unmarshal(stored, &prev); err != nil {
+				return failure(c.ID, "bad_request", "stored reply for this request id is unreadable: "+err.Error())
+			}
+			prev.ID = c.ID
+			return prev
+		}
 		wait, busy := h.inflight[c.Request]
 		if !busy {
 			h.inflight[c.Request] = make(chan struct{})
@@ -240,6 +253,11 @@ func (h *Hub) Handle(raw []byte) Message {
 		<-wait
 	}
 	m := h.dispatch(c)
+	if b, err := json.Marshal(m); err == nil {
+		if err := h.store.SaveReply(c.Request, b); err != nil {
+			log.Printf("diffusatory: store reply for request %q: %v", c.Request, err)
+		}
+	}
 	h.remember(c.Request, m)
 	return m
 }
@@ -398,24 +416,43 @@ func (h *Hub) generate(c Call) Message {
 	if p.Target == "" {
 		refuse("target", "required: the layer the result lands on")
 	}
+	// Edit, inpaint and infill read their source and mask from the document's layers.
+	// Until the layer resolver exists nothing would reach the engine, so refuse them
+	// rather than accept a job with no source (Mira's review of a2fc9391).
+	if p.Operation == OpEdit || p.Operation == OpInpaint || p.Operation == OpInfill {
+		refuse("operation", p.Operation+" needs the layer resolver, which isn't built yet")
+	}
+	// A revision pins the content a job reads; "newest" would let it change later.
+	if p.Revision < 0 {
+		refuse("revision", "must be a saved revision number, not a moving alias")
+	}
 	cut, err := h.store.FindCut(p.Cut)
 	if err != nil {
 		refuse("cut", err.Error())
 	} else if cut.Document != p.Document {
 		refuse("document", fmt.Sprintf("cut %s uses document %s", p.Cut, cut.Document))
-	} else if _, err := h.store.GetDocument(p.Document, p.Revision); err != nil {
-		refuse("revision", err.Error())
-	}
-	// A source image is built from the document's layers, not sent in the request; the
-	// engine stages that accept one say so in their capabilities.
-	if p.Operation != OpText && p.Operation != "" && !h.engine.Capabilities().Img2Img {
-		refuse("operation", p.Operation+" is not supported by this engine stage")
+	} else if p.Revision >= 0 {
+		if _, err := h.store.GetDocument(p.Document, p.Revision); err != nil {
+			refuse("revision", err.Error())
+		}
 	}
 
 	req, err := api.Decode(bytes.NewReader(p.Request))
 	if err != nil {
 		return failure(c.ID, "bad_request", err.Error())
 	}
+	// The source and mask come from the document's layers, named by the submission, so
+	// an image or mask carried inside the request would bypass that explicit choice.
+	for field, set := range map[string]bool{
+		"initImage": req.InitImage != "", "mask": req.Mask != "", "denoisingStrength": req.DenoisingStrength != nil,
+		"maskBlur": req.MaskBlur != nil, "inpaintOnlyMasked": req.InpaintOnlyMasked != nil,
+		"inpaintPadding": req.InpaintPadding != nil, "resizeMode": req.ResizeMode != nil,
+	} {
+		if set {
+			refuse("request."+field, "the source and mask come from the document's layers, not the request")
+		}
+	}
+	slices.SortStableFunc(refused, func(a, b api.FieldError) int { return strings.Compare(a.Field, b.Field) })
 	if err := api.Validate(req, h.engine.Capabilities()); err != nil {
 		var r *api.RefusalError
 		if !errors.As(err, &r) {

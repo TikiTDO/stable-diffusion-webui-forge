@@ -10,6 +10,7 @@ package store
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -366,4 +367,29 @@ func (s *Store) AddCut(scene, name string) (Cut, error) {
 		}
 	}
 	return Cut{}, fmt.Errorf("scene %q: %w", scene, ErrNotFound)
+}
+
+// requestFile names the stored reply for one request id. The id is hashed so any client
+// string is a safe file name.
+func (s *Store) requestFile(request string) string {
+	sum := sha256.Sum256([]byte(request))
+	return filepath.Join(s.root, "requests", hex.EncodeToString(sum[:])+".json")
+}
+
+// SaveReply records the reply to a mutating request, so a retry of the same request id
+// gets that reply back however long afterwards, instead of doing the work again.
+func (s *Store) SaveReply(request string, reply json.RawMessage) error {
+	if err := os.MkdirAll(filepath.Join(s.root, "requests"), 0o755); err != nil {
+		return err
+	}
+	return writeAtomic(s.requestFile(request), reply)
+}
+
+// LoadReply returns the recorded reply for a request id, or ErrNotFound.
+func (s *Store) LoadReply(request string) (json.RawMessage, error) {
+	b, err := os.ReadFile(s.requestFile(request))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, ErrNotFound
+	}
+	return b, err
 }

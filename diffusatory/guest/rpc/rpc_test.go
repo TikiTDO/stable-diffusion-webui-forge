@@ -132,6 +132,22 @@ func (tb *tab) next(keep func(map[string]any) bool) map[string]any {
 	return nil
 }
 
+// replyAndEnded waits for both the reply to call id and the ended event of job, in
+// either order: a job can end, and its event go out, before the reply to the call that
+// ended it has been written.
+func (tb *tab) replyAndEnded(id, job string) (r, ended map[string]any) {
+	tb.t.Helper()
+	for r == nil || ended == nil {
+		m := tb.next(func(m map[string]any) bool { return reply(id)(m) || (event("ended")(m) && m["job"] == job) })
+		if m["type"] == "reply" {
+			r = m
+		} else {
+			ended = m
+		}
+	}
+	return r, ended
+}
+
 func reply(id string) func(map[string]any) bool {
 	return func(m map[string]any) bool { return m["type"] == "reply" && m["id"] == id }
 }
@@ -198,9 +214,9 @@ func TestCancelAndSkipEndARunningJobDifferently(t *testing.T) {
 		eng.tick <- struct{}{}
 		tb.next(func(m map[string]any) bool { return event("progress")(m) && data(m)["step"] == float64(1) })
 		tb.call("2", method, `{"job": "`+job+`"}`)
-		tb.next(reply("2"))
+		_, ended := tb.replyAndEnded("2", job)
 		want := map[string]string{"cancel": EndedCancelled, "skip": EndedSkipped}[method]
-		if out := data(tb.next(event("ended")))["outcome"]; out != want {
+		if out := data(ended)["outcome"]; out != want {
 			t.Fatalf("%s: ended %v, want %s", method, out, want)
 		}
 	}
@@ -215,19 +231,8 @@ func TestAQueuedJobCanBeCancelledBeforeItStarts(t *testing.T) {
 	tb.call("2", "generate", text(g.cut, 0))
 	second := tb.next(reply("2"))["result"].(map[string]any)["job"].(string)
 	tb.call("3", "cancel", `{"job": "`+second+`"}`)
-	// A queued job ends at once, so its ended event may arrive before the cancel
-	// reply; the client must accept either order.
-	var gotReply, gotEnded bool
-	for !gotReply || !gotEnded {
-		m := tb.next(func(m map[string]any) bool { return reply("3")(m) || event("ended")(m) })
-		if m["type"] == "reply" {
-			gotReply = true
-			continue
-		}
-		if m["job"] != second || data(m)["outcome"] != EndedCancelled {
-			t.Fatalf("ended = %v", m)
-		}
-		gotEnded = true
+	if _, ended := tb.replyAndEnded("3", second); data(ended)["outcome"] != EndedCancelled {
+		t.Fatalf("ended = %v", ended)
 	}
 }
 
@@ -291,9 +296,12 @@ func TestTheOperationIsExplicitNotInferredFromLayers(t *testing.T) {
 			t.Fatalf("case %d: error = %v, want %s refused", i, e, c.field)
 		}
 	}
+	// A well-formed edit is still refused until the layer resolver exists: accepting it
+	// now would send the engine no source at all.
 	tb.call("ok", "generate", sub("edit", `, "reference": ["layer-1"]`))
-	if r := tb.next(reply("ok")); r["error"] != nil {
-		t.Fatalf("an edit with a reference and no mask was refused: %v", r["error"])
+	e := tb.next(reply("ok"))["error"].(map[string]any)
+	if !strings.Contains(fmt.Sprint(e["fields"]), "field:operation reason:edit needs the layer resolver") {
+		t.Fatalf("well-formed edit: %v, want refused for the missing resolver", e)
 	}
 }
 
